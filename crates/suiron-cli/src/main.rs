@@ -2,13 +2,21 @@ use std::collections::BTreeMap;
 use std::process::ExitCode;
 use std::time::Instant;
 
-use suiron_gguf::GgufFile;
+use suiron_gguf::{GgufFile, MetadataValue};
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     let result = match args.get(1).map(String::as_str) {
         Some("inspect") => match args.get(2) {
             Some(path) => inspect(path),
+            None => usage(),
+        },
+        Some("vocab") => match args.get(2) {
+            Some(path) => {
+                let start = parse_or(args.get(3), 0);
+                let count = parse_or(args.get(4), 40);
+                vocab(path, start, count)
+            }
             None => usage(),
         },
         _ => usage(),
@@ -23,7 +31,27 @@ fn main() -> ExitCode {
 }
 
 fn usage() -> Result<(), Box<dyn std::error::Error>> {
-    Err("usage: suiron inspect <model.gguf>".into())
+    Err("usage: suiron inspect <model.gguf> | suiron vocab <model.gguf> [start] [count]".into())
+}
+
+fn parse_or(arg: Option<&String>, default: usize) -> usize {
+    arg.and_then(|s| s.parse().ok()).unwrap_or(default)
+}
+
+/// Print `count` vocabulary entries starting at token id `start`.
+fn vocab(path: &str, start: usize, count: usize) -> Result<(), Box<dyn std::error::Error>> {
+    let file = GgufFile::open(path)?;
+    let tokens = file
+        .metadata
+        .get("tokenizer.ggml.tokens")
+        .and_then(MetadataValue::as_array)
+        .ok_or("no tokenizer.ggml.tokens array in metadata")?;
+
+    println!("{} tokens total\n", tokens.len());
+    for (id, tok) in tokens.iter().enumerate().skip(start).take(count) {
+        println!("{id:>7}  {:?}", tok.as_str().unwrap_or("<non-string>"));
+    }
+    Ok(())
 }
 
 fn inspect(path: &str) -> Result<(), Box<dyn std::error::Error>> {
