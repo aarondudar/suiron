@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = ["crates/suiron-gguf", "crates/suiron-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Aaron Dudar <aarondudar@gmail.com>"]
+
+[profile.release]
+lto = true
+codegen-units = 1
