@@ -1,12 +1,7 @@
-# 推論 suiron
+# suiron
 
 A large-language-model inference engine for Apple Silicon, written from scratch in Rust.
-Zero runtime dependencies — no candle, no tokenizers, no ggml bindings. Every layer of the
-stack, from the GGUF file parser to the Metal kernels, is implemented in this repository.
-
-*Suiron* (推論) is Japanese for "inference." The engine's long-term goal is to power
-on-device AI features in [Kana Master](https://github.com/aarondudar/Kana-Master-Mobile),
-a shipped iOS app for learning Japanese.
+Zero runtime dependencies: no candle, no tokenizers, no ggml bindings. Every layer of the stack, from the GGUF file parser to the Metal kernels, is implemented in this repository.
 
 ## Why from scratch?
 
@@ -20,13 +15,13 @@ Each milestone is independently runnable and verified against `llama.cpp` output
 
 - [x] **M0 — GGUF parser.** Parse the GGUF v3 container (metadata, tensor index, Q8_0
       blocks) with a zero-dependency reader. `suiron inspect <model>` dumps the
-      architecture. *(done — see `crates/suiron-gguf`)*
+      architecture. _(done — see `crates/suiron-gguf`)_
 - [ ] **M1 — One correct token.** Byte-level BPE tokenizer from GGUF vocab + fp32 CPU
       forward pass (RMSNorm, RoPE, GQA attention, SwiGLU) for Qwen3-0.6B. Logits match
       llama.cpp.
 - [ ] **M2 — CPU generation.** KV cache, sampling (greedy/top-p/temperature), streaming
       output. `suiron run <model> -p "..."`.
-- [ ] **MV — Inference microscope.** *(parallel track, unlocked by M2.)* `suiron trace`
+- [ ] **MV — Inference microscope.** _(parallel track, unlocked by M2.)_ `suiron trace`
       records every intermediate of a real forward pass — tokenization, attention maps,
       KV cache growth, ranked logits — and a zero-dependency local viewer renders it as
       a minimalist, dot-matrix "glass box" you can step through token by token. No such
@@ -52,10 +47,10 @@ cargo run --release -p suiron-cli -- inspect models/Qwen3-0.6B-Q8_0.gguf
 
 ## Workspace layout
 
-| Crate | Purpose |
-|---|---|
+| Crate         | Purpose                                                          |
+| ------------- | ---------------------------------------------------------------- |
 | `suiron-gguf` | GGUF v3 container format: metadata, tensor index, dequantization |
-| `suiron-cli` | Command-line interface (`inspect`, later `run` and `serve`) |
+| `suiron-cli`  | Command-line interface (`inspect`, later `run` and `serve`)      |
 
 ## License
 

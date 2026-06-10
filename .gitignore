@@ -1,3 +1,4 @@
 /target
 /models/*.gguf
 .DS_Store
+/DEVPLAN.md

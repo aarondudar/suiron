@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/suiron-gguf", "crates/suiron-cli"]
+members = ["crates/suiron-gguf", "crates/suiron-cli", "crates/suiron-core"]
 
 [workspace.package]
 version = "0.1.0"

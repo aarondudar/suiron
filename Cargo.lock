@@ -10,5 +10,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "suiron-core"
+version = "0.1.0"
+dependencies = [
+ "suiron-gguf",
+]
+
+[[package]]
 name = "suiron-gguf"
 version = "0.1.0"
