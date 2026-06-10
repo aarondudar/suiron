@@ -1,0 +1,10 @@
+[package]
+name = "suiron-core"
+description = "Tokenizer and CPU forward pass (M1+)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+suiron-gguf = { path = "../suiron-gguf" }
