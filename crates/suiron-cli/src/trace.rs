@@ -80,13 +80,16 @@ pub fn escape_json(s: &str) -> String {
 }
 
 /// Serialize a complete trace. Format v1; the viewer depends on this shape.
+/// `live` adds the busy/seq fields the lab UI polls on.
+#[allow(clippy::too_many_arguments)]
 pub fn write_trace(
     model_name: &str,
     quant: &str,
     config: &Config,
     tokens: &[(u32, String)],
     n_prompt: usize,
-    rec: &Recorder,
+    steps: &[Step],
+    live: Option<(bool, u64)>,
     decode: impl Fn(u32) -> String,
 ) -> String {
     let mut j = String::with_capacity(1 << 20);
@@ -94,6 +97,9 @@ pub fn write_trace(
         "{{\"v\":1,\"model\":\"{}\",\"quant\":\"{}\",\"layers\":{},\"heads\":{},\"kv_heads\":{},\"n_prompt\":{},",
         escape_json(model_name), quant, config.n_layers, config.n_heads, config.n_kv_heads, n_prompt
     ));
+    if let Some((busy, seq)) = live {
+        j.push_str(&format!("\"live\":true,\"busy\":{busy},\"seq\":{seq},"));
+    }
 
     j.push_str("\"tokens\":[");
     for (i, (id, text)) in tokens.iter().enumerate() {
@@ -104,7 +110,7 @@ pub fn write_trace(
     }
     j.push_str("],\"steps\":[");
 
-    for (si, step) in rec.steps.iter().enumerate() {
+    for (si, step) in steps.iter().enumerate() {
         if si > 0 {
             j.push(',');
         }

@@ -60,13 +60,54 @@
   .bar-p { width: 56px; color: var(--dim); }
   footer { color: var(--dim); font-size: 10px; border-top: 1px solid var(--hair); padding-top: 10px; }
   canvas { display: block; }
+  /* lab controls */
+  .ctl-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  #prompt {
+    flex: 1; background: var(--bg); border: 1px solid var(--hair); color: var(--ink);
+    font: inherit; padding: 7px 10px; outline: none;
+  }
+  #prompt:focus { border-color: var(--dim); }
+  button {
+    background: var(--bg); border: 1px solid var(--hair); color: var(--ink);
+    font: inherit; padding: 7px 14px; cursor: pointer; text-transform: lowercase;
+  }
+  button:hover:not(:disabled) { border-color: var(--red); color: var(--red); }
+  button:disabled { color: var(--hair); cursor: default; }
+  #go.busy { border-color: var(--red); color: var(--red); }
+  .ctl-params { color: var(--dim); font-size: 10px; flex-wrap: wrap; }
+  .ctl-params label { display: flex; align-items: center; gap: 4px; }
+  .ctl-params input[type=number] {
+    width: 52px; background: var(--bg); border: 1px solid var(--hair); color: var(--ink);
+    font: inherit; font-size: 10px; padding: 3px 5px; outline: none;
+  }
+  .ctl-params input[type=checkbox] { accent-color: var(--red); }
+  #live-dot { transition: opacity 0.3s; opacity: 0.25; }
+  #live-dot.on { opacity: 1; }
 </style>
 </head>
 <body>
 <header>
   <div class="spec" id="spec">loading…</div>
-  <div class="pos">token <b id="cur">0</b> / <span id="total">0</span><span class="dot-live"></span></div>
+  <div class="pos">token <b id="cur">0</b> / <span id="total">0</span><span class="dot-live" id="live-dot"></span></div>
 </header>
+
+<section id="controls" style="display:none">
+  <div class="label">prompt — the model is resident; generation streams into the trace below</div>
+  <div class="ctl-row">
+    <input id="prompt" type="text" placeholder="the cat sat on the" spellcheck="false">
+    <button id="go">generate</button>
+    <button id="halt" disabled>stop</button>
+  </div>
+  <div class="ctl-row ctl-params">
+    <label>n <input id="p-n" type="number" value="32" min="1" max="512"></label>
+    <label>temp <input id="p-temp" type="number" value="0" step="0.1" min="0" max="2"></label>
+    <label>top-k <input id="p-topk" type="number" value="40" min="0"></label>
+    <label>top-p <input id="p-topp" type="number" value="0.95" step="0.05" min="0" max="1"></label>
+    <label>seed <input id="p-seed" type="number" value="7" min="0"></label>
+    <label class="chk"><input id="p-chat" type="checkbox"> chat</label>
+    <label class="chk"><input id="p-follow" type="checkbox" checked> follow</label>
+  </div>
+</section>
 
 <section>
   <div class="label">tokens — click or ←/→ to step</div>
@@ -224,18 +265,69 @@ function render() {
 }
 
 document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
   if (e.key === "ArrowRight") { cur = Math.min(T.tokens.length - 1, cur + 1); render(); }
   if (e.key === "ArrowLeft") { cur = Math.max(0, cur - 1); render(); }
 });
 
-fetch("/trace").then(r => r.json()).then(t => {
+function applyTrace(t) {
+  const first = !T;
+  const grew = first || t.tokens.length > T.tokens.length;
   T = t;
-  cur = t.tokens.length - 1;
   $("spec").textContent =
     t.model.toLowerCase() + " · " + t.quant + " · " + t.layers + " layers · " +
     t.heads + "h/" + t.kv_heads + "kv · " + t.n_prompt + " prompt + " +
-    (t.tokens.length - t.n_prompt) + " generated";
+    Math.max(0, t.tokens.length - t.n_prompt) + " generated";
+  $("live-dot").className = "dot-live" + (t.busy ? " on" : "");
+  if (t.tokens.length === 0) { $("strip").innerHTML = ""; $("stack").innerHTML = ""; $("logits").innerHTML = ""; return; }
+  if ((grew && $("p-follow") && $("p-follow").checked) || cur >= t.tokens.length) {
+    cur = t.tokens.length - 1;
+  }
   render();
+}
+
+let lastSeq = -1;
+async function poll() {
+  try {
+    const t = await (await fetch("/trace")).json();
+    if (t.seq !== lastSeq) { lastSeq = t.seq; applyTrace(t); }
+    setTimeout(poll, t.busy ? 250 : 1200);
+  } catch (e) {
+    setTimeout(poll, 2000);
+  }
+}
+
+function setupLab() {
+  $("controls").style.display = "block";
+  const go = $("go"), halt = $("halt");
+  go.onclick = async () => {
+    const p = $("prompt").value.trim();
+    if (!p) return;
+    const q = "n=" + $("p-n").value + "&temp=" + $("p-temp").value +
+      "&top_k=" + $("p-topk").value + "&top_p=" + $("p-topp").value +
+      "&seed=" + $("p-seed").value + "&chat=" + ($("p-chat").checked ? 1 : 0);
+    openLayer = -1;
+    await fetch("/generate?" + q, { method: "POST", body: p });
+  };
+  $("prompt").addEventListener("keydown", e => { if (e.key === "Enter") go.click(); });
+  halt.onclick = () => fetch("/stop", { method: "POST" });
+  setInterval(() => {
+    const busy = T && T.busy;
+    go.classList.toggle("busy", !!busy);
+    go.disabled = !!busy;
+    halt.disabled = !busy;
+  }, 200);
+}
+
+fetch("/trace").then(r => r.json()).then(t => {
+  if (t.live) {
+    setupLab();
+    applyTrace(t);
+    poll();
+  } else {
+    cur = t.tokens.length - 1;
+    applyTrace(t);
+  }
 });
 </script>
 </body>

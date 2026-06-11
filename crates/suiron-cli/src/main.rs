@@ -1,3 +1,4 @@
+mod lab;
 mod trace;
 mod view;
 
@@ -47,6 +48,10 @@ fn main() -> ExitCode {
             Some(path) => view::serve(path, parse_or(args.get(3), 4117) as u16),
             None => usage(),
         },
+        Some("lab") => match args.get(2) {
+            Some(path) => lab::serve(path, parse_or(args.get(3), 4117) as u16),
+            None => usage(),
+        },
         _ => usage(),
     };
     match result {
@@ -68,7 +73,9 @@ fn usage() -> Result<(), Box<dyn std::error::Error>> {
          \x20 run      <model.gguf> -p <prompt> [-n N] [--temp T] [--top-k K]\n\
          \x20          [--top-p P] [--seed S] [--chat]   generate text (streams)\n\
          \x20 trace    <model.gguf> -p <prompt> [-n N] [-o out.json]   record a forward pass\n\
-         \x20 view     <trace.json> [port]              serve the microscope viewer"
+         \x20 view     <trace.json> [port]              serve the microscope viewer\n\
+         \x20 lab      <model.gguf> [port]              live microscope: model resident,\n\
+         \x20                                           prompt + inspect from the browser"
         .into())
 }
 
@@ -125,9 +132,10 @@ fn trace_cmd(path: &str, rest: &[String]) -> Result<(), Box<dyn std::error::Erro
     let tokens: Vec<(u32, String)> =
         all_ids.iter().map(|&id| (id, tok.decode(&[id]))).collect();
     let name = file.get_str("general.name").unwrap_or("model");
-    let json = trace::write_trace(name, "q8_0", &model.config, &tokens, n_prompt, &rec, |id| {
-        tok.decode(&[id])
-    });
+    let json = trace::write_trace(
+        name, "q8_0", &model.config, &tokens, n_prompt, &rec.steps, None,
+        |id| tok.decode(&[id]),
+    );
     std::fs::write(&out_path, &json)?;
     println!(
         "traced {} positions ({} prompt + {} generated) → {out_path} ({})",
@@ -258,7 +266,7 @@ fn generate_with(
 
 /// Qwen3 chat wrapping via special-token ids (the encoder treats the
 /// markers as plain text, so they're assembled by id).
-fn chat_prompt(
+pub(crate) fn chat_prompt(
     tok: &suiron_core::Tokenizer,
     user: &str,
 ) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
