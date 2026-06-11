@@ -49,6 +49,12 @@ pub fn matmul(a: &[f32], b: &[f32], m: usize, k: usize, n: usize) -> Vec<f32> {
     c
 }
 
+/// Dot product. The attention inner loop.
+pub fn dot(a: &[f32], b: &[f32]) -> f32 {
+    debug_assert_eq!(a.len(), b.len());
+    a.iter().zip(b).map(|(x, y)| x * y).sum()
+}
+
 /// Rotary position embedding, in place on one head's q or k vector.
 /// NeoX pairing (i with i+d/2), per-pair angle = pos * base^(-2i/d).
 /// Qwen3: d = 128, base = 1e6 (`qwen3.rope.freq_base`).

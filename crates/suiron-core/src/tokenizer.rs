@@ -101,6 +101,26 @@ impl Tokenizer {
         self.token_of.len()
     }
 
+    /// Raw bytes of one token — may be a partial UTF-8 sequence, so streaming
+    /// callers must buffer until valid (see cli's flush_utf8).
+    pub fn token_bytes(&self, id: u32) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        let Some(tok) = self.token_of.get(id as usize) else { return bytes };
+        for c in tok.chars() {
+            match self.char_byte.get(&c) {
+                Some(&b) => bytes.push(b),
+                None => bytes.extend(c.to_string().as_bytes()),
+            }
+        }
+        bytes
+    }
+
+    /// Exact vocab lookup (special tokens like "<|im_start|>" are stored
+    /// verbatim, so this is how the chat template finds their ids).
+    pub fn token_id(&self, s: &str) -> Option<u32> {
+        self.id_of.get(s).copied()
+    }
+
     /// Greedy BPE: keep merging the adjacent pair with the lowest rank
     /// until no pair is in the merge table. O(n²), fine for pre-token sizes.
     fn bpe(&self, piece: &str) -> Vec<String> {

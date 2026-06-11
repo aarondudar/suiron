@@ -42,6 +42,32 @@ fn vocab_matches_model() {
 }
 
 #[test]
+fn model_loads_with_expected_architecture() {
+    if !std::path::Path::new(MODEL).exists() {
+        eprintln!("skipping: {MODEL} not present");
+        return;
+    }
+    let file = GgufFile::open(MODEL).expect("model parses");
+    let m = suiron_core::Model::load(&file).expect("model loads");
+
+    let c = &m.config;
+    assert_eq!(
+        (c.n_layers, c.hidden, c.n_heads, c.n_kv_heads, c.head_dim, c.ffn, c.vocab),
+        (28, 1024, 16, 8, 128, 3072, 151_936)
+    );
+    assert_eq!(c.rope_base, 1e6);
+    assert_eq!(m.layers.len(), 28);
+    assert!(m.output.is_none(), "0.6B has tied embeddings");
+
+    // spot-check data quality: embeddings of a real token are finite and not
+    // all zero (would indicate a dequant or offset bug)
+    let emb = m.embedding(1782); // "the"
+    assert_eq!(emb.len(), 1024);
+    assert!(emb.iter().all(|v| v.is_finite()));
+    assert!(emb.iter().any(|&v| v != 0.0));
+}
+
+#[test]
 fn matches_llama_cpp_reference_ids() {
     // Fixtures captured from `llama-tokenize` (llama.cpp, 2026-06-10) on this
     // exact model file. 13/13 parity inputs passed; these pin three of them.
