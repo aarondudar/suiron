@@ -16,19 +16,26 @@ Each milestone is independently runnable and verified against `llama.cpp` output
 - [x] **M0 — GGUF parser.** Parse the GGUF v3 container (metadata, tensor index, Q8_0
       blocks) with a zero-dependency reader. `suiron inspect <model>` dumps the
       architecture. _(done — see `crates/suiron-gguf`)_
-- [ ] **M1 — One correct token.** Byte-level BPE tokenizer from GGUF vocab + fp32 CPU
+- [x] **M1 — One correct token.** Byte-level BPE tokenizer from GGUF vocab + fp32 CPU
       forward pass (RMSNorm, RoPE, GQA attention, SwiGLU) for Qwen3-0.6B. Logits match
-      llama.cpp.
-- [ ] **M2 — CPU generation.** KV cache, sampling (greedy/top-p/temperature), streaming
-      output. `suiron run <model> -p "..."`.
-- [ ] **MV — Inference microscope.** _(parallel track, unlocked by M2.)_ `suiron trace`
+      llama.cpp. _(done — tokenizer is token-exact vs `llama-tokenize` on 13/13 inputs;
+      greedy generation matches `llama-completion` token-for-token, 5/5 prompts × 32
+      tokens incl. Japanese and code)_
+- [x] **M2 — CPU generation.** KV cache, sampling (greedy/top-p/temperature), streaming
+      output. `suiron run <model> -p "..."`. _(done — UTF-8-safe streaming, seeded
+      sampling, `--chat` template, ~2 tok/s naive fp32 on M1 Pro)_
+- [x] **MV — Inference microscope.** _(parallel track, unlocked by M2.)_ `suiron trace`
       records every intermediate of a real forward pass — tokenization, attention maps,
       KV cache growth, ranked logits — and a zero-dependency local viewer renders it as
       a minimalist, dot-matrix "glass box" you can step through token by token. No such
       tool exists for real GGUF models; owning the forward pass makes it nearly free.
-      Design: [`docs/microscope.md`](docs/microscope.md).
-- [ ] **M3 — Metal backend.** Hand-written MSL kernels: matmul, RMSNorm, softmax,
-      fused attention. Correctness parity with the CPU path.
+      Design: [`docs/microscope.md`](docs/microscope.md). _(done — `suiron trace` +
+      `suiron view`; weights mode still to come)_
+- [x] **M3 — Metal backend.** Hand-written MSL kernels: matmul, RMSNorm, softmax,
+      fused attention. Correctness parity with the CPU path. _(done — zero-dep
+      Objective-C FFI, runtime-compiled MSL; matvec/rmsnorm/softmax kernels verified
+      vs CPU, full GPU forward parity, 4.1× decode speedup; attention not yet fused —
+      moves to M4 with the quantized kernels)_
 - [ ] **M4 — Quantized inference.** Q8_0/Q4 compute without dequantize-to-f32, on CPU
       (NEON) and GPU.
 - [ ] **M5 — Paged KV cache + continuous batching.** Serve concurrent generations.
