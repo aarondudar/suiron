@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "suiron-core",
  "suiron-gguf",
+ "suiron-metal",
 ]
 
 [[package]]
@@ -20,3 +21,11 @@ dependencies = [
 [[package]]
 name = "suiron-gguf"
 version = "0.1.0"
+
+[[package]]
+name = "suiron-metal"
+version = "0.1.0"
+dependencies = [
+ "suiron-core",
+ "suiron-gguf",
+]

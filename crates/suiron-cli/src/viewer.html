@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>suiron · inference microscope</title>
+<style>
+  :root {
+    --bg: #0a0a0a; --ink: #e8e8e8; --dim: #6a6a6a;
+    --hair: #2a2a2a; --red: #d71921;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 12px ui-monospace, "SF Mono", Menlo, monospace;
+    letter-spacing: 0.04em; padding: 24px; max-width: 1200px; margin: 0 auto;
+  }
+  header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-bottom: 1px solid var(--hair); padding-bottom: 12px; margin-bottom: 16px;
+  }
+  header .spec { color: var(--dim); text-transform: lowercase; }
+  header .pos b { color: var(--ink); font-weight: normal; }
+  .dot-live {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--red); margin-left: 8px; vertical-align: 1px;
+  }
+  section { margin-bottom: 20px; }
+  .label {
+    color: var(--dim); text-transform: lowercase; font-size: 10px;
+    margin-bottom: 8px; letter-spacing: 0.12em;
+  }
+  /* token strip */
+  #strip { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tok {
+    border: 1px solid var(--hair); padding: 4px 7px; cursor: pointer;
+    white-space: pre; color: var(--ink);
+  }
+  .tok.gen { border-color: #4a4a4a; }
+  .tok.cur { border-color: var(--red); color: var(--red); }
+  .tok:hover { border-color: var(--dim); }
+  /* layer stack */
+  .row { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 1px 0; }
+  .row:hover .lnum { color: var(--ink); }
+  .row.open .lnum { color: var(--red); }
+  .lnum { width: 24px; text-align: right; color: var(--dim); font-size: 10px; }
+  .rn { color: var(--dim); font-size: 10px; width: 52px; text-align: right; }
+  #detail {
+    display: none; border: 1px solid var(--hair); padding: 14px; margin-top: 10px;
+  }
+  #detail.show { display: block; }
+  #heads { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 10px; }
+  .head .hl { color: var(--dim); font-size: 10px; margin-bottom: 3px; }
+  /* logits */
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 3px; }
+  .bar-tok { width: 130px; white-space: pre; overflow: hidden; text-align: right; }
+  .bar-wrap { flex: 1; height: 10px; position: relative; }
+  .bar { height: 100%; background: var(--ink); opacity: 0.85; }
+  .bar-row.win .bar { background: var(--red); opacity: 1; }
+  .bar-row.win .bar-tok { color: var(--red); }
+  .bar-p { width: 56px; color: var(--dim); }
+  footer { color: var(--dim); font-size: 10px; border-top: 1px solid var(--hair); padding-top: 10px; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<header>
+  <div class="spec" id="spec">loading…</div>
+  <div class="pos">token <b id="cur">0</b> / <span id="total">0</span><span class="dot-live"></span></div>
+</header>
+
+<section>
+  <div class="label">tokens — click or ←/→ to step</div>
+  <div id="strip"></div>
+</section>
+
+<section>
+  <div class="label">layer stack — where attention looked (mean of heads, red = strongest) · click a layer for heads</div>
+  <div id="stack"></div>
+  <div id="detail">
+    <div class="label" id="detail-label"></div>
+    <div id="heads"></div>
+  </div>
+</section>
+
+<section>
+  <div class="label">next-token prediction</div>
+  <div id="logits"></div>
+</section>
+
+<footer>suiron — 推論 · every value on this page came from a real forward pass of the model file</footer>
+
+<script>
+let T = null;          // trace
+let cur = 0;           // current position
+let openLayer = -1;    // expanded layer or -1
+
+const $ = id => document.getElementById(id);
+const CELL = 9, R_MAX = 3.4;
+
+function dotStrip(canvas, weights, nPos) {
+  // weights: array of length nPos (0 where unknown), draws dot grid
+  const dpr = window.devicePixelRatio || 1;
+  const w = nPos * CELL, h = 14;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  canvas.style.width = w + "px"; canvas.style.height = h + "px";
+  const g = canvas.getContext("2d");
+  g.scale(dpr, dpr);
+  let maxI = 0;
+  for (let p = 0; p < nPos; p++) if (weights[p] > weights[maxI]) maxI = p;
+  for (let p = 0; p < nPos; p++) {
+    const v = weights[p];
+    if (v <= 0.004) { // empty position: faint tick
+      g.fillStyle = "#1c1c1c";
+      g.fillRect(p * CELL + CELL / 2, h / 2, 1, 1);
+      continue;
+    }
+    const r = Math.max(0.8, Math.sqrt(v) * R_MAX);
+    g.beginPath();
+    g.arc(p * CELL + CELL / 2, h / 2, r, 0, 7);
+    g.fillStyle = (p === maxI) ? "#d71921" : "#e8e8e8";
+    g.globalAlpha = (p === maxI) ? 1 : Math.min(1, 0.35 + v);
+    g.fill();
+    g.globalAlpha = 1;
+  }
+}
+
+function edgesToWeights(edges, nPos) {
+  const w = new Array(nPos).fill(0);
+  for (const [p, v] of edges) if (p < nPos) w[p] = v;
+  return w;
+}
+
+function meanHeadWeights(step, layer, nPos) {
+  const w = new Array(nPos).fill(0);
+  const heads = step.attn[layer];
+  for (const head of heads)
+    for (const [p, v] of head) if (p < nPos) w[p] += v / heads.length;
+  return w;
+}
+
+function render() {
+  const nPos = cur + 1;
+  const step = T.steps[cur];
+  $("cur").textContent = cur;
+  $("total").textContent = T.tokens.length - 1;
+
+  // token strip
+  const strip = $("strip");
+  strip.innerHTML = "";
+  T.tokens.forEach((tok, i) => {
+    const el = document.createElement("span");
+    el.className = "tok" + (i >= T.n_prompt ? " gen" : "") + (i === cur ? " cur" : "");
+    el.textContent = tok.t === "" ? "·" : tok.t;
+    el.title = "id " + tok.id + " · pos " + i;
+    el.onclick = () => { cur = i; render(); };
+    strip.appendChild(el);
+  });
+
+  // layer stack, top layer first
+  const stack = $("stack");
+  stack.innerHTML = "";
+  for (let l = T.layers - 1; l >= 0; l--) {
+    const row = document.createElement("div");
+    row.className = "row" + (l === openLayer ? " open" : "");
+    const num = document.createElement("span");
+    num.className = "lnum";
+    num.textContent = l;
+    const cv = document.createElement("canvas");
+    dotStrip(cv, meanHeadWeights(step, l, nPos), nPos);
+    const rn = document.createElement("span");
+    rn.className = "rn";
+    rn.textContent = step.rnorm[l] !== undefined ? step.rnorm[l].toFixed(1) : "";
+    row.append(num, cv, rn);
+    row.onclick = () => { openLayer = openLayer === l ? -1 : l; render(); };
+    stack.appendChild(row);
+  }
+
+  // head detail
+  const detail = $("detail");
+  if (openLayer >= 0 && step.attn[openLayer]) {
+    detail.className = "show";
+    $("detail-label").textContent =
+      "layer " + openLayer + " — " + T.heads + " heads (kv group = head ÷ " + (T.heads / T.kv_heads) + ")";
+    const heads = $("heads");
+    heads.innerHTML = "";
+    step.attn[openLayer].forEach((edges, h) => {
+      const box = document.createElement("div");
+      box.className = "head";
+      const lbl = document.createElement("div");
+      lbl.className = "hl";
+      lbl.textContent = "h" + h + " · kv" + Math.floor(h / (T.heads / T.kv_heads));
+      const cv = document.createElement("canvas");
+      dotStrip(cv, edgesToWeights(edges, nPos), nPos);
+      box.append(lbl, cv);
+      heads.appendChild(box);
+    });
+  } else {
+    detail.className = "";
+  }
+
+  // logits
+  const lg = $("logits");
+  lg.innerHTML = "";
+  const top = step.top || [];
+  const pmax = top.length ? top[0][2] : 1;
+  top.forEach(([id, text, p], i) => {
+    const row = document.createElement("div");
+    row.className = "bar-row" + (i === 0 ? " win" : "");
+    const t = document.createElement("span");
+    t.className = "bar-tok";
+    t.textContent = text === "" ? "·" : text;
+    const wrap = document.createElement("div");
+    wrap.className = "bar-wrap";
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    bar.style.width = (p / pmax * 100).toFixed(1) + "%";
+    wrap.appendChild(bar);
+    const pp = document.createElement("span");
+    pp.className = "bar-p";
+    pp.textContent = (p * 100).toFixed(1) + "%";
+    row.append(t, wrap, pp);
+    lg.appendChild(row);
+  });
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowRight") { cur = Math.min(T.tokens.length - 1, cur + 1); render(); }
+  if (e.key === "ArrowLeft") { cur = Math.max(0, cur - 1); render(); }
+});
+
+fetch("/trace").then(r => r.json()).then(t => {
+  T = t;
+  cur = t.tokens.length - 1;
+  $("spec").textContent =
+    t.model.toLowerCase() + " · " + t.quant + " · " + t.layers + " layers · " +
+    t.heads + "h/" + t.kv_heads + "kv · " + t.n_prompt + " prompt + " +
+    (t.tokens.length - t.n_prompt) + " generated";
+  render();
+});
+</script>
+</body>
+</html>

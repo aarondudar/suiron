@@ -13,3 +13,4 @@ path = "src/main.rs"
 [dependencies]
 suiron-gguf = { path = "../suiron-gguf" }
 suiron-core = { path = "../suiron-core" }
+suiron-metal = { path = "../suiron-metal" }
