@@ -19,6 +19,10 @@ fn main() -> ExitCode {
             }
             None => usage(),
         },
+        Some("tokenize") => match (args.get(2), args.get(3)) {
+            (Some(path), Some(_)) => tokenize(path, &args[3..].join(" ")),
+            _ => usage(),
+        },
         _ => usage(),
     };
     match result {
@@ -31,7 +35,24 @@ fn main() -> ExitCode {
 }
 
 fn usage() -> Result<(), Box<dyn std::error::Error>> {
-    Err("usage: suiron inspect <model.gguf> | suiron vocab <model.gguf> [start] [count]".into())
+    Err("usage: suiron <inspect|vocab|tokenize> <model.gguf> [args]\n\
+         \x20 inspect  <model.gguf>                  dump metadata and tensors\n\
+         \x20 vocab    <model.gguf> [start] [count]  print vocabulary entries\n\
+         \x20 tokenize <model.gguf> <text>           encode text to token ids"
+        .into())
+}
+
+/// Encode text and show each token id with its decoded text piece.
+fn tokenize(path: &str, text: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let file = GgufFile::open(path)?;
+    let tok = suiron_core::Tokenizer::from_gguf(&file)?;
+    let ids = tok.encode(text);
+
+    println!("{} tokens: {ids:?}\n", ids.len());
+    for &id in &ids {
+        println!("{id:>7}  {:?}", tok.decode(&[id]));
+    }
+    Ok(())
 }
 
 fn parse_or(arg: Option<&String>, default: usize) -> usize {
