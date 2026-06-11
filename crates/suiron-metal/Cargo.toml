@@ -1,0 +1,13 @@
+[package]
+name = "suiron-metal"
+description = "Metal GPU backend via hand-rolled Objective-C FFI (zero deps)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+suiron-core = { path = "../suiron-core" }
+
+[dev-dependencies]
+suiron-gguf = { path = "../suiron-gguf" }
