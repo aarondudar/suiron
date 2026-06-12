@@ -81,7 +81,18 @@ One screen, four bands. Scrubbing the token strip re-renders everything below.
    probabilities, winner in red. With temperature/top-p shown as small dials,
    you can see sampling truncate the tail.
 
-Secondary view (one keystroke away): **weights mode** — per-tensor histograms of
+5. **Selection band** — below the logits: how the current token was *actually
+   chosen*. Candidates table (logit → p@temp → final p, cut candidates struck
+   through with their cause), the cumulative-probability bar with the uniform
+   draw `r` marked on it (chosen segment red), and a one-sentence derivation
+   with the real numbers. Greedy mode collapses to the argmax story. Prompt
+   positions say "given, not chosen."
+
+**Explain mode** (footer toggle): every band label grows a plain-language
+annotation of what the visualization means. Off by default — the instrument
+stays clean; the manual is one click away.
+
+Secondary view (future): **weights mode** — per-tensor histograms of
 the dequantized distributions, Q8_0 scale-vs-quant structure, so quantization
 stops being abstract.
 
