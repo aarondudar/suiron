@@ -182,6 +182,8 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                         let model_top = st.steps[pos - 1].top.clone();
                         st.tokens.truncate(pos);
                         st.steps.truncate(pos);
+                        // forking inside the prompt makes the rest generated
+                        st.n_prompt = st.n_prompt.min(pos);
                         st.fork = Some((pos, prev));
                         st.busy = true;
                         st.seq += 1;

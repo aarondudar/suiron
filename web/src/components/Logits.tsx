@@ -33,9 +33,13 @@ export function Logits({
       <div>
         {top.map(([id, text, p], i) => (
           <div
-            className={"bar-row clickable" + (i === 0 ? " win" : "")}
+            className={"bar-row" + (busy ? " frozen" : " clickable") + (i === 0 ? " win" : "")}
             key={id}
-            title={`fork: force "${esc(text)}" as the next token`}
+            title={
+              busy
+                ? "wait for generation to finish"
+                : `fork: force "${esc(text)}" as the next token`
+            }
             onClick={() => doFork(id)}
           >
             <span className="bar-tok">{esc(text)}</span>
