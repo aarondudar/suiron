@@ -6,6 +6,9 @@ export const esc = (t: string) => (t === '' ? '·' : t)
 /** token text in display quotes: q(" the") → “ the” */
 export const q = (t: string) => `“${esc(t)}”`
 
+/** Deliberately n=1 (Aaron): the default experience showcases the TRACE of
+ *  one deeply-inspectable token, not a stream of greedy text. Use the step
+ *  button (or raise n) to continue generation. */
 export const DEFAULT_PARAMS: GenParams = {
   n: 1,
   temp: 0,

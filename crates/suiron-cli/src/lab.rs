@@ -23,6 +23,8 @@ struct Shared {
     seq: u64,
     /// KV cache of the last completed run — kept so forks rewind instantly.
     cache: Option<KvCache>,
+    /// Logits at the final position — kept so `step` can continue sampling.
+    last_logits: Vec<f32>,
     /// (position, discarded tail text) of the most recent fork.
     fork: Option<(usize, String)>,
 }
@@ -60,6 +62,7 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
         busy: false,
         seq: 0,
         cache: None,
+        last_logits: Vec::new(),
         fork: None,
     }));
     let stop_flag = Arc::new(AtomicBool::new(false));
@@ -122,6 +125,41 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                         let text = tok.decode(&[id]);
                         let json = crate::machine::inspect_json(&deep, pos, (id, &text));
                         respond(&mut s, "200 OK", "application/json", json.as_bytes());
+                    }
+                }
+            }
+            ("POST", "/api/v1/step") => {
+                let params = parse_params(&path);
+                let setup = {
+                    let mut st = shared.lock().unwrap();
+                    if st.busy {
+                        Err("busy")
+                    } else if st.cache.is_none() || st.last_logits.is_empty() {
+                        Err("nothing to continue — generate first")
+                    } else {
+                        st.busy = true;
+                        st.seq += 1;
+                        Ok((st.cache.take().unwrap(), std::mem::take(&mut st.last_logits)))
+                    }
+                };
+                match setup {
+                    Err(e) => respond(&mut s, "409 Conflict", "text/plain", e.as_bytes()),
+                    Ok((cache, logits)) => {
+                        stop_flag.store(false, Ordering::Relaxed);
+                        let (model, tok, shared, stop_flag, stop_ids) = (
+                            Arc::clone(&model),
+                            Arc::clone(&tok),
+                            Arc::clone(&shared),
+                            Arc::clone(&stop_flag),
+                            Arc::clone(&stop_ids),
+                        );
+                        std::thread::spawn(move || {
+                            step_traced(
+                                &model, &tok, cache, logits, params, &shared, &stop_flag,
+                                &stop_ids,
+                            );
+                        });
+                        respond(&mut s, "200 OK", "text/plain", b"stepping");
                     }
                 }
             }
@@ -251,8 +289,24 @@ fn generate_traced(
         push_step(tok, &mut rec, t, shared);
     }
 
-    run_decode(model, tok, &mut rec, &mut cache, logits, p, shared, stop_flag, stop_ids);
-    finish(shared, cache);
+    let logits = run_decode(model, tok, &mut rec, &mut cache, logits, p, shared, stop_flag, stop_ids);
+    finish(shared, cache, logits);
+}
+
+/// Continue n tokens from wherever the resident state stands ("step").
+fn step_traced(
+    model: &Model,
+    tok: &Tokenizer,
+    mut cache: KvCache,
+    logits: Vec<f32>,
+    p: Params,
+    shared: &Mutex<Shared>,
+    stop_flag: &AtomicBool,
+    stop_ids: &[u32],
+) {
+    let mut rec = Recorder::new(6);
+    let logits = run_decode(model, tok, &mut rec, &mut cache, logits, p, shared, stop_flag, stop_ids);
+    finish(shared, cache, logits);
 }
 
 /// Continue from a forked cache: stamp the human-forced token, then let the
@@ -303,11 +357,12 @@ fn fork_traced(
     rec.set_sel(sel);
     push_step(tok, &mut rec, forced, shared);
 
-    run_decode(model, tok, &mut rec, &mut cache, logits, p, shared, stop_flag, stop_ids);
-    finish(shared, cache);
+    let logits = run_decode(model, tok, &mut rec, &mut cache, logits, p, shared, stop_flag, stop_ids);
+    finish(shared, cache, logits);
 }
 
-/// The sampling loop shared by generate and fork.
+/// The sampling loop shared by generate, fork, and step. Returns the logits
+/// at the final position so the next `step` can pick up where this left off.
 #[allow(clippy::too_many_arguments)]
 fn run_decode(
     model: &Model,
@@ -319,7 +374,7 @@ fn run_decode(
     shared: &Mutex<Shared>,
     stop_flag: &AtomicBool,
     stop_ids: &[u32],
-) {
+) -> Vec<f32> {
     let mut sampler = Sampler::new(p.temp, p.top_k, p.top_p, p.seed);
     for _ in 0..p.n {
         if stop_flag.load(Ordering::Relaxed) || logits.is_empty() {
@@ -335,6 +390,7 @@ fn run_decode(
         rec.set_sel(sel);
         push_step(tok, rec, id, shared);
     }
+    logits
 }
 
 fn push_step(tok: &Tokenizer, rec: &mut Recorder, id: u32, shared: &Mutex<Shared>) {
@@ -344,10 +400,11 @@ fn push_step(tok: &Tokenizer, rec: &mut Recorder, id: u32, shared: &Mutex<Shared
     st.seq += 1;
 }
 
-/// Park the cache for future forks and mark idle.
-fn finish(shared: &Mutex<Shared>, cache: KvCache) {
+/// Park the cache and final logits for future forks/steps; mark idle.
+fn finish(shared: &Mutex<Shared>, cache: KvCache, logits: Vec<f32>) {
     let mut st = shared.lock().unwrap();
     st.cache = Some(cache);
+    st.last_logits = logits;
     st.busy = false;
     st.seq += 1;
 }

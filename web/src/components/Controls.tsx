@@ -1,16 +1,18 @@
 import { useState } from "react";
-import { generate, stop } from "../api";
+import { generate, step, stop } from "../api";
 import { DEFAULT_PARAMS } from "../lib";
 import type { GenParams } from "../types";
 
 export function Controls({
   busy,
+  hasTokens,
   follow,
   setFollow,
   prompt,
   setPrompt,
 }: {
   busy: boolean;
+  hasTokens: boolean;
   follow: boolean;
   setFollow: (v: boolean) => void;
   prompt: string;
@@ -43,6 +45,13 @@ export function Controls({
         />
         <button className={busy ? "busy" : ""} disabled={busy} onClick={go}>
           generate
+        </button>
+        <button
+          disabled={busy || !hasTokens}
+          title="advance the model exactly one token from where it stands"
+          onClick={() => void step(1, p)}
+        >
+          step +1
         </button>
         <button disabled={!busy} onClick={() => void stop()}>
           stop

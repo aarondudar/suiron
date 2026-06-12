@@ -95,6 +95,7 @@ export default function App() {
 
       <Controls
         busy={!!trace.busy}
+        hasTokens={hasTokens}
         follow={follow}
         setFollow={setFollow}
         prompt={prompt}
