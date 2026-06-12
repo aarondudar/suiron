@@ -1,4 +1,4 @@
-import { esc } from "../lib";
+import { esc, q } from "../lib";
 import type { Sel } from "../types";
 
 function DrawBar({ sel }: { sel: Sel & { r: number } }) {
@@ -71,11 +71,11 @@ function SelDetail({ sel }: { sel: Sel }) {
     const wanted = fav && fav.id !== sel.chosen;
     return (
       <div className="sel-math">
-        <span className="red">you</span> forced <span className="red">{esc(chosen.t)}</span>{" "}
+        <span className="red">you</span> forced <span className="red">{q(chosen.t)}</span>{" "}
         here — no sampling happened.{" "}
         {wanted ? (
           <>
-            the model's own favorite was <b>{esc(fav.t)}</b> at{" "}
+            the model's own favorite was <b>{q(fav.t)}</b> at{" "}
             <b>{(fav.p * 100).toFixed(1)}%</b>
             {chosen.p > 0 && (
               <>
@@ -142,7 +142,7 @@ function SelDetail({ sel }: { sel: Sel }) {
 
       {greedy ? (
         <div className="sel-math">
-          argmax: <span className="red">{esc(chosen.t)}</span> has the highest logit (
+          argmax: <span className="red">{q(chosen.t)}</span> has the highest logit (
           <b>{chosen.logit.toFixed(3)}</b>), so it is selected deterministically. rerunning
           this prompt will always produce the same token.
         </div>
@@ -150,7 +150,7 @@ function SelDetail({ sel }: { sel: Sel }) {
         <>
           <DrawBar sel={sel as Sel & { r: number }} />
           <div className="sel-math">
-            p(<span className="red">{esc(chosen.t)}</span>) = e^((
+            p(<span className="red">{q(chosen.t)}</span>) = e^((
             {chosen.logit.toFixed(2)} − {maxLogit.toFixed(2)}) / {sel.temp}) / Σ ={" "}
             <b>{(chosen.p * 100).toFixed(2)}%</b>
             {chosen.pf !== chosen.p && (
@@ -159,7 +159,7 @@ function SelDetail({ sel }: { sel: Sel }) {
               </>
             )}
             . the uniform draw <b>r = {sel.r!.toFixed(4)}</b> (from seed {sel.seed}) lands in{" "}
-            <span className="red">{esc(chosen.t)}</span>'s segment of the cumulative bar above —
+            <span className="red">{q(chosen.t)}</span>'s segment of the cumulative bar above —
             that is the entire reason this token exists in the output.
           </div>
         </>

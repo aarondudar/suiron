@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { esc } from "../lib";
+import { q } from "../lib";
 import type { Trace } from "../types";
 
 /* "the machine": one token's journey through the actual computation.
@@ -55,8 +55,10 @@ function Code({ name }: { name: string }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     fetch(`/api/v1/source?fn=${name}`)
-      .then((r) => (r.ok ? r.text() : "// source unavailable"))
-      .then(setSrc);
+      .then((r) => (r.ok ? r.text() : "// source unavailable — restart the lab (make dev)"))
+      .then((t) =>
+        setSrc(t.startsWith("<") ? "// stale backend — restart the lab (make dev)" : t),
+      );
   }, [name]);
   if (src === null) return <pre className="code">loading…</pre>;
   return (
@@ -124,7 +126,7 @@ export function Machine({
       .catch(() => setLoading(false));
   }, [cur, layer, busy, trace.seq]);
 
-  const tokText = esc(trace.tokens[cur]?.t ?? "");
+  const tokText = q(trace.tokens[cur]?.t ?? "");
   const h = data?.heads[head];
   const topAttn = h
     ? h.weights
@@ -161,7 +163,7 @@ export function Machine({
         plain={
           <>
             your text was chopped into {trace.tokens.length} tokens from a fixed 151,936-entry
-            dictionary (band 01). token {cur} is {tokText}, dictionary id{" "}
+            dictionary (band 01). token {cur} is {tokText} — dictionary id{" "}
             {trace.tokens[cur]?.id}.
           </>
         }
@@ -250,7 +252,7 @@ export function Machine({
                   {topAttn.map(([p, w, s]) => (
                     <tr key={p} className={w === topAttn[0][1] ? "strong" : undefined}>
                       <td>
-                        {p}: {esc(trace.tokens[p]?.t ?? "")}
+                        {p}: {q(trace.tokens[p]?.t ?? "")}
                       </td>
                       <td>{f(s)}</td>
                       <td>{(w * 100).toFixed(1)}%</td>

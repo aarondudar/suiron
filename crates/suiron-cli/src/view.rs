@@ -32,10 +32,21 @@ pub fn serve(trace_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
 }
 
 /// Serve a file from web/dist; unknown paths fall back to index.html so the
-/// SPA owns routing. Rejects path traversal.
+/// SPA owns routing. Rejects path traversal. API paths never fall through to
+/// the SPA — an unknown /api route means a stale backend, and an honest 404
+/// beats serving HTML to a JSON client.
 pub fn serve_static(s: &mut TcpStream, path: &str) {
     if path.contains("..") {
         respond(s, "403 Forbidden", "text/plain", b"no");
+        return;
+    }
+    if path.starts_with("/api/") {
+        respond(
+            s,
+            "404 Not Found",
+            "text/plain",
+            b"unknown api route - restart the lab (binary may predate this endpoint)",
+        );
         return;
     }
     let rel = path.trim_start_matches('/');

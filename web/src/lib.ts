@@ -3,6 +3,9 @@ import type { AttnEdge, GenParams, Step, Trace } from "./types";
 /** display text for a token (empty renders as a middle dot) */
 export const esc = (t: string) => (t === "" ? "·" : t);
 
+/** token text in display quotes: q(" the") → “ the” */
+export const q = (t: string) => `“${esc(t)}”`;
+
 export const DEFAULT_PARAMS: GenParams = {
   n: 32,
   temp: 0,
