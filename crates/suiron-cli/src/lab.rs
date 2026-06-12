@@ -1,18 +1,19 @@
-//! Live microscope: model stays resident, the browser drives it.
-//! GET / → viewer · GET /trace → current state (polled while busy) ·
-//! POST /generate?n=&temp=&top_k=&top_p=&seed=&chat= (prompt = body) ·
-//! POST /stop. Generation runs in a worker thread, appending steps the
-//! poll endpoint serializes.
+//! Live microscope backend: model stays resident, the web/ frontend drives it.
+//! API (v1):
+//!   GET  /api/v1/trace      current state (poll while busy)
+//!   POST /api/v1/generate?n=&temp=&top_k=&top_p=&seed=&chat=   prompt = body
+//!   POST /api/v1/stop
+//! Anything else is served from web/dist (the built React app); in frontend
+//! dev, run `npm run dev` in web/ instead — vite proxies /api here.
 
 use crate::trace::{write_trace, Recorder, Step};
-use std::io::{Read, Write};
+use crate::view::{respond, serve_static};
+use std::io::Read;
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use suiron_core::{forward, KvCache, Model, Sampler, Tokenizer};
-
-const VIEWER: &str = include_str!("viewer.html");
 
 struct Shared {
     tokens: Vec<(u32, String)>,
@@ -65,8 +66,7 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
         let Some((method, path, body)) = read_request(&mut s) else { continue };
 
         match (method.as_str(), path.split('?').next().unwrap_or("")) {
-            ("GET", "/") => respond(&mut s, "200 OK", "text/html; charset=utf-8", VIEWER.as_bytes()),
-            ("GET", "/trace") => {
+            ("GET", "/api/v1/trace") => {
                 let st = shared.lock().unwrap();
                 let json = write_trace(
                     &model_name,
@@ -80,11 +80,11 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                 );
                 respond(&mut s, "200 OK", "application/json", json.as_bytes());
             }
-            ("POST", "/stop") => {
+            ("POST", "/api/v1/stop") => {
                 stop_flag.store(true, Ordering::Relaxed);
                 respond(&mut s, "200 OK", "text/plain", b"stopping");
             }
-            ("POST", "/generate") => {
+            ("POST", "/api/v1/generate") => {
                 let prompt = String::from_utf8_lossy(&body).into_owned();
                 if prompt.trim().is_empty() {
                     respond(&mut s, "400 Bad Request", "text/plain", b"empty prompt");
@@ -115,6 +115,7 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                 });
                 respond(&mut s, "200 OK", "text/plain", b"started");
             }
+            ("GET", p) => serve_static(&mut s, p),
             _ => respond(&mut s, "404 Not Found", "text/plain", b"not found"),
         }
     }
@@ -245,13 +246,4 @@ fn read_request(s: &mut TcpStream) -> Option<(String, String, Vec<u8>)> {
 
 fn find_header_end(buf: &[u8]) -> Option<usize> {
     buf.windows(4).position(|w| w == b"\r\n\r\n")
-}
-
-fn respond(s: &mut TcpStream, status: &str, ctype: &str, body: &[u8]) {
-    let _ = write!(
-        s,
-        "HTTP/1.1 {status}\r\nContent-Type: {ctype}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
-        body.len()
-    );
-    let _ = s.write_all(body);
 }

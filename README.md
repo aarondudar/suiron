@@ -54,10 +54,24 @@ cargo run --release -p suiron-cli -- inspect models/Qwen3-0.6B-Q8_0.gguf
 
 ## Workspace layout
 
-| Crate         | Purpose                                                          |
-| ------------- | ---------------------------------------------------------------- |
-| `suiron-gguf` | GGUF v3 container format: metadata, tensor index, dequantization |
-| `suiron-cli`  | Command-line interface (`inspect`, later `run` and `serve`)      |
+| Crate          | Purpose                                                          |
+| -------------- | ---------------------------------------------------------------- |
+| `suiron-gguf`  | GGUF v3 container format: metadata, tensor index, dequantization |
+| `suiron-core`  | Tokenizer, fp32 forward pass, sampling, generation               |
+| `suiron-metal` | Metal GPU backend (hand-rolled Objective-C FFI, runtime MSL)     |
+| `suiron-cli`   | The `suiron` binary: `inspect`, `run`, `trace`, `lab`, …         |
+| `web/`         | Microscope frontend (React + TypeScript; not a crate)            |
+
+The zero-dependency rule applies to the inference engine — the Rust crates.
+The microscope frontend in `web/` is a normal Vite app that talks to
+`suiron lab`'s JSON API:
+
+```sh
+cargo run --release -p suiron-cli -- lab models/Qwen3-0.6B-Q8_0.gguf
+cd web && npm install && npm run build   # then open http://127.0.0.1:4117
+# or for frontend development with hot reload:
+cd web && npm run dev                    # vite proxies /api to the lab
+```
 
 ## License
 

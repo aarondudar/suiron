@@ -7,9 +7,12 @@ Kana-Master-Mobile iOS app.
 
 ## Hard rules
 
-- **Zero runtime dependencies.** No candle, tokenizers, ggml, serde, anyhow, clap.
-  std only. Dev-dependencies for testing are acceptable if truly needed. This is the
-  project's identity — being from scratch is the point.
+- **Zero runtime dependencies — in the Rust crates.** No candle, tokenizers, ggml,
+  serde, anyhow, clap. std only. Dev-dependencies for testing are acceptable if truly
+  needed. This is the project's identity — being from scratch is the point.
+  Exception: `web/` (the microscope frontend) is a normal React + TypeScript Vite app;
+  it talks to the engine only through `suiron lab`'s JSON API (`/api/v1/…`). The
+  embedded-HTML viewer is gone; `suiron lab`/`view` serve `web/dist` if built.
 - **Correctness before speed.** Every new compute path is verified against llama.cpp
   output (and against the existing CPU path once one exists) before optimizing.
 - **Each milestone stays demo-able.** Don't break `suiron inspect`/`run` mid-refactor;
