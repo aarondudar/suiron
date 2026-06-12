@@ -139,7 +139,10 @@ button.busy { border-color: var(--red); color: var(--red); }
 .ctl-params input[type="checkbox"] { accent-color: var(--red); }
 
 /* ---------- token strip ---------- */
-.strip { display: flex; flex-wrap: wrap; gap: 5px; }
+.strip { display: flex; flex-wrap: wrap; gap: 5px; position: relative; padding-top: 34px; }
+.arc-layer { position: absolute; inset: 0; pointer-events: none; }
+.arc-toggle { display: flex; align-items: center; gap: 5px; margin-left: auto; }
+.arc-toggle input { accent-color: var(--red); }
 .tok {
   border: 1px solid var(--hair); padding: 4px 8px; cursor: pointer;
   white-space: pre; color: var(--ink); position: relative;
@@ -232,6 +235,17 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .sel-math { color: var(--dim); font-size: 11px; line-height: 1.8; max-width: 700px; }
 .sel-math b { color: var(--ink); font-weight: normal; }
 .sel-math .red { color: var(--red); }
+
+/* ---------- empty state ---------- */
+.empty { text-align: center; padding: 56px 24px 60px; }
+.empty-jp {
+  font-family: var(--dot); font-size: 56px; font-weight: 700;
+  color: var(--faint); letter-spacing: 0.3em; margin-bottom: 18px;
+  user-select: none;
+}
+.empty-line { color: var(--dim); font-size: 11px; max-width: 52ch; margin: 0 auto 26px; }
+.empty-chips { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.empty-chips button { white-space: pre; }
 
 /* ---------- scrollbar ---------- */
 ::-webkit-scrollbar { width: 8px; height: 8px; }

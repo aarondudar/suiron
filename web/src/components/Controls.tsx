@@ -1,25 +1,22 @@
 import { useState } from "react";
 import { generate, stop } from "../api";
+import { DEFAULT_PARAMS } from "../lib";
 import type { GenParams } from "../types";
 
 export function Controls({
   busy,
   follow,
   setFollow,
+  prompt,
+  setPrompt,
 }: {
   busy: boolean;
   follow: boolean;
   setFollow: (v: boolean) => void;
+  prompt: string;
+  setPrompt: (p: string) => void;
 }) {
-  const [prompt, setPrompt] = useState("");
-  const [p, setP] = useState<GenParams>({
-    n: 32,
-    temp: 0,
-    top_k: 40,
-    top_p: 0.95,
-    seed: 7,
-    chat: false,
-  });
+  const [p, setP] = useState<GenParams>(DEFAULT_PARAMS);
 
   const num =
     (k: keyof GenParams) => (e: React.ChangeEvent<HTMLInputElement>) =>

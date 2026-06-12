@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getTrace } from "./api";
 import { Controls } from "./components/Controls";
+import { EmptyState } from "./components/EmptyState";
 import { LayerStack } from "./components/LayerStack";
 import { Logits } from "./components/Logits";
 import { Selection } from "./components/Selection";
@@ -13,6 +14,7 @@ export default function App() {
   const [openLayer, setOpenLayer] = useState(-1);
   const [follow, setFollow] = useState(true);
   const [explain, setExplain] = useState(false);
+  const [prompt, setPrompt] = useState("");
   const lastSeq = useRef(-1);
   const followRef = useRef(follow);
   followRef.current = follow;
@@ -90,11 +92,19 @@ export default function App() {
         </div>
       </header>
 
-      <Controls busy={!!trace.busy} follow={follow} setFollow={setFollow} />
+      <Controls
+        busy={!!trace.busy}
+        follow={follow}
+        setFollow={setFollow}
+        prompt={prompt}
+        setPrompt={setPrompt}
+      />
+
+      {!hasTokens && <EmptyState onPick={setPrompt} />}
 
       {hasTokens && step && (
         <>
-          <TokenStrip trace={trace} cur={safeCur} setCur={setCur} />
+          <TokenStrip trace={trace} step={step} cur={safeCur} setCur={setCur} />
           <LayerStack
             trace={trace}
             step={step}
