@@ -7,11 +7,14 @@ export function TokenStrip({
   step,
   cur,
   setCur,
+  focusLayer,
 }: {
   trace: Trace;
   step: Step;
   cur: number;
   setCur: (i: number) => void;
+  /** when set (hovered layer row), arcs show only that layer's attention */
+  focusLayer: number | null;
 }) {
   const [arcs, setArcs] = useState(true);
   const stripRef = useRef<HTMLDivElement>(null);
@@ -25,7 +28,7 @@ export function TokenStrip({
   }, []);
 
   useLayoutEffect(() => {
-    drawArcs(canvasRef.current, stripRef.current, trace, step, cur, arcs);
+    drawArcs(canvasRef.current, stripRef.current, step, cur, arcs, focusLayer);
   });
 
   return (
@@ -80,14 +83,15 @@ export function TokenStrip({
 }
 
 /** Bezier arcs from the current token to its strongest attention targets,
- *  aggregated over all layers and heads. Strongest arc is red. */
+ *  aggregated over all layers and heads — or just one layer when a stack
+ *  row is hovered. Strongest arc is red. */
 function drawArcs(
   canvas: HTMLCanvasElement | null,
   strip: HTMLDivElement | null,
-  trace: Trace,
   step: Step,
   cur: number,
   enabled: boolean,
+  focusLayer: number | null,
 ) {
   if (!canvas || !strip) return;
   const dpr = window.devicePixelRatio || 1;
@@ -103,9 +107,11 @@ function drawArcs(
   g.clearRect(0, 0, w, h);
   if (!enabled || cur === 0 || !step.attn.length) return;
 
-  // aggregate attention mass over every layer and head
+  // aggregate attention mass — all layers, or just the hovered one
+  const layers =
+    focusLayer !== null && step.attn[focusLayer] ? [step.attn[focusLayer]] : step.attn;
   const weight = new Map<number, number>();
-  for (const layer of step.attn)
+  for (const layer of layers)
     for (const head of layer)
       for (const [p, v] of head) {
         if (p < cur) weight.set(p, (weight.get(p) ?? 0) + v);

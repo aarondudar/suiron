@@ -46,3 +46,44 @@ export function meanHeadWeights(step: Step, layer: number, nPos: number): number
   for (const head of heads) for (const [p, v] of head) if (p < nPos) w[p] += v / heads.length
   return w
 }
+
+/** One-glance interpretation of a layer's attention pattern. */
+export interface Glance {
+  topPos: number
+  share: number // fraction of recorded attention on the top target
+  tag: '' | 'local' | 'focused' | 'broad' | 'sink'
+}
+
+export function layerGlance(step: Step, layer: number, nPos: number): Glance | null {
+  const w = meanHeadWeights(step, layer, nPos)
+  const cur = nPos - 1
+  let sum = 0
+  let top = 0
+  let dist = 0
+  for (let p = 0; p < nPos; p++) {
+    sum += w[p]
+    dist += w[p] * (cur - p)
+    if (w[p] > w[top]) top = p
+  }
+  if (sum <= 0) return null
+  const share = w[top] / sum
+  const meanDist = dist / sum
+  let tag: Glance['tag'] = ''
+  if (top === 0 && share > 0.35 && cur > 3) tag = 'sink'
+  else if (share > 0.5) tag = 'focused'
+  else if (meanDist <= 2.5) tag = 'local'
+  else if (share < 0.18) tag = 'broad'
+  return { topPos: top, share, tag }
+}
+
+/** Per-head top target, for labeling the head grid. */
+export function headGlance(edges: AttnEdge[]): { topPos: number; share: number } | null {
+  if (!edges.length) return null
+  let sum = 0
+  let top = edges[0]
+  for (const e of edges) {
+    sum += e[1]
+    if (e[1] > top[1]) top = e
+  }
+  return sum > 0 ? { topPos: top[0], share: top[1] / sum } : null
+}

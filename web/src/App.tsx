@@ -16,6 +16,7 @@ export default function App() {
   const [follow, setFollow] = useState(true);
   const [explain, setExplain] = useState(false);
   const [prompt, setPrompt] = useState("");
+  const [hoverLayer, setHoverLayer] = useState<number | null>(null);
   const lastSeq = useRef(-1);
   const followRef = useRef(follow);
   followRef.current = follow;
@@ -119,7 +120,13 @@ export default function App() {
 
       {hasTokens && step && (
         <>
-          <TokenStrip trace={trace} step={step} cur={safeCur} setCur={setCur} />
+          <TokenStrip
+            trace={trace}
+            step={step}
+            cur={safeCur}
+            setCur={setCur}
+            focusLayer={hoverLayer}
+          />
           <Logits step={step} cur={safeCur} busy={!!trace.busy} />
           <Selection sel={step.sel} isPrompt={safeCur < trace.n_prompt} />
           <LayerStack
@@ -128,6 +135,7 @@ export default function App() {
             nPos={safeCur + 1}
             openLayer={openLayer}
             setOpenLayer={setOpenLayer}
+            setHoverLayer={setHoverLayer}
           />
           <Machine trace={trace} cur={safeCur} busy={!!trace.busy} />
         </>

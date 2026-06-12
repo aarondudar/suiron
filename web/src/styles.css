@@ -171,6 +171,15 @@ button.busy { border-color: var(--red); color: var(--red); }
 }
 .rn { color: var(--faint); font-size: 10px; width: 52px; text-align: right; }
 .row:hover .rn { color: var(--dim); }
+.glance { color: var(--dim); font-size: 10px; white-space: pre; min-width: 150px; }
+.gtag {
+  margin-left: 8px; color: var(--faint); border: 1px solid var(--hair);
+  padding: 0 5px; font-size: 9px; letter-spacing: 0.1em;
+}
+.row:hover .gtag { color: var(--dim); }
+.hl-target { color: var(--faint); font-family: var(--mono); font-weight: normal; }
+.hl-target.strong { color: var(--dim); }
+.how-to { margin-bottom: 12px; }
 
 .detail {
   border: 1px solid var(--hair); border-left: 2px solid var(--red);
