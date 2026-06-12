@@ -35,6 +35,7 @@ export function LayerStack({
   return (
     <section>
       <div className="label">
+        <span className="idx">02</span>
         layer stack — where attention looked (mean of heads, red = strongest) · click a layer for heads
         <span className="note">
           {" "}— 28 rows, one per transformer layer, layer 27 on top. each dot: how much this

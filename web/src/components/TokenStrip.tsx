@@ -13,6 +13,7 @@ export function TokenStrip({
   return (
     <section>
       <div className="label">
+        <span className="idx">01</span>
         tokens — click or ←/→ to step
         <span className="note">
           {" "}— each cell is one token; the text was chopped into these by byte-level BPE.

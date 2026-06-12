@@ -48,6 +48,7 @@ export function Selection({ sel, isPrompt }: { sel?: Sel; isPrompt: boolean }) {
   return (
     <section>
       <div className="label">
+        <span className="idx">04</span>
         how this token was chosen
         <span className="note">
           {" "}— the sampler's actual decision pipeline for the current token, with the real

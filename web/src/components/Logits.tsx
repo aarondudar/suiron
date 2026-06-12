@@ -8,6 +8,7 @@ export function Logits({ step }: { step: Step }) {
   return (
     <section>
       <div className="label">
+        <span className="idx">03</span>
         next-token prediction
         <span className="note">
           {" "}— softmax over all 151,936 logits after the last layer: what the model believes

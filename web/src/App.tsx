@@ -74,10 +74,15 @@ export default function App() {
   return (
     <>
       <header>
-        <div className="spec">
-          {trace.model.toLowerCase()} · {trace.quant} · {trace.layers} layers · {trace.heads}h/
-          {trace.kv_heads}kv · {trace.n_prompt} prompt +{" "}
-          {Math.max(0, trace.tokens.length - trace.n_prompt)} generated
+        <div>
+          <div className="brand">
+            suiron<span className="jp">推論</span>
+          </div>
+          <div className="spec">
+            {trace.model.toLowerCase()} · {trace.quant} · {trace.layers} layers · {trace.heads}h/
+            {trace.kv_heads}kv · {trace.n_prompt} prompt +{" "}
+            {Math.max(0, trace.tokens.length - trace.n_prompt)} generated
+          </div>
         </div>
         <div className="pos">
           token <b>{hasTokens ? safeCur : 0}</b> / {Math.max(0, trace.tokens.length - 1)}

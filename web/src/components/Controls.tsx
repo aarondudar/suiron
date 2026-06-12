@@ -32,6 +32,7 @@ export function Controls({
   return (
     <section>
       <div className="label">
+        <span className="idx">00</span>
         prompt — the model is resident; generation streams into the trace below
       </div>
       <div className="ctl-row">
