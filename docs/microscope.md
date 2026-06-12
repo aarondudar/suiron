@@ -23,10 +23,13 @@ suiron view <trace>                →   serves viewer on localhost (std TcpList
 - The tracer is a recording hook inside the M1/M2 forward pass. Off by default,
   zero cost when disabled.
 - Full traces are large (28 layers × 16 heads × seq² attention …); record
-  small-rank summaries by default (top-k attention edges, activation histograms,
-  norms) with `--full` for everything.
-- Viewer is a single static HTML file + vanilla JS + canvas. No build step, no
-  npm — the zero-dependency identity extends to the frontend.
+  small-rank summaries by default (top-k attention edges, norms).
+- `suiron lab` keeps the model resident and exposes a versioned JSON API
+  (`/api/v1/trace`, `/api/v1/generate`, `/api/v1/stop`); the viewer is a
+  React + TypeScript app in `web/`, served from `web/dist` by the lab itself
+  (or via `npm run dev` with an /api proxy during frontend work). The
+  zero-dependency rule covers the engine; the frontend is deliberately a
+  normal web app so the visuals can grow.
 
 ## Visual language
 
