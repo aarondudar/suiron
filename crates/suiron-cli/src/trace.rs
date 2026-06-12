@@ -4,6 +4,7 @@
 
 use suiron_core::forward::Observer;
 use suiron_core::model::Config;
+use suiron_core::sampling::SampleTrace;
 
 pub struct Step {
     /// [layer][head] → top-k (position, weight) attention edges.
@@ -12,6 +13,8 @@ pub struct Step {
     pub rnorm: Vec<f32>,
     /// Top-k (token id, prob) next-token predictions after this position.
     pub top: Vec<(u32, f32)>,
+    /// How THIS token was selected (None for prompt tokens — they're given).
+    pub sel: Option<SampleTrace>,
 }
 
 pub struct Recorder {
@@ -26,7 +29,14 @@ impl Recorder {
 
     /// Call before each forward() so hooks land in the right step.
     pub fn begin_step(&mut self) {
-        self.steps.push(Step { attn: Vec::new(), rnorm: Vec::new(), top: Vec::new() });
+        self.steps.push(Step { attn: Vec::new(), rnorm: Vec::new(), top: Vec::new(), sel: None });
+    }
+
+    /// Attach the sampling decision that produced this step's token.
+    pub fn set_sel(&mut self, sel: SampleTrace) {
+        if let Some(s) = self.steps.last_mut() {
+            s.sel = Some(sel);
+        }
     }
 
     /// Record top-k softmax probabilities from raw logits.
@@ -149,7 +159,34 @@ pub fn write_trace(
             }
             j.push_str(&format!("[{id},\"{}\",{p:.4}]", escape_json(&decode(id))));
         }
-        j.push_str("]}");
+        j.push(']');
+        if let Some(sel) = &step.sel {
+            j.push_str(&format!(
+                ",\"sel\":{{\"temp\":{},\"top_k\":{},\"top_p\":{},\"seed\":{},\"r\":{},\"chosen\":{},\"cand\":[",
+                sel.temperature,
+                sel.top_k,
+                sel.top_p,
+                sel.seed,
+                sel.r.map_or("null".to_string(), |r| format!("{r:.4}")),
+                sel.chosen,
+            ));
+            for (i, c) in sel.cand.iter().enumerate() {
+                if i > 0 {
+                    j.push(',');
+                }
+                j.push_str(&format!(
+                    "{{\"id\":{},\"t\":\"{}\",\"logit\":{:.3},\"p\":{:.4},\"pf\":{:.4},\"cut\":\"{}\"}}",
+                    c.id,
+                    escape_json(&decode(c.id)),
+                    c.logit,
+                    c.p,
+                    c.p_final,
+                    c.cut.unwrap_or(""),
+                ));
+            }
+            j.push_str("]}");
+        }
+        j.push('}');
     }
     j.push_str("]}");
     j

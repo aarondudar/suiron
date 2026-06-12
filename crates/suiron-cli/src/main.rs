@@ -118,8 +118,9 @@ fn trace_cmd(path: &str, rest: &[String]) -> Result<(), Box<dyn std::error::Erro
         logits = suiron_core::forward(&model, &mut cache, t, Some(&mut rec));
         rec.record_logits(&logits, 10);
     }
+    let mut sampler = suiron_core::Sampler::greedy(); // traces are deterministic
     for _ in 0..max_tokens {
-        let id = suiron_core::sampling::argmax(&logits); // traces are deterministic
+        let (id, sel) = sampler.sample_traced(&logits);
         if stop.contains(&id) {
             break;
         }
@@ -127,6 +128,7 @@ fn trace_cmd(path: &str, rest: &[String]) -> Result<(), Box<dyn std::error::Erro
         rec.begin_step();
         logits = suiron_core::forward(&model, &mut cache, id, Some(&mut rec));
         rec.record_logits(&logits, 10);
+        rec.set_sel(sel);
     }
 
     let tokens: Vec<(u32, String)> =

@@ -83,6 +83,39 @@
   .ctl-params input[type=checkbox] { accent-color: var(--red); }
   #live-dot { transition: opacity 0.3s; opacity: 0.25; }
   #live-dot.on { opacity: 1; }
+  /* explain mode */
+  .note { display: none; color: var(--dim); text-transform: none; letter-spacing: 0.04em; }
+  body.explain .note { display: inline; }
+  footer { display: flex; justify-content: space-between; align-items: center; }
+  #explain-toggle { padding: 3px 10px; font-size: 10px; }
+  /* selection band */
+  .sel-params { color: var(--dim); font-size: 10px; margin-bottom: 8px; }
+  .sel-params b { color: var(--ink); font-weight: normal; }
+  table.sel { border-collapse: collapse; font-size: 11px; margin-bottom: 10px; }
+  table.sel td, table.sel th {
+    border: 1px solid var(--hair); padding: 3px 9px; text-align: right;
+    font-weight: normal; color: var(--dim);
+  }
+  table.sel td:first-child { text-align: left; white-space: pre; color: var(--ink); }
+  table.sel tr.chosen td { color: var(--red); border-color: var(--red); }
+  table.sel tr.cut td { color: #4a4a4a; }
+  table.sel tr.cut td:first-child { text-decoration: line-through; color: #4a4a4a; }
+  .draw-wrap { margin: 10px 0 6px; }
+  .draw-bar {
+    height: 18px; display: flex; border: 1px solid var(--hair); position: relative;
+    max-width: 560px;
+  }
+  .draw-seg { height: 100%; border-right: 1px solid var(--bg); background: #3a3a3a; }
+  .draw-seg.chosen { background: var(--red); }
+  .draw-r {
+    position: absolute; top: -5px; bottom: -5px; width: 1px; background: var(--ink);
+  }
+  .draw-r::after {
+    content: "r"; position: absolute; top: -13px; left: -3px; font-size: 10px; color: var(--ink);
+  }
+  .sel-math { color: var(--dim); font-size: 11px; line-height: 1.7; max-width: 700px; }
+  .sel-math b { color: var(--ink); font-weight: normal; }
+  .sel-math .red { color: var(--red); }
 </style>
 </head>
 <body>
@@ -110,12 +143,12 @@
 </section>
 
 <section>
-  <div class="label">tokens — click or ←/→ to step</div>
+  <div class="label">tokens — click or ←/→ to step <span class="note">— each cell is one token; the text was chopped into these by byte-level BPE. dim borders = your prompt, bright borders = generated. red = the position you're inspecting</span></div>
   <div id="strip"></div>
 </section>
 
 <section>
-  <div class="label">layer stack — where attention looked (mean of heads, red = strongest) · click a layer for heads</div>
+  <div class="label">layer stack — where attention looked (mean of heads, red = strongest) · click a layer for heads <span class="note">— 28 rows, one per transformer layer, layer 27 on top. each dot: how much this layer attended to that earlier position when processing the current token. the number at right is the residual stream's magnitude after the layer — watch it grow as layers add information</span></div>
   <div id="stack"></div>
   <div id="detail">
     <div class="label" id="detail-label"></div>
@@ -124,11 +157,19 @@
 </section>
 
 <section>
-  <div class="label">next-token prediction</div>
+  <div class="label">next-token prediction <span class="note">— softmax over all 151,936 logits after the last layer: what the model believes comes after the current token</span></div>
   <div id="logits"></div>
 </section>
 
-<footer>suiron — 推論 · every value on this page came from a real forward pass of the model file</footer>
+<section>
+  <div class="label">how this token was chosen <span class="note">— the sampler's actual decision pipeline for the current token, with the real numbers: logits → ÷temperature → softmax → top-k/top-p cuts → one uniform random draw lands in a segment</span></div>
+  <div id="selection"></div>
+</section>
+
+<footer>
+  <span>suiron — 推論 · every value on this page came from a real forward pass of the model file</span>
+  <button id="explain-toggle">explain: off</button>
+</footer>
 
 <script>
 let T = null;          // trace
@@ -262,6 +303,110 @@ function render() {
     row.append(t, wrap, pp);
     lg.appendChild(row);
   });
+
+  renderSel();
+}
+
+function esc(t) { return t === "" ? "·" : t; }
+
+function renderSel() {
+  const box = $("selection");
+  box.innerHTML = "";
+  const step = T.steps[cur];
+  const sel = step && step.sel;
+
+  if (!sel) {
+    const d = document.createElement("div");
+    d.className = "sel-math";
+    d.textContent = cur < T.n_prompt
+      ? "prompt token — given by you, not chosen by the model. the model only predicts what follows it (see the band above)."
+      : "no selection recorded for this position.";
+    box.appendChild(d);
+    return;
+  }
+
+  const greedy = sel.r === null;
+  const params = document.createElement("div");
+  params.className = "sel-params";
+  params.innerHTML = greedy
+    ? "greedy (temp <b>0</b>) — the highest logit wins, no randomness"
+    : "temp <b>" + sel.temp + "</b> · top-k <b>" + sel.top_k + "</b> · top-p <b>" +
+      sel.top_p + "</b> · seed <b>" + sel.seed + "</b> · draw r = <b>" + sel.r.toFixed(4) + "</b>";
+  box.appendChild(params);
+
+  // candidates table
+  const tbl = document.createElement("table");
+  tbl.className = "sel";
+  tbl.innerHTML = "<tr><th>candidate</th><th>logit</th><th>p @ temp</th><th>final p</th><th>fate</th></tr>";
+  for (const c of sel.cand) {
+    const tr = document.createElement("tr");
+    if (c.id === sel.chosen) tr.className = "chosen";
+    else if (c.cut) tr.className = "cut";
+    const fate = c.id === sel.chosen ? "selected"
+      : c.cut ? "cut by " + c.cut
+      : greedy ? "lower logit" : "not drawn";
+    tr.innerHTML =
+      "<td>" + esc(c.t) + "</td><td>" + c.logit.toFixed(3) + "</td><td>" +
+      (c.cut === "top-k" ? "—" : (c.p * 100).toFixed(2) + "%") + "</td><td>" +
+      (c.cut ? "—" : (c.pf * 100).toFixed(2) + "%") + "</td><td>" + fate + "</td>";
+    tbl.appendChild(tr);
+  }
+  box.appendChild(tbl);
+
+  const chosen = sel.cand.find(c => c.id === sel.chosen) || sel.cand[0];
+  const math = document.createElement("div");
+  math.className = "sel-math";
+
+  if (greedy) {
+    math.innerHTML =
+      "argmax: <span class='red'>" + esc(chosen.t) + "</span> has the highest logit (<b>" +
+      chosen.logit.toFixed(3) + "</b>), so it is selected deterministically. " +
+      "rerunning this prompt will always produce the same token.";
+    box.appendChild(math);
+    return;
+  }
+
+  // cumulative draw bar over surviving candidates
+  const survivors = sel.cand.filter(c => !c.cut && c.pf > 0);
+  const wrap = document.createElement("div");
+  wrap.className = "draw-wrap";
+  const bar = document.createElement("div");
+  bar.className = "draw-bar";
+  let cum = 0, rpos = null;
+  for (const c of survivors) {
+    const seg = document.createElement("div");
+    seg.className = "draw-seg" + (c.id === sel.chosen ? " chosen" : "");
+    seg.style.width = (c.pf * 100) + "%";
+    seg.title = esc(c.t) + "  [" + (cum * 100).toFixed(1) + "%, " + ((cum + c.pf) * 100).toFixed(1) + "%)";
+    bar.appendChild(seg);
+    if (sel.r >= cum && sel.r < cum + c.pf && rpos === null) rpos = sel.r;
+    cum += c.pf;
+  }
+  if (cum < 0.999) { // survivors beyond the 12 shown candidates
+    const seg = document.createElement("div");
+    seg.className = "draw-seg";
+    seg.style.width = ((1 - cum) * 100) + "%";
+    seg.style.background = "#1c1c1c";
+    seg.title = "… " + ((1 - cum) * 100).toFixed(1) + "% spread over the remaining survivors";
+    bar.appendChild(seg);
+  }
+  const rmark = document.createElement("div");
+  rmark.className = "draw-r";
+  rmark.style.left = (Math.min(sel.r, 0.999) * 100) + "%";
+  bar.appendChild(rmark);
+  wrap.appendChild(bar);
+  box.appendChild(wrap);
+
+  const maxLogit = sel.cand[0].logit;
+  math.innerHTML =
+    "p(<span class='red'>" + esc(chosen.t) + "</span>) = e^((" + chosen.logit.toFixed(2) +
+    " − " + maxLogit.toFixed(2) + ") / " + sel.temp + ") / Σ = <b>" +
+    (chosen.p * 100).toFixed(2) + "%</b>" +
+    (chosen.pf !== chosen.p ? " → renormalized to <b>" + (chosen.pf * 100).toFixed(2) + "%</b> after cuts" : "") +
+    ". the uniform draw <b>r = " + sel.r.toFixed(4) + "</b> (from seed " + sel.seed +
+    ") lands in <span class='red'>" + esc(chosen.t) + "</span>'s segment of the cumulative bar above — " +
+    "that is the entire reason this token exists in the output.";
+  box.appendChild(math);
 }
 
 document.addEventListener("keydown", e => {
@@ -318,6 +463,11 @@ function setupLab() {
     halt.disabled = !busy;
   }, 200);
 }
+
+$("explain-toggle").onclick = () => {
+  const on = document.body.classList.toggle("explain");
+  $("explain-toggle").textContent = "explain: " + (on ? "on" : "off");
+};
 
 fetch("/trace").then(r => r.json()).then(t => {
   if (t.live) {

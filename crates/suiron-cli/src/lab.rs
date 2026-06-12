@@ -166,13 +166,14 @@ fn generate_traced(
         if stop_flag.load(Ordering::Relaxed) || logits.is_empty() {
             break;
         }
-        let id = sampler.sample(&logits);
+        let (id, sel) = sampler.sample_traced(&logits);
         if stop_ids.contains(&id) {
             break;
         }
         rec.begin_step();
         logits = forward(model, &mut cache, id, Some(&mut rec));
         rec.record_logits(&logits, 10);
+        rec.set_sel(sel);
         push(&mut rec, id, shared);
     }
 
