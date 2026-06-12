@@ -105,6 +105,8 @@ export default function App() {
       {hasTokens && step && (
         <>
           <TokenStrip trace={trace} step={step} cur={safeCur} setCur={setCur} />
+          <Logits step={step} />
+          <Selection sel={step.sel} isPrompt={safeCur < trace.n_prompt} />
           <LayerStack
             trace={trace}
             step={step}
@@ -112,8 +114,6 @@ export default function App() {
             openLayer={openLayer}
             setOpenLayer={setOpenLayer}
           />
-          <Logits step={step} />
-          <Selection sel={step.sel} isPrompt={safeCur < trace.n_prompt} />
         </>
       )}
 

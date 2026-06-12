@@ -173,7 +173,8 @@ button.busy { border-color: var(--red); color: var(--red); }
 .row:hover .rn { color: var(--dim); }
 
 .detail {
-  border: 1px solid var(--hair); padding: 14px; margin-top: 12px;
+  border: 1px solid var(--hair); border-left: 2px solid var(--red);
+  padding: 14px; margin: 8px 0 12px 38px;
   background: var(--bg);
 }
 .heads { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 10px; }
