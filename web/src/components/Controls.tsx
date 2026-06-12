@@ -10,6 +10,7 @@ export function Controls({
   setFollow,
   prompt,
   setPrompt,
+  onStep,
 }: {
   busy: boolean;
   hasTokens: boolean;
@@ -17,6 +18,7 @@ export function Controls({
   setFollow: (v: boolean) => void;
   prompt: string;
   setPrompt: (p: string) => void;
+  onStep: () => void;
 }) {
   const [p, setP] = useState<GenParams>(DEFAULT_PARAMS);
 
@@ -49,7 +51,10 @@ export function Controls({
         <button
           disabled={busy || !hasTokens}
           title="advance the model exactly one token from where it stands"
-          onClick={() => void step(1, p)}
+          onClick={() => {
+            onStep();
+            void step(1, p);
+          }}
         >
           step +1
         </button>

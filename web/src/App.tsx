@@ -19,6 +19,10 @@ export default function App() {
   const lastSeq = useRef(-1);
   const followRef = useRef(follow);
   followRef.current = follow;
+  const curRef = useRef(cur);
+  curRef.current = cur;
+  /** set by step+1: the next growth always advances the view */
+  const jumpRef = useRef(false);
 
   // poll: fast while the model is generating, slow when idle
   useEffect(() => {
@@ -33,7 +37,13 @@ export default function App() {
           lastSeq.current = t.seq ?? -1;
           setTrace((prev) => {
             const grew = !prev || t.tokens.length > prev.tokens.length;
-            if (grew && followRef.current && grewTo >= 0) setCur(grewTo);
+            // advance when following, when stepping, or when already parked
+            // on the frontier — never yank a user who scrubbed back
+            const atFrontier = prev && curRef.current === prev.tokens.length - 1;
+            if (grew && grewTo >= 0 && (followRef.current || jumpRef.current || atFrontier)) {
+              setCur(grewTo);
+              jumpRef.current = false;
+            }
             return t;
           });
         }
@@ -100,6 +110,9 @@ export default function App() {
         setFollow={setFollow}
         prompt={prompt}
         setPrompt={setPrompt}
+        onStep={() => {
+          jumpRef.current = true;
+        }}
       />
 
       {!hasTokens && <EmptyState onPick={setPrompt} />}
