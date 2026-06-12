@@ -39,7 +39,9 @@ export function TokenStrip({
         <span className="note">
           {" "}— each cell is one token (byte-level BPE). dim borders = your prompt, dotted
           underline = generated. faded text = the model was unsure when it picked that token
-          (hover for the probability). arcs show where the current token's attention reaches.
+          (hover for the probability). arcs show where the current token's attention reaches —
+          solid for real targets (red = strongest), and a dashed ghost to the first token: the
+          attention sink, where heads park attention they don't need (see band 04's guide).
         </span>
         <label className="arc-toggle">
           <input type="checkbox" checked={arcs} onChange={(e) => setArcs(e.target.checked)} /> arcs
@@ -116,7 +118,14 @@ function drawArcs(
       for (const [p, v] of head) {
         if (p < cur) weight.set(p, (weight.get(p) ?? 0) + v);
       }
-  const top = [...weight.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (!weight.size) return;
+
+  // the attention sink (token 0) dominates any aggregate — show it as a
+  // dashed ghost so the red arc can point at the strongest REAL target
+  const sink = cur > 3 ? (weight.get(0) ?? 0) : 0;
+  if (cur > 3) weight.delete(0);
+  let top = [...weight.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (!top.length && sink > 0) top = [[0, sink]]; // nothing but the sink
   if (!top.length) return;
   const max = top[0][1];
 
@@ -128,18 +137,33 @@ function drawArcs(
   const from = anchor(cur);
   if (!from) return;
 
+  const arc = (to: { x: number; y: number }, lift: number) => {
+    g.beginPath();
+    g.moveTo(from.x, from.y);
+    g.quadraticCurveTo((from.x + to.x) / 2, Math.min(from.y, to.y) - lift, to.x, to.y);
+    g.stroke();
+  };
+
+  if (sink > 0) {
+    const to = anchor(0);
+    if (to) {
+      g.setLineDash([3, 5]);
+      g.strokeStyle = "#e8e8e8";
+      g.globalAlpha = 0.18;
+      g.lineWidth = 1;
+      arc(to, 10 + Math.min(40, Math.abs(from.x - to.x) * 0.06));
+      g.setLineDash([]);
+    }
+  }
+
   for (const [p, v] of [...top].reverse()) {
     const to = anchor(p);
     if (!to) continue;
     const t = v / max;
-    const lift = 14 + 26 * t + Math.min(40, Math.abs(from.x - to.x) * 0.06);
-    g.beginPath();
-    g.moveTo(from.x, from.y);
-    g.quadraticCurveTo((from.x + to.x) / 2, Math.min(from.y, to.y) - lift, to.x, to.y);
     g.strokeStyle = t === 1 ? "#d71921" : "#e8e8e8";
     g.globalAlpha = t === 1 ? 0.95 : 0.12 + 0.45 * t;
     g.lineWidth = 0.5 + 2.2 * t;
-    g.stroke();
+    arc(to, 14 + 26 * t + Math.min(40, Math.abs(from.x - to.x) * 0.06));
   }
   g.globalAlpha = 1;
 }
