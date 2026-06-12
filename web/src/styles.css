@@ -253,6 +253,51 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .sel-math b { color: var(--ink); font-weight: normal; }
 .sel-math .red { color: var(--red); }
 
+/* ---------- the machine (band 05) ---------- */
+.m-sel { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.m-sel input {
+  width: 44px; background: var(--bg); border: 1px solid var(--hair); color: var(--ink);
+  font: inherit; font-size: 10px; padding: 2px 5px; outline: none;
+}
+.m-loading { color: var(--red); }
+.m-card { border: 1px solid var(--hair); padding: 10px 14px; margin-bottom: 8px; background: var(--bg); }
+.m-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.m-title {
+  font-family: var(--dot); font-weight: 700; font-size: 12px;
+  letter-spacing: 0.08em; color: var(--ink);
+}
+.expand {
+  padding: 1px 9px; font-size: 9px; letter-spacing: 0.12em; color: var(--dim);
+}
+.expand.on { border-color: var(--red); color: var(--red); }
+.m-plain { color: var(--dim); font-size: 11px; line-height: 1.7; max-width: 78ch; }
+.m-plain b { color: var(--ink); font-weight: normal; }
+.m-math {
+  margin-top: 10px; padding: 10px 12px; border-left: 2px solid var(--red);
+  background: var(--surface); color: var(--dim); font-size: 11px; line-height: 1.9;
+  overflow-x: auto;
+}
+.m-math b { color: var(--ink); font-weight: normal; }
+.m-row { display: inline-flex; align-items: center; gap: 6px; }
+.m-row input {
+  width: 40px; background: var(--bg); border: 1px solid var(--hair); color: var(--ink);
+  font: inherit; font-size: 10px; padding: 1px 4px; outline: none;
+}
+.m-table { border-collapse: collapse; margin: 8px 0; font-size: 11px; }
+.m-table th, .m-table td {
+  border: 1px solid var(--hair); padding: 3px 10px; text-align: right;
+  color: var(--dim); font-weight: normal;
+}
+.m-table th { font-size: 9px; text-transform: lowercase; letter-spacing: 0.1em; color: var(--faint); }
+.m-table td:first-child { text-align: left; white-space: pre; color: var(--ink); }
+.m-table tr.strong td { color: var(--red); border-color: rgba(215,25,33,0.5); }
+.code {
+  margin-top: 10px; padding: 12px 14px; border: 1px solid var(--hair);
+  background: #070707; color: var(--ink); font-size: 11px; line-height: 1.65;
+  overflow-x: auto; white-space: pre;
+}
+.code .c-dim { color: var(--faint); }
+
 /* ---------- empty state ---------- */
 .empty { text-align: center; padding: 56px 24px 60px; }
 .empty-jp {

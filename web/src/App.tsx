@@ -4,6 +4,7 @@ import { Controls } from "./components/Controls";
 import { EmptyState } from "./components/EmptyState";
 import { LayerStack } from "./components/LayerStack";
 import { Logits } from "./components/Logits";
+import { Machine } from "./components/Machine";
 import { Selection } from "./components/Selection";
 import { TokenStrip } from "./components/TokenStrip";
 import type { Trace } from "./types";
@@ -114,6 +115,7 @@ export default function App() {
             openLayer={openLayer}
             setOpenLayer={setOpenLayer}
           />
+          <Machine trace={trace} cur={safeCur} busy={!!trace.busy} />
         </>
       )}
 

@@ -87,6 +87,44 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                 );
                 respond(&mut s, "200 OK", "application/json", json.as_bytes());
             }
+            ("GET", "/api/v1/source") => {
+                let name = path
+                    .split_once("fn=")
+                    .map(|(_, v)| v.split('&').next().unwrap_or(""))
+                    .unwrap_or("");
+                match crate::machine::source_for(name) {
+                    Some(src) => respond(&mut s, "200 OK", "text/plain; charset=utf-8", src.as_bytes()),
+                    None => respond(&mut s, "404 Not Found", "text/plain", b"unknown fn"),
+                }
+            }
+            ("GET", "/api/v1/inspect") => {
+                let (pos, layer) = parse_inspect(&path);
+                let setup = {
+                    let st = shared.lock().unwrap();
+                    if st.busy {
+                        Err("busy")
+                    } else if pos >= st.tokens.len() || layer >= model.config.n_layers {
+                        Err("bad pos/layer")
+                    } else if let Some(cache) = &st.cache {
+                        // clone so the resident cache (and future forks) are untouched
+                        let mut c = cache.clone();
+                        c.truncate(pos);
+                        Ok((c, st.tokens[pos].0))
+                    } else {
+                        Err("nothing to inspect — generate first")
+                    }
+                };
+                match setup {
+                    Err(e) => respond(&mut s, "409 Conflict", "text/plain", e.as_bytes()),
+                    Ok((mut c, id)) => {
+                        let mut deep = crate::machine::DeepObserver::new(layer);
+                        forward(&model, &mut c, id, Some(&mut deep));
+                        let text = tok.decode(&[id]);
+                        let json = crate::machine::inspect_json(&deep, pos, (id, &text));
+                        respond(&mut s, "200 OK", "application/json", json.as_bytes());
+                    }
+                }
+            }
             ("POST", "/api/v1/stop") => {
                 stop_flag.store(true, Ordering::Relaxed);
                 respond(&mut s, "200 OK", "text/plain", b"stopping");
@@ -310,6 +348,22 @@ fn finish(shared: &Mutex<Shared>, cache: KvCache) {
     st.cache = Some(cache);
     st.busy = false;
     st.seq += 1;
+}
+
+/// inspect params: ?pos=<position>&layer=<layer>
+fn parse_inspect(path: &str) -> (usize, usize) {
+    let (mut pos, mut layer) = (usize::MAX, usize::MAX);
+    if let Some(q) = path.split_once('?').map(|(_, q)| q) {
+        for kv in q.split('&') {
+            let Some((k, v)) = kv.split_once('=') else { continue };
+            match k {
+                "pos" => pos = v.parse().unwrap_or(usize::MAX),
+                "layer" => layer = v.parse().unwrap_or(usize::MAX),
+                _ => {}
+            }
+        }
+    }
+    (pos, layer)
 }
 
 /// fork params: ?pos=<tokens to keep>&token=<forced id>

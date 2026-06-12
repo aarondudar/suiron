@@ -6,6 +6,7 @@ use crate::math::{dot, matmul, rmsnorm, rope, silu, softmax};
 use crate::model::Model;
 
 /// Per-layer K/V history. Layout per layer: [pos][kv_head][head_dim] flat.
+#[derive(Clone)]
 pub struct KvCache {
     pub k: Vec<Vec<f32>>,
     pub v: Vec<Vec<f32>>,
@@ -35,10 +36,15 @@ impl KvCache {
     }
 }
 
-/// Tracing hooks for the inference microscope. All no-ops by default.
+/// Tracing hooks for the inference microscope. All no-ops by default, so
+/// the standard recorder pays nothing for the deep-inspection hooks.
 pub trait Observer {
     fn attention(&mut self, _layer: usize, _head: usize, _weights: &[f32]) {}
     fn residual(&mut self, _layer: usize, _norm: f32) {}
+    /// Raw attention scores (pre-softmax, post-scale) for one head.
+    fn scores(&mut self, _layer: usize, _head: usize, _scores: &[f32]) {}
+    /// Named intermediate vectors ("x_in", "q", "gate", …) per layer.
+    fn vector(&mut self, _layer: usize, _name: &'static str, _v: &[f32]) {}
 }
 
 /// Process one token at position `cache.len`; returns logits over the vocab.
@@ -60,7 +66,13 @@ pub fn forward(
 
     for (li, layer) in model.layers.iter().enumerate() {
         // --- attention block ---
+        if let Some(o) = obs.as_deref_mut() {
+            o.vector(li, "x_in", &x);
+        }
         let xn = rmsnorm(&x, &layer.attn_norm.data, c.rms_eps);
+        if let Some(o) = obs.as_deref_mut() {
+            o.vector(li, "attn_norm", &xn);
+        }
         let mut q = matmul(&layer.wq.data, &xn, q_dim, h, 1);
         let mut k = matmul(&layer.wk.data, &xn, kv_dim, h, 1);
         let v = matmul(&layer.wv.data, &xn, kv_dim, h, 1);
@@ -77,10 +89,16 @@ pub fn forward(
             rope(kh, pos, c.rope_base);
         }
 
+        if let Some(o) = obs.as_deref_mut() {
+            o.vector(li, "q", &q);
+            o.vector(li, "k", &k);
+            o.vector(li, "v", &v);
+        }
         cache.k[li].extend_from_slice(&k);
         cache.v[li].extend_from_slice(&v);
         let n_pos = pos + 1;
 
+        // machine:attention:start
         let mut attn = vec![0.0f32; q_dim];
         for head in 0..c.n_heads {
             let kv_head = head / group;
@@ -90,6 +108,9 @@ pub fn forward(
             for p in 0..n_pos {
                 let kp = &cache.k[li][p * kv_dim + kv_head * hd..][..hd];
                 scores.push(dot(qh, kp) * scale);
+            }
+            if let Some(o) = obs.as_deref_mut() {
+                o.scores(li, head, &scores);
             }
             let weights = softmax(&scores);
             if let Some(o) = obs.as_deref_mut() {
@@ -104,15 +125,23 @@ pub fn forward(
                 }
             }
         }
+        // machine:attention:end
         let proj = matmul(&layer.wo.data, &attn, h, q_dim, 1);
         for i in 0..h {
             x[i] += proj[i];
         }
+        if let Some(o) = obs.as_deref_mut() {
+            o.vector(li, "attn_out", &proj);
+        }
 
-        // --- feed-forward block (SwiGLU) ---
+        // machine:ffn:start
         let xn = rmsnorm(&x, &layer.ffn_norm.data, c.rms_eps);
         let mut gate = matmul(&layer.ffn_gate.data, &xn, c.ffn, h, 1);
         let up = matmul(&layer.ffn_up.data, &xn, c.ffn, h, 1);
+        if let Some(o) = obs.as_deref_mut() {
+            o.vector(li, "gate", &gate);
+            o.vector(li, "up", &up);
+        }
         for i in 0..c.ffn {
             gate[i] = silu(gate[i]) * up[i];
         }
@@ -120,8 +149,11 @@ pub fn forward(
         for i in 0..h {
             x[i] += down[i];
         }
-
+        // machine:ffn:end
         if let Some(o) = obs.as_deref_mut() {
+            o.vector(li, "gate_act", &gate);
+            o.vector(li, "down", &down);
+            o.vector(li, "x_out", &x);
             o.residual(li, (x.iter().map(|v| v * v).sum::<f32>() / h as f32).sqrt());
         }
     }

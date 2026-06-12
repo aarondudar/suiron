@@ -1,4 +1,5 @@
 mod lab;
+mod machine;
 mod trace;
 mod view;
 
