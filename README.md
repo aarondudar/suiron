@@ -45,10 +45,14 @@ Each milestone is independently runnable and verified against `llama.cpp` output
 ## Quick start
 
 ```sh
-# fetch the reference model (~640 MB)
-curl -L -o models/Qwen3-0.6B-Q8_0.gguf \
-  "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf"
+make setup   # fetch model (~640 MB) + build engine + build frontend
+make lab     # launch the inference microscope in your browser
+```
 
+`make dev` runs the frontend with hot reload (vite, /api proxied to the lab).
+`make help` lists everything. Under the hood it's only `cargo`, `npm`, `curl`:
+
+```sh
 cargo run --release -p suiron-cli -- inspect models/Qwen3-0.6B-Q8_0.gguf
 ```
 
