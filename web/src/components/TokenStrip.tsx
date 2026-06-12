@@ -42,15 +42,27 @@ export function TokenStrip({
           <input type="checkbox" checked={arcs} onChange={(e) => setArcs(e.target.checked)} /> arcs
         </label>
       </div>
+      {trace.fork && (
+        <div className="fork-note">
+          ⑂ forked at {trace.fork.pos} · before:{" "}
+          <span className="fork-prev">{trace.fork.prev.slice(0, 120) || "(nothing)"}</span>
+        </div>
+      )}
       <div className="strip" ref={stripRef}>
         <canvas className="arc-layer" ref={canvasRef} />
         {trace.tokens.map((tok, i) => {
           const conf = confidence(trace, i);
           const isCur = i === cur;
+          const forced = trace.steps[i]?.sel?.forced;
           return (
             <span
               key={i}
-              className={"tok" + (i >= trace.n_prompt ? " gen" : "") + (isCur ? " cur" : "")}
+              className={
+                "tok" +
+                (i >= trace.n_prompt || forced ? " gen" : "") +
+                (forced ? " forced" : "") +
+                (isCur ? " cur" : "")
+              }
               style={!isCur && conf !== null ? { color: confColor(conf) } : undefined}
               title={
                 `id ${tok.id} · pos ${i}` +

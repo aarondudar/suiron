@@ -105,7 +105,7 @@ export default function App() {
       {hasTokens && step && (
         <>
           <TokenStrip trace={trace} step={step} cur={safeCur} setCur={setCur} />
-          <Logits step={step} />
+          <Logits step={step} cur={safeCur} busy={!!trace.busy} />
           <Selection sel={step.sel} isPrompt={safeCur < trace.n_prompt} />
           <LayerStack
             trace={trace}

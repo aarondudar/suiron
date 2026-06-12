@@ -21,6 +21,10 @@ struct Shared {
     n_prompt: usize,
     busy: bool,
     seq: u64,
+    /// KV cache of the last completed run — kept so forks rewind instantly.
+    cache: Option<KvCache>,
+    /// (position, discarded tail text) of the most recent fork.
+    fork: Option<(usize, String)>,
 }
 
 #[derive(Clone, Copy)]
@@ -55,6 +59,8 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
         n_prompt: 0,
         busy: false,
         seq: 0,
+        cache: None,
+        fork: None,
     }));
     let stop_flag = Arc::new(AtomicBool::new(false));
 
@@ -76,6 +82,7 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                     st.n_prompt,
                     &st.steps,
                     Some((st.busy, st.seq)),
+                    st.fork.as_ref(),
                     |id| tok.decode(&[id]),
                 );
                 respond(&mut s, "200 OK", "application/json", json.as_bytes());
@@ -100,6 +107,8 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                     st.busy = true;
                     st.tokens.clear();
                     st.steps.clear();
+                    st.cache = None;
+                    st.fork = None;
                     st.seq += 1;
                 }
                 stop_flag.store(false, Ordering::Relaxed);
@@ -114,6 +123,53 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                     generate_traced(&model, &tok, &prompt, params, &shared, &stop_flag, &stop_ids);
                 });
                 respond(&mut s, "200 OK", "text/plain", b"started");
+            }
+            ("POST", "/api/v1/fork") => {
+                let params = parse_params(&path);
+                let (pos, forced) = parse_fork(&path);
+                let setup = {
+                    let mut st = shared.lock().unwrap();
+                    if st.busy {
+                        Err("busy")
+                    } else if forced == u32::MAX || pos == 0 || pos > st.tokens.len() {
+                        Err("bad pos/token")
+                    } else if st.cache.is_none() {
+                        Err("nothing to fork — generate first")
+                    } else {
+                        let mut cache = st.cache.take().unwrap();
+                        cache.truncate(pos);
+                        let prev: String =
+                            st.tokens[pos..].iter().map(|(_, t)| t.as_str()).collect();
+                        // model's preferences at the fork point, for the trace
+                        let model_top = st.steps[pos - 1].top.clone();
+                        st.tokens.truncate(pos);
+                        st.steps.truncate(pos);
+                        st.fork = Some((pos, prev));
+                        st.busy = true;
+                        st.seq += 1;
+                        Ok((cache, model_top))
+                    }
+                };
+                match setup {
+                    Err(e) => respond(&mut s, "409 Conflict", "text/plain", e.as_bytes()),
+                    Ok((cache, model_top)) => {
+                        stop_flag.store(false, Ordering::Relaxed);
+                        let (model, tok, shared, stop_flag, stop_ids) = (
+                            Arc::clone(&model),
+                            Arc::clone(&tok),
+                            Arc::clone(&shared),
+                            Arc::clone(&stop_flag),
+                            Arc::clone(&stop_ids),
+                        );
+                        std::thread::spawn(move || {
+                            fork_traced(
+                                &model, &tok, cache, forced, &model_top, params, &shared,
+                                &stop_flag, &stop_ids,
+                            );
+                        });
+                        respond(&mut s, "200 OK", "text/plain", b"forked");
+                    }
+                }
             }
             ("GET", p) => serve_static(&mut s, p),
             _ => respond(&mut s, "404 Not Found", "text/plain", b"not found"),
@@ -143,15 +199,7 @@ fn generate_traced(
 
     let mut rec = Recorder::new(6);
     let mut cache = KvCache::new(model);
-    let mut sampler = Sampler::new(p.temp, p.top_k, p.top_p, p.seed);
     let mut logits = Vec::new();
-
-    let push = |rec: &mut Recorder, id: u32, shared: &Mutex<Shared>| {
-        let mut st = shared.lock().unwrap();
-        st.tokens.push((id, tok.decode(&[id])));
-        st.steps.append(&mut rec.steps);
-        st.seq += 1;
-    };
 
     for &t in &ids {
         if stop_flag.load(Ordering::Relaxed) {
@@ -160,9 +208,79 @@ fn generate_traced(
         rec.begin_step();
         logits = forward(model, &mut cache, t, Some(&mut rec));
         rec.record_logits(&logits, 10);
-        push(&mut rec, t, shared);
+        push_step(tok, &mut rec, t, shared);
     }
 
+    run_decode(model, tok, &mut rec, &mut cache, logits, p, shared, stop_flag, stop_ids);
+    finish(shared, cache);
+}
+
+/// Continue from a forked cache: stamp the human-forced token, then let the
+/// model carry on. `model_top` = the model's own predictions at the fork
+/// point, recorded into the forced token's selection trace.
+#[allow(clippy::too_many_arguments)]
+fn fork_traced(
+    model: &Model,
+    tok: &Tokenizer,
+    mut cache: KvCache,
+    forced: u32,
+    model_top: &[(u32, f32)],
+    p: Params,
+    shared: &Mutex<Shared>,
+    stop_flag: &AtomicBool,
+    stop_ids: &[u32],
+) {
+    use suiron_core::sampling::{Cand, SampleTrace};
+
+    let mut cand: Vec<Cand> = model_top
+        .iter()
+        .map(|&(id, prob)| Cand {
+            id,
+            logit: 0.0, // not retained across runs; viewer hides it for forced
+            p: prob,
+            p_final: if id == forced { 1.0 } else { 0.0 },
+            cut: None,
+        })
+        .collect();
+    if !cand.iter().any(|c| c.id == forced) {
+        cand.push(Cand { id: forced, logit: 0.0, p: 0.0, p_final: 1.0, cut: None });
+    }
+    let sel = SampleTrace {
+        temperature: p.temp,
+        top_k: p.top_k,
+        top_p: p.top_p,
+        seed: p.seed,
+        r: None,
+        chosen: forced,
+        forced: true,
+        cand,
+    };
+
+    let mut rec = Recorder::new(6);
+    rec.begin_step();
+    let logits = forward(model, &mut cache, forced, Some(&mut rec));
+    rec.record_logits(&logits, 10);
+    rec.set_sel(sel);
+    push_step(tok, &mut rec, forced, shared);
+
+    run_decode(model, tok, &mut rec, &mut cache, logits, p, shared, stop_flag, stop_ids);
+    finish(shared, cache);
+}
+
+/// The sampling loop shared by generate and fork.
+#[allow(clippy::too_many_arguments)]
+fn run_decode(
+    model: &Model,
+    tok: &Tokenizer,
+    rec: &mut Recorder,
+    cache: &mut KvCache,
+    mut logits: Vec<f32>,
+    p: Params,
+    shared: &Mutex<Shared>,
+    stop_flag: &AtomicBool,
+    stop_ids: &[u32],
+) {
+    let mut sampler = Sampler::new(p.temp, p.top_k, p.top_p, p.seed);
     for _ in 0..p.n {
         if stop_flag.load(Ordering::Relaxed) || logits.is_empty() {
             break;
@@ -172,15 +290,42 @@ fn generate_traced(
             break;
         }
         rec.begin_step();
-        logits = forward(model, &mut cache, id, Some(&mut rec));
+        logits = forward(model, cache, id, Some(&mut *rec));
         rec.record_logits(&logits, 10);
         rec.set_sel(sel);
-        push(&mut rec, id, shared);
+        push_step(tok, rec, id, shared);
     }
+}
 
+fn push_step(tok: &Tokenizer, rec: &mut Recorder, id: u32, shared: &Mutex<Shared>) {
     let mut st = shared.lock().unwrap();
+    st.tokens.push((id, tok.decode(&[id])));
+    st.steps.append(&mut rec.steps);
+    st.seq += 1;
+}
+
+/// Park the cache for future forks and mark idle.
+fn finish(shared: &Mutex<Shared>, cache: KvCache) {
+    let mut st = shared.lock().unwrap();
+    st.cache = Some(cache);
     st.busy = false;
     st.seq += 1;
+}
+
+/// fork params: ?pos=<tokens to keep>&token=<forced id>
+fn parse_fork(path: &str) -> (usize, u32) {
+    let (mut pos, mut token) = (0usize, u32::MAX);
+    if let Some(q) = path.split_once('?').map(|(_, q)| q) {
+        for kv in q.split('&') {
+            let Some((k, v)) = kv.split_once('=') else { continue };
+            match k {
+                "pos" => pos = v.parse().unwrap_or(0),
+                "token" => token = v.parse().unwrap_or(u32::MAX),
+                _ => {}
+            }
+        }
+    }
+    (pos, token)
 }
 
 fn parse_params(path: &str) -> Params {

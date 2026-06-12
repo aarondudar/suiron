@@ -100,6 +100,7 @@ pub fn write_trace(
     n_prompt: usize,
     steps: &[Step],
     live: Option<(bool, u64)>,
+    fork: Option<&(usize, String)>,
     decode: impl Fn(u32) -> String,
 ) -> String {
     let mut j = String::with_capacity(1 << 20);
@@ -109,6 +110,9 @@ pub fn write_trace(
     ));
     if let Some((busy, seq)) = live {
         j.push_str(&format!("\"live\":true,\"busy\":{busy},\"seq\":{seq},"));
+    }
+    if let Some((pos, prev)) = fork {
+        j.push_str(&format!("\"fork\":{{\"pos\":{pos},\"prev\":\"{}\"}},", escape_json(prev)));
     }
 
     j.push_str("\"tokens\":[");
@@ -162,13 +166,14 @@ pub fn write_trace(
         j.push(']');
         if let Some(sel) = &step.sel {
             j.push_str(&format!(
-                ",\"sel\":{{\"temp\":{},\"top_k\":{},\"top_p\":{},\"seed\":{},\"r\":{},\"chosen\":{},\"cand\":[",
+                ",\"sel\":{{\"temp\":{},\"top_k\":{},\"top_p\":{},\"seed\":{},\"r\":{},\"chosen\":{},\"forced\":{},\"cand\":[",
                 sel.temperature,
                 sel.top_k,
                 sel.top_p,
                 sel.seed,
                 sel.r.map_or("null".to_string(), |r| format!("{r:.4}")),
                 sel.chosen,
+                sel.forced,
             ));
             for (i, c) in sel.cand.iter().enumerate() {
                 if i > 0 {

@@ -66,6 +66,33 @@ function SelDetail({ sel }: { sel: Sel }) {
   const chosen = sel.cand.find((c) => c.id === sel.chosen) ?? sel.cand[0];
   const maxLogit = sel.cand[0]?.logit ?? 0;
 
+  if (sel.forced) {
+    const fav = sel.cand[0];
+    const wanted = fav && fav.id !== sel.chosen;
+    return (
+      <div className="sel-math">
+        <span className="red">you</span> forced <span className="red">{esc(chosen.t)}</span>{" "}
+        here — no sampling happened.{" "}
+        {wanted ? (
+          <>
+            the model's own favorite was <b>{esc(fav.t)}</b> at{" "}
+            <b>{(fav.p * 100).toFixed(1)}%</b>
+            {chosen.p > 0 && (
+              <>
+                {" "}(it gave your pick <b>{(chosen.p * 100).toFixed(1)}%</b>)
+              </>
+            )}
+            .
+          </>
+        ) : (
+          <>your pick matched the model's own favorite.</>
+        )}{" "}
+        every token after this point is the model continuing from the history{" "}
+        <b>you</b> altered — same math, different past.
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="sel-params">

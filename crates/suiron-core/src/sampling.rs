@@ -50,6 +50,9 @@ pub struct SampleTrace {
     /// the uniform draw in [0,1); None for greedy.
     pub r: Option<f32>,
     pub chosen: u32,
+    /// true when a human forced this token (counterfactual fork) — the
+    /// model's own preferences are still recorded in `cand`.
+    pub forced: bool,
     /// top candidates by logit (chosen one always included).
     pub cand: Vec<Cand>,
 }
@@ -83,6 +86,7 @@ impl Sampler {
             seed: self.seed,
             r: None,
             chosen: ranked[0].0,
+            forced: false,
             cand: Vec::new(),
         };
 

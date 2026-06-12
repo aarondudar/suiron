@@ -25,6 +25,8 @@ export interface Sel {
   /** uniform draw in [0,1); null for greedy */
   r: number | null;
   chosen: number;
+  /** true when a human forced this token via fork */
+  forced: boolean;
   cand: Cand[];
 }
 
@@ -53,6 +55,8 @@ export interface Trace {
   live?: boolean;
   busy?: boolean;
   seq?: number;
+  /** present after a counterfactual fork: where, and the discarded tail */
+  fork?: { pos: number; prev: string };
   tokens: Tok[];
   steps: Step[];
 }

@@ -195,6 +195,22 @@ button.busy { border-color: var(--red); color: var(--red); }
   font-weight: 600; font-size: 12px;
 }
 .bar-row.win .bar-p { color: var(--ink); }
+.bar-row.clickable { cursor: pointer; }
+.fork-hint {
+  width: 52px; font-size: 10px; color: var(--faint); opacity: 0;
+  transition: opacity 0.12s, color 0.12s;
+}
+.bar-row.clickable:hover .fork-hint { opacity: 1; color: var(--red); }
+.bar-row.clickable:hover .bar-tok { color: var(--ink); }
+.bar-row.win.clickable:hover .bar-tok { color: var(--red); }
+
+/* forked tokens + breadcrumb */
+.tok.forced { border-style: dashed; border-color: var(--red); }
+.tok.forced.cur { border-style: solid; }
+.fork-note {
+  color: var(--dim); font-size: 10px; margin-bottom: 10px; letter-spacing: 0.06em;
+}
+.fork-note .fork-prev { color: var(--faint); white-space: pre; text-decoration: line-through; }
 
 /* ---------- selection band ---------- */
 .sel-params { color: var(--dim); font-size: 10px; margin-bottom: 10px; letter-spacing: 0.08em; }

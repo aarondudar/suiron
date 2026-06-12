@@ -135,7 +135,7 @@ fn trace_cmd(path: &str, rest: &[String]) -> Result<(), Box<dyn std::error::Erro
         all_ids.iter().map(|&id| (id, tok.decode(&[id]))).collect();
     let name = file.get_str("general.name").unwrap_or("model");
     let json = trace::write_trace(
-        name, "q8_0", &model.config, &tokens, n_prompt, &rec.steps, None,
+        name, "q8_0", &model.config, &tokens, n_prompt, &rec.steps, None, None,
         |id| tok.decode(&[id]),
     );
     std::fs::write(&out_path, &json)?;
