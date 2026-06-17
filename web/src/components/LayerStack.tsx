@@ -69,7 +69,9 @@ export function LayerStack({
         onMouseLeave={() => setHoverLayer(null)}
       >
         <span className="lnum">{l}</span>
-        <DotStrip weights={meanHeadWeights(step, l, nPos)} nPos={nPos} />
+        <div className="row-dots">
+          <DotStrip weights={meanHeadWeights(step, l, nPos)} nPos={nPos} />
+        </div>
         <span className="glance">
           {g && (
             <>

@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { confBar, confColor, confidence, esc } from "../lib";
+import { attnSources, confBar, confColor, confidence, esc } from "../lib";
 import { BandHeader } from "./BandHeader";
 import type { Step, Trace } from "../types";
+
+const NARROW = "(max-width: 640px)";
 
 export function TokenStrip({
   trace,
@@ -9,6 +11,7 @@ export function TokenStrip({
   cur,
   setCur,
   focusLayer,
+  hoverCand,
 }: {
   trace: Trace;
   step: Step;
@@ -16,8 +19,12 @@ export function TokenStrip({
   setCur: (i: number) => void;
   /** when set (hovered layer row), arcs show only that layer's attention */
   focusLayer: number | null;
+  /** a logit candidate id being hovered → flash its occurrences in the strip */
+  hoverCand: number | null;
 }) {
   const [arcs, setArcs] = useState(true);
+  const [hoverTok, setHoverTok] = useState<number | null>(null);
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
   const stripRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [, setTick] = useState(0); // reflow arcs on resize
@@ -25,11 +32,26 @@ export function TokenStrip({
   useEffect(() => {
     const onResize = () => setTick((t) => t + 1);
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    const mq = window.matchMedia(NARROW);
+    const onMq = () => setNarrow(mq.matches);
+    mq.addEventListener("change", onMq);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      mq.removeEventListener("change", onMq);
+    };
   }, []);
 
+  // which token's attention sources to highlight inline: the hovered one, or —
+  // on a phone, where arcs are off and there's no hover — the current token.
+  const srcPos = hoverTok ?? (narrow ? cur : null);
+  const sources = srcPos != null && srcPos > 0 ? attnSources(trace.steps[srcPos], srcPos) : [];
+  const srcSet = new Set(sources.map((s) => s.pos));
+  const topSrc = sources[0]?.pos;
+
   useLayoutEffect(() => {
-    drawArcs(canvasRef.current, stripRef.current, step, cur, arcs, focusLayer);
+    // arcs are a desktop affordance; on narrow screens the inline source tint
+    // replaces them (Bezier fans across wrapped lines read as noise on a phone)
+    drawArcs(canvasRef.current, stripRef.current, step, cur, arcs && !narrow, focusLayer);
   });
 
   return (
@@ -59,7 +81,7 @@ export function TokenStrip({
           <span className="fork-prev">{trace.fork.prev.slice(0, 120) || "(nothing)"}</span>
         </div>
       )}
-      <div className="strip" ref={stripRef}>
+      <div className="strip" ref={stripRef} onMouseLeave={() => setHoverTok(null)}>
         <canvas className="arc-layer" ref={canvasRef} />
         {trace.tokens.map((tok, i) => {
           const conf = confidence(trace, i);
@@ -72,7 +94,9 @@ export function TokenStrip({
                 "tok" +
                 (i >= trace.n_prompt || forced ? " gen" : "") +
                 (forced ? " forced" : "") +
-                (isCur ? " cur" : "")
+                (isCur ? " cur" : "") +
+                (srcSet.has(i) ? (i === topSrc ? " src-top" : " src") : "") +
+                (hoverCand !== null && tok.id === hoverCand ? " cand-match" : "")
               }
               style={!isCur && conf !== null ? { color: confColor(conf) } : undefined}
               title={
@@ -80,6 +104,7 @@ export function TokenStrip({
                 (conf !== null ? ` · p ${(conf * 100).toFixed(1)}%` : " · prompt")
               }
               onClick={() => setCur(i)}
+              onMouseEnter={() => setHoverTok(i)}
             >
               {esc(tok.t)}
               {conf !== null && (

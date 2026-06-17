@@ -213,6 +213,12 @@ button.busy { border-color: var(--red); color: var(--red); }
 .conf-bar { position: absolute; left: 0; bottom: -1px; height: 2px; background: var(--dim); }
 .tok.cur .conf-bar { background: var(--red); }
 
+/* linked highlighting (B1) — background/border only, never color, so the
+   confidence brightness (inline style) is preserved. */
+.tok.src { background: rgba(232, 232, 232, 0.07); border-color: var(--dim); }
+.tok.src-top { background: rgba(215, 25, 33, 0.16); border-color: var(--red); }
+.tok.cand-match { background: rgba(215, 25, 33, 0.16); border-color: var(--red); }
+
 /* ---------- layer stack ---------- */
 .row {
   display: flex; align-items: center; gap: var(--sp-3); cursor: pointer;
@@ -413,6 +419,49 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .empty-line { color: var(--dim); font-size: var(--t-body); max-width: 52ch; margin: 0 auto 26px; }
 .empty-chips { display: flex; gap: var(--sp-2); justify-content: center; flex-wrap: wrap; }
 .empty-chips button { white-space: pre; }
+
+/* ---------- horizontal-scroll tracks (wide content) ---------- */
+/* the layer row's dot strip and the selection table can exceed a phone's
+   width; these wrappers scroll them instead of breaking the page. harmless
+   on desktop (no overflow → no scrollbar). */
+.row-dots { display: flex; }
+.tbl-scroll { overflow-x: auto; }
+
+/* ---------- mobile / narrow viewport ---------- */
+@media (max-width: 640px) {
+  #root { padding: var(--sp-4) var(--sp-3) var(--sp-3); }
+  section { padding: var(--sp-3); }
+
+  /* header stacks: brand/spec above position + controls */
+  header { flex-direction: column; align-items: flex-start; gap: var(--sp-3); }
+  .head-right { align-items: flex-start; }
+  header .pos { white-space: normal; }
+
+  .ctl-row { flex-wrap: wrap; }
+
+  /* no arcs on a phone — reclaim the space the arc canvas reserved */
+  .strip { padding-top: 0; }
+
+  /* layer rows reflow to two lines: lnum + glance + rnorm, then the dot strip
+     on its own scrollable track (so long sequences scroll, not overflow). */
+  .row { flex-wrap: wrap; }
+  .glance { min-width: 0; white-space: normal; }
+  .row-dots {
+    order: 3; flex-basis: 100%;
+    overflow-x: auto; overscroll-behavior-x: contain; touch-action: pan-x;
+  }
+  .detail { margin-left: 0; }
+
+  /* head detail: two columns, each dot strip scrollable */
+  .heads { grid-template-columns: repeat(2, 1fr); }
+  .head { overflow-x: auto; }
+
+  /* quantization cards stack */
+  .q-cards { flex-direction: column; }
+
+  .empty { padding: 40px var(--sp-3) 44px; }
+  .empty-jp { font-size: 40px; }
+}
 
 /* ---------- scrollbar ---------- */
 ::-webkit-scrollbar { width: 8px; height: 8px; }

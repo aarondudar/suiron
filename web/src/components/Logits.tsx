@@ -7,10 +7,12 @@ export function Logits({
   step,
   cur,
   busy,
+  setHoverCand,
 }: {
   step: Step;
   cur: number;
   busy: boolean;
+  setHoverCand: (id: number | null) => void;
 }) {
   const top = step.top ?? [];
   const pmax = top.length ? top[0][2] : 1;
@@ -46,6 +48,8 @@ export function Logits({
                 : `fork: force "${esc(text)}" as the next token`
             }
             onClick={() => doFork(id)}
+            onMouseEnter={() => setHoverCand(id)}
+            onMouseLeave={() => setHoverCand(null)}
           >
             <span className="bar-tok">{esc(text)}</span>
             <div className="bar-wrap">

@@ -20,6 +20,7 @@ export default function App() {
   const [prompt, setPrompt] = useState("");
   const [params, setParams] = useState<GenParams>(DEFAULT_PARAMS);
   const [hoverLayer, setHoverLayer] = useState<number | null>(null);
+  const [hoverCand, setHoverCand] = useState<number | null>(null);
   const lastSeq = useRef(-1);
   const followRef = useRef(follow);
   followRef.current = follow;
@@ -143,8 +144,9 @@ export default function App() {
             cur={safeCur}
             setCur={setCur}
             focusLayer={hoverLayer}
+            hoverCand={hoverCand}
           />
-          <Logits step={step} cur={safeCur} busy={!!trace.busy} />
+          <Logits step={step} cur={safeCur} busy={!!trace.busy} setHoverCand={setHoverCand} />
           <Selection sel={step.sel} isPrompt={safeCur < trace.n_prompt} />
           <LayerStack
             trace={trace}

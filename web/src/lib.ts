@@ -44,6 +44,20 @@ export function confBar(conf: number): number {
   return Math.max(0.08, Math.min(1, Math.sqrt(conf) * 1.25))
 }
 
+/** Aggregate attention from one step over all layers + heads → the top source
+ *  positions this token attended to (strongest first). Drops the attention
+ *  sink (pos 0) once there's real context, matching the arc rendering. */
+export function attnSources(step: Step, pos: number, topN = 6): { pos: number; w: number }[] {
+  const weight = new Map<number, number>()
+  for (const layer of step.attn)
+    for (const head of layer) for (const [p, v] of head) if (p < pos) weight.set(p, (weight.get(p) ?? 0) + v)
+  if (pos > 3) weight.delete(0)
+  return [...weight.entries()]
+    .map(([p, w]) => ({ pos: p, w }))
+    .sort((a, b) => b.w - a.w)
+    .slice(0, topN)
+}
+
 export function edgesToWeights(edges: AttnEdge[], nPos: number): number[] {
   const w = new Array(nPos).fill(0)
   for (const [p, v] of edges) if (p < nPos) w[p] = v

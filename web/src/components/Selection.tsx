@@ -110,6 +110,7 @@ function SelDetail({ sel }: { sel: Sel }) {
         )}
       </div>
 
+      <div className="tbl-scroll">
       <table className="sel">
         <thead>
           <tr>
@@ -143,6 +144,7 @@ function SelDetail({ sel }: { sel: Sel }) {
           })}
         </tbody>
       </table>
+      </div>
 
       {greedy ? (
         <div className="sel-math">
