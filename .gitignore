@@ -3,6 +3,7 @@
 .DS_Store
 /DEVPLAN.md
 /.vscode/
+/.docs/
 
 # frontend
 /web/node_modules/
