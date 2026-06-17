@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { edgesToWeights, headGlance, layerGlance, meanHeadWeights, q } from "../lib";
 import type { Step, Trace } from "../types";
+import { BandHeader } from "./BandHeader";
 import { DotStrip } from "./DotStrip";
 
 const TAG_HELP: Record<string, string> = {
@@ -25,7 +25,6 @@ export function LayerStack({
   setOpenLayer: (l: number) => void;
   setHoverLayer: (l: number | null) => void;
 }) {
-  const [help, setHelp] = useState(false);
   const group = trace.heads / trace.kv_heads;
   const tokAt = (p: number) => q(trace.tokens[p]?.t ?? "");
 
@@ -93,38 +92,27 @@ export function LayerStack({
 
   return (
     <section>
-      <div className="label">
-        <span className="idx">04</span>
-        inside the {trace.layers} layers — where attention looked, bottom to top
-        <button className="expand" onClick={() => setHelp(!help)}>
-          how to read this
-        </button>
-        <span className="note">
-          {" "}— one row per transformer layer; the token passes through layer 0 first, layer{" "}
-          {trace.layers - 1} last. hover a row to draw its reach over the sentence above;
-          click for its individual heads.
-        </span>
-      </div>
-      {help && (
-        <div className="m-math how-to">
-          each row is one layer of the network, and the dots show <b>where that layer looked</b>{" "}
-          while processing the current token — bigger dot, more attention; red = strongest. the
-          “→ word %” tells you its favorite target so you don't have to squint. patterns to
-          spot:
-          <br />· <b>local</b> — attending to adjacent words: grammar at work, common in early
-          layers.
-          <br />· <b>focused</b> — most attention on one earlier word: the layer retrieved
-          something specific (watch for pronouns finding their nouns).
-          <br />· <b>broad</b> — spread thin across the sentence: general context gathering.
-          <br />· <b>sink</b> — piled on the very first token. this is real and normal:
-          attention must sum to 100%, so when a layer has nothing useful to fetch, it parks
-          the leftover on token 0. think of it as the model's “none of the above”.
-          <br />
-          the number on the right is the residual stream's strength (rms) after each layer —
-          it grows from bottom to top as every layer writes what it learned into the token.
-          hover any row and the arcs above show that layer's reach over your actual sentence.
-        </div>
-      )}
+      <BandHeader
+        idx="04"
+        title={<>inside the {trace.layers} layers</>}
+        sub="where each layer looked back in the text — hover a row, click for its heads."
+        explain={
+          <>
+            the token passes through every layer in turn; each looks back over earlier tokens
+            (attention) and writes what it found into a running summary, the residual stream. the
+            dots show <b>where that layer looked</b> — bigger = more attention, red = strongest;
+            the “→ word %” names its favorite target. the number at right is the residual's
+            strength (rms), growing bottom-to-top as each layer adds what it learned. patterns:
+            <br />· <b>local</b> — nearby words: grammar at work, common early.
+            <br />· <b>focused</b> — most attention on one earlier word: retrieval (watch
+            pronouns find their nouns).
+            <br />· <b>broad</b> — spread thin: gathering general context.
+            <br />· <b>sink</b> — piled on the first token. normal: attention must sum to 100%,
+            so a layer with nothing to fetch parks the leftover there — the model's "none of the
+            above".
+          </>
+        }
+      />
       <div onMouseLeave={() => setHoverLayer(null)}>{rows}</div>
     </section>
   );

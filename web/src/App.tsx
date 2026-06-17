@@ -103,14 +103,19 @@ export default function App() {
             {Math.max(0, trace.tokens.length - trace.n_prompt)} generated
           </div>
         </div>
-        <div className="pos">
-          <span className={"be-tag be-" + activeBackend}>{activeBackend}</span>
-          token <b>{hasTokens ? safeCur : 0}</b> / {Math.max(0, trace.tokens.length - 1)}
-          <span
-            className={
-              "dot-live" + (trace.busy ? " on" : "") + (activeBackend === "q8" ? " fast" : "")
-            }
-          />
+        <div className="head-right">
+          <button id="explain-toggle" onClick={() => setExplain(!explain)}>
+            explain: {explain ? "on" : "off"}
+          </button>
+          <div className="pos">
+            <span className={"be-tag be-" + activeBackend}>{activeBackend}</span>
+            token <b>{hasTokens ? safeCur : 0}</b> / {Math.max(0, trace.tokens.length - 1)}
+            <span
+              className={
+                "dot-live" + (trace.busy ? " on" : "") + (activeBackend === "q8" ? " fast" : "")
+              }
+            />
+          </div>
         </div>
       </header>
 
@@ -156,9 +161,6 @@ export default function App() {
 
       <footer>
         <span>suiron — 推論 · every value on this page came from a real forward pass of the model file</span>
-        <button id="explain-toggle" onClick={() => setExplain(!explain)}>
-          explain: {explain ? "on" : "off"}
-        </button>
       </footer>
     </>
   );

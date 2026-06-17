@@ -1,4 +1,5 @@
 import { esc, q } from "../lib";
+import { BandHeader } from "./BandHeader";
 import type { Sel } from "../types";
 
 function DrawBar({ sel }: { sel: Sel & { r: number } }) {
@@ -47,15 +48,18 @@ export function Selection({ sel, isPrompt }: { sel?: Sel; isPrompt: boolean }) {
 
   return (
     <section>
-      <div className="label">
-        <span className="idx">03</span>
-        how this token was chosen
-        <span className="note">
-          {" "}— the sampler's actual decision pipeline for the current token, with the real
-          numbers: logits → ÷temperature → softmax → top-k/top-p cuts → one uniform random
-          draw lands in a segment
-        </span>
-      </div>
+      <BandHeader
+        idx="03"
+        title="how this token was chosen"
+        sub="from ranked guesses to one actual pick."
+        explain={
+          <>
+            sampling collapses the probabilities above into a single token — temperature reshapes
+            them, top-k/top-p trim the tail, then one uniform random draw lands in a token's
+            slice. at temperature 0 it's just the top pick. this is where "creativity" comes from.
+          </>
+        }
+      />
       <div>{body}</div>
     </section>
   );

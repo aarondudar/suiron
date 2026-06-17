@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { confColor, confidence, esc } from "../lib";
+import { BandHeader } from "./BandHeader";
 import type { Step, Trace } from "../types";
 
 export function TokenStrip({
@@ -33,20 +34,25 @@ export function TokenStrip({
 
   return (
     <section>
-      <div className="label">
-        <span className="idx">01</span>
-        tokens — click or ←/→ to step · brightness = model's confidence
-        <span className="note">
-          {" "}— each cell is one token (byte-level BPE). dim borders = your prompt, dotted
-          underline = generated. faded text = the model was unsure when it picked that token
-          (hover for the probability). arcs show where the current token's attention reaches —
-          solid for real targets (red = strongest), and a dashed ghost to the first token: the
-          attention sink, where heads park attention they don't need (see band 04's guide).
-        </span>
+      <BandHeader
+        idx="01"
+        title="tokens"
+        sub="your text, split into the model's vocabulary units — click one (or ←/→) to inspect it."
+        explain={
+          <>
+            text is chopped into "tokens" (byte-level BPE): common words are one piece, rare ones
+            split into several — the model reads and writes in these units, not letters.{" "}
+            <b>brightness</b> = how sure the model was when it produced a generated token; dim
+            borders mark your prompt. <b>arcs</b> trace where the current token's attention
+            reached — red = strongest; the dashed ghost to the first token is the attention sink
+            (see band 04).
+          </>
+        }
+      >
         <label className="arc-toggle">
           <input type="checkbox" checked={arcs} onChange={(e) => setArcs(e.target.checked)} /> arcs
         </label>
-      </div>
+      </BandHeader>
       {trace.fork && (
         <div className="fork-note">
           ⑂ forked at {trace.fork.pos} · before:{" "}

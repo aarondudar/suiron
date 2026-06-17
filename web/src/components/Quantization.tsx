@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getQuantSample } from "../api";
+import { BandHeader } from "./BandHeader";
 import { BackendToggle } from "./Controls";
 import type { Backend, GenParams, QuantSample, Trace } from "../types";
 
@@ -37,14 +38,31 @@ export function Quantization({
 
   return (
     <section>
-      <div className="label">
-        <span className="idx">06</span>
-        quantization — the same model, fewer bytes per weight
+      <BandHeader
+        idx="06"
+        title="quantization"
+        sub="the same model, fewer bytes per weight — and the speed it buys."
+        explain={
+          <>
+            this model's weights are stored as <b>Q8_0</b> on disk — 8 bits each. the f32 path
+            expands every weight back into a 32-bit float before multiplying ({gib(f32Bytes)} GiB
+            to move per token); the q8 path reads the 8-bit blocks directly ({gib(q8Bytes)} GiB).
+            decode speed is bound by how fast weights stream from memory, so moving ~4× fewer
+            bytes is most of the win.
+            <br />
+            <br />
+            q8 adds no approximation of its own: <b>both paths read the same stored Q8 weights</b>
+            — q8 just skips expanding them to f32. so the results are near-identical — the same
+            prediction at each step (q8's pick matches f32's, verified) — and only the speed
+            changes. (the lossy step is the original quantization, before either path runs.)
+          </>
+        }
+      >
         <BackendToggle backend={backend} disabled={busy} onChange={(b) => setParams({ ...params, backend: b })} />
         <button className="expand" onClick={() => setOpen(!open)}>
-          how it works
+          show a real block
         </button>
-      </div>
+      </BandHeader>
 
       {/* headline: which path is live + the memory it moves */}
       <div className="q-cards">
@@ -64,18 +82,12 @@ export function Quantization({
       </div>
 
       {open && (
-        <div className="m-math how-to">
-          this model's weights are stored as <b>Q8_0</b> on disk — 8 bits each. the f32 path
-          expands every weight back into a 32-bit float before multiplying ({gib(f32Bytes)} GiB
-          to move per token); the q8 path reads the 8-bit blocks directly ({gib(q8Bytes)} GiB).
-          decode speed is bound by how fast weights stream from memory, so moving ~4× fewer
-          bytes is the whole win.
-          <br />
-          <br />
-          it isn't lossy here: <b>both paths use the same Q8_0 numbers</b> — q8 just skips
-          expanding them. that's why the generated text is identical; only the speed changes.
-          {sample && <QuantBlock sample={sample} backend={backend} />}
-          {!sample && <div className="q-loading">loading a real weight block…</div>}
+        <div className="m-math">
+          {sample ? (
+            <QuantBlock sample={sample} backend={backend} />
+          ) : (
+            <div className="q-loading">loading a real weight block…</div>
+          )}
         </div>
       )}
     </section>

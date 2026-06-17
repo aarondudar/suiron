@@ -1,8 +1,6 @@
 # suiron
 
-An LLM inference engine for Apple Silicon, written from scratch in Rust — the
-GGUF parser, the byte-level BPE tokenizer, attention, RoPE, the Metal kernels —
-with no ML dependencies. Paired with a browser microscope that traces a real
+An LLM inference engine for Apple Silicon, written from scratch in Rust. Features a GGUF parser, byte-level BPE tokenizer, attention, RoPE, and Metal kernels with no ML dependencies. Paired with a browser microscope that traces a real
 forward pass, token by token.
 
 <!-- DEMO GIF — record from `make lab`: type a prompt, step through a few

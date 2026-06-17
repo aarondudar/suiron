@@ -1,5 +1,6 @@
 import { fork } from "../api";
 import { DEFAULT_PARAMS, esc } from "../lib";
+import { BandHeader } from "./BandHeader";
 import type { Step } from "../types";
 
 export function Logits({
@@ -21,15 +22,19 @@ export function Logits({
 
   return (
     <section>
-      <div className="label">
-        <span className="idx">02</span>
-        what the model expects next · click a candidate to force it and fork reality
-        <span className="note">
-          {" "}— softmax over all 151,936 logits after the last layer. clicking a bar rewinds
-          to this position, stamps YOUR choice in as the next token, and lets the model
-          continue from the altered history — a counterfactual.
-        </span>
-      </div>
+      <BandHeader
+        idx="02"
+        title="what the model expects next"
+        sub="the model's ranked next-token guesses, as probabilities."
+        explain={
+          <>
+            once the token has passed through all the layers, the model scores every one of the
+            151,936 vocabulary tokens, and softmax turns those scores into probabilities — its
+            belief before any randomness. click a bar to <b>force</b> that token and watch the
+            rest regenerate from your choice.
+          </>
+        }
+      />
       <div>
         {top.map(([id, text, p], i) => (
           <div

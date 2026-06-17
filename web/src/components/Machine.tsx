@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { q } from "../lib";
+import { BandHeader } from "./BandHeader";
 import type { Trace } from "../types";
 
 /* "the machine": one token's journey through the actual computation.
@@ -161,14 +162,18 @@ export function Machine({
 
   return (
     <section>
-      <div className="label">
-        <span className="idx">05</span>
-        the machine — what actually computed token {cur} ({tokText})
-        <span className="note">
-          {" "}— the real pipeline, stage by stage. every card: plain words first, then [math]
-          with this token's actual numbers (recomputed live from the model), then [code] —
-          the engine's own rust, the literal lines that ran.
-        </span>
+      <BandHeader
+        idx="05"
+        title={<>the machine — token {cur} ({tokText})</>}
+        sub="the real computation for this token — plain words, real numbers, real code."
+        explain={
+          <>
+            every stage of the forward pass, openable three ways: a plain description, the actual
+            numbers from this token <b>recomputed live</b> from the model, and the engine's own
+            Rust — the literal lines that ran. the bottom of the microscope.
+          </>
+        }
+      >
         <span className="m-sel">
           layer{" "}
           <input
@@ -180,7 +185,7 @@ export function Machine({
           />
           {loading && <span className="m-loading"> recomputing…</span>}
         </span>
-      </div>
+      </BandHeader>
 
       <Card
         title="1 · tokenize"
