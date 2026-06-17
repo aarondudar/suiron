@@ -203,16 +203,15 @@ button.busy { border-color: var(--red); color: var(--red); }
 .tok {
   border: 1px solid var(--hair); padding: var(--sp-1) var(--sp-2); cursor: pointer;
   white-space: pre; color: var(--ink); position: relative;
-  transition: border-color 0.12s, color 0.12s;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
 }
 .tok.gen { border-color: #454545; }
-.tok.gen::after {
-  content: ""; position: absolute; left: 4px; right: 4px; bottom: -1px;
-  border-bottom: 1px dotted #454545;
-}
-.tok.cur { border-color: var(--red); color: var(--red); }
-.tok.cur.gen::after { border-color: var(--red); }
+.tok.cur { border-color: var(--red); color: var(--red); background: rgba(215, 25, 33, 0.08); }
 .tok:hover { border-color: var(--dim); }
+/* confidence under-bar — only on generated tokens; width ∝ how sure the model
+   was. its presence (vs none on a prompt token) is itself the gen marker. */
+.conf-bar { position: absolute; left: 0; bottom: -1px; height: 2px; background: var(--dim); }
+.tok.cur .conf-bar { background: var(--red); }
 
 /* ---------- layer stack ---------- */
 .row {

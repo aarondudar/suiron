@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { confColor, confidence, esc } from "../lib";
+import { confBar, confColor, confidence, esc } from "../lib";
 import { BandHeader } from "./BandHeader";
 import type { Step, Trace } from "../types";
 
@@ -41,11 +41,11 @@ export function TokenStrip({
         explain={
           <>
             text is chopped into "tokens" (byte-level BPE): common words are one piece, rare ones
-            split into several — the model reads and writes in these units, not letters.{" "}
-            <b>brightness</b> = how sure the model was when it produced a generated token; dim
-            borders mark your prompt. <b>arcs</b> trace where the current token's attention
-            reached — red = strongest; the dashed ghost to the first token is the attention sink
-            (see band 04).
+            split into several — the model reads and writes in these units, not letters. each
+            generated token carries an <b>under-bar and brightness</b> showing how sure the model
+            was when it picked it; prompt tokens have neither. <b>arcs</b> trace where the current
+            token's attention reached — red = strongest; the dashed ghost to the first token is
+            the attention sink (see band 04).
           </>
         }
       >
@@ -82,6 +82,9 @@ export function TokenStrip({
               onClick={() => setCur(i)}
             >
               {esc(tok.t)}
+              {conf !== null && (
+                <i className="conf-bar" style={{ width: `${confBar(conf) * 100}%` }} />
+              )}
             </span>
           );
         })}

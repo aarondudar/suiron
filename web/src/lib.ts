@@ -28,11 +28,20 @@ export function confidence(trace: Trace, i: number): number | null {
   return hit ? hit[2] : 0.005 // below top-10 → very unsure
 }
 
-/** confidence → grayscale (sure = bright ink, unsure = faded) */
+/** confidence → grayscale (sure = bright ink, unsure = faded). Floored well
+ *  above black so even a low-confidence token stays readable — the under-bar
+ *  (confBar) carries the precise signal. */
 export function confColor(conf: number): string {
   const t = Math.min(1, Math.sqrt(conf) * 1.25)
-  const g = Math.round(0x55 + (0xe8 - 0x55) * t)
+  const g = Math.round(0x8c + (0xe8 - 0x8c) * t)
   return `rgb(${g},${g},${g})`
+}
+
+/** confidence → under-bar width fraction (0..1), same perceptual curve as the
+ *  brightness ramp; floored so a generated token always shows a sliver (which
+ *  also distinguishes it from a prompt token, which has no bar). */
+export function confBar(conf: number): number {
+  return Math.max(0.08, Math.min(1, Math.sqrt(conf) * 1.25))
 }
 
 export function edgesToWeights(edges: AttnEdge[], nPos: number): number[] {
