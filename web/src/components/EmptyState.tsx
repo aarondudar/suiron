@@ -18,8 +18,8 @@ export function EmptyState({ onPick, params }: { onPick: (p: string) => void; pa
     <section className="empty">
       <div className="empty-jp">suiron</div>
       <p className="empty-line">
-        watch a language model think. type a prompt above — or pick one from below — and every
-        number you'll see comes from a real forward pass running on this machine.
+        watch a language model think. type a prompt above, or pick one below, and every number
+        you see comes from a real forward pass running on this machine.
       </p>
       <div className="empty-chips">
         {SUGGESTIONS.map((s) => (

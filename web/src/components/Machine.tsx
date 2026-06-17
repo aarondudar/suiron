@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { q } from "../lib";
 import { BandHeader } from "./BandHeader";
+import { EXPLAIN, MACHINE, SUB, type MachineCtx } from "./Explanations";
 import type { Trace } from "../types";
 
 /* "the machine": one token's journey through the actual computation.
@@ -152,6 +153,13 @@ export function Machine({
   }, [cur, layer, busy, trace.seq]);
 
   const tokText = q(trace.tokens[cur]?.t ?? "");
+  const mc: MachineCtx = {
+    nTokens: trace.tokens.length,
+    cur,
+    tokText,
+    tokId: trace.tokens[cur]?.id,
+    layer,
+  };
   const h = data?.heads[head];
   const topAttn = h
     ? h.weights
@@ -164,15 +172,9 @@ export function Machine({
     <section>
       <BandHeader
         idx="05"
-        title={<>the machine — token {cur} ({tokText})</>}
-        sub="the real computation for this token — plain words, real numbers, real code."
-        explain={
-          <>
-            every stage of the forward pass, openable three ways: a plain description, the actual
-            numbers from this token <b>recomputed live</b> from the model, and the engine's own
-            Rust — the literal lines that ran. the bottom of the microscope.
-          </>
-        }
+        title={<>the machine · token {cur} ({tokText})</>}
+        sub={SUB.machine}
+        explain={EXPLAIN.machine}
       >
         <span className="m-sel">
           layer{" "}
@@ -187,35 +189,19 @@ export function Machine({
         </span>
       </BandHeader>
 
-      <Card
-        title="1 · tokenize"
-        plain={
-          <>
-            your text was chopped into {trace.tokens.length} tokens from a fixed 151,936-entry
-            dictionary (band 01). token {cur} is {tokText} — dictionary id{" "}
-            {trace.tokens[cur]?.id}.
-          </>
-        }
-        code="forward"
-      />
+      <Card title={MACHINE.tokenize.title} plain={MACHINE.tokenize.plain(mc)} code="forward" />
 
       <Card
-        title="2 · meaning numbers"
-        plain={
-          <>
-            id {trace.tokens[cur]?.id} looks up a row of 1,024 learned numbers — the token's
-            "meaning". those numbers, plus everything the previous layers mixed in, are the
-            vector flowing into layer {layer}.
-          </>
-        }
+        title={MACHINE.meaning.title}
+        plain={MACHINE.meaning.plain(mc)}
         math={
           data && (
             <>
               entering layer {layer}: x = {headStr(data.x_in)}
               <br />
               overall size (rms) <b>{f(data.x_in?.rms ?? 0)}</b>, range [{f(data.x_in?.min ?? 0)},{" "}
-              {f(data.x_in?.max ?? 0)}] — watch rms grow with layer number as the model
-              accumulates information.
+              {f(data.x_in?.max ?? 0)}]. the rms grows with the layer number as the model gathers
+              information.
             </>
           )
         }
@@ -223,13 +209,8 @@ export function Machine({
       />
 
       <Card
-        title="3 · normalize (rmsnorm)"
-        plain={
-          <>
-            before attention, the vector is rescaled to a standard size — same direction, volume
-            reset to ~1 — so 28 layers of math can't spiral the numbers out of range.
-          </>
-        }
+        title={MACHINE.normalize.title}
+        plain={MACHINE.normalize.plain(mc)}
         math={
           data && (
             <>
@@ -244,14 +225,8 @@ export function Machine({
       />
 
       <Card
-        title="4 · attention — the token reads its context"
-        plain={
-          <>
-            the normalized vector becomes a <b>q</b>uery; every earlier position offers a{" "}
-            <b>k</b>ey and a <b>v</b>alue. q·k similarity scores → softmax → percentages → a
-            weighted blend of values. this is the only place tokens exchange information.
-          </>
-        }
+        title={MACHINE.attention.title}
+        plain={MACHINE.attention.plain(mc)}
         math={
           data &&
           h && (
@@ -297,14 +272,8 @@ export function Machine({
       />
 
       <Card
-        title="5 · think it over (swiglu feed-forward)"
-        plain={
-          <>
-            after reading context, the token "thinks privately": its 1,024 numbers expand to
-            3,072, each neuron decides how much to fire (silu — a smooth on/off dimmer), gets
-            gated, and compresses back to 1,024. no other tokens involved.
-          </>
-        }
+        title={MACHINE.feedforward.title}
+        plain={MACHINE.feedforward.plain(mc)}
         math={
           data && (
             <>
@@ -321,17 +290,7 @@ export function Machine({
         code="ffn"
       />
 
-      <Card
-        title="6 · score every word"
-        plain={
-          <>
-            after layer {trace.layers - 1}, the final vector is compared (one dot product each)
-            against all 151,936 token meanings. high similarity = high score. those scores are
-            band 02, and the pick is band 03 — you've already seen the end of this machine.
-          </>
-        }
-        code="matmul"
-      />
+      <Card title={MACHINE.score.title} plain={MACHINE.score.plain(mc)} code="matmul" />
     </section>
   );
 }

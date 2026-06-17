@@ -1,8 +1,5 @@
 {
-  "github.copilot.enable": {
-    "*": false
-  },
-  "editor.inlineSuggest.enabled": false,
+  "editor.inlineSuggest.enabled": true,
   "files.associations": {
     "*.metal": "cpp"
   },

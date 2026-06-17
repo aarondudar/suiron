@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { attnSources, confBar, confColor, confidence, esc } from "../lib";
 import { BandHeader } from "./BandHeader";
+import { EXPLAIN, SUB } from "./Explanations";
 import type { Step, Trace } from "../types";
 
 const NARROW = "(max-width: 640px)";
@@ -59,17 +60,8 @@ export function TokenStrip({
       <BandHeader
         idx="01"
         title="tokens"
-        sub="your text, split into the model's vocabulary units — click one (or ←/→) to inspect it."
-        explain={
-          <>
-            text is chopped into "tokens" (byte-level BPE): common words are one piece, rare ones
-            split into several — the model reads and writes in these units, not letters. each
-            generated token carries an <b>under-bar and brightness</b> showing how sure the model
-            was when it picked it; prompt tokens have neither. <b>arcs</b> trace where the current
-            token's attention reached — red = strongest; the dashed ghost to the first token is
-            the attention sink (see band 04).
-          </>
-        }
+        sub={SUB.tokens}
+        explain={EXPLAIN.tokens}
       >
         <label className="arc-toggle">
           <input type="checkbox" checked={arcs} onChange={(e) => setArcs(e.target.checked)} /> arcs

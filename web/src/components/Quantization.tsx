@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getQuantSample } from "../api";
 import { BandHeader } from "./BandHeader";
 import { BackendToggle } from "./Controls";
+import { quantExplain, SUB } from "./Explanations";
 import type { Backend, GenParams, QuantSample, Trace } from "../types";
 
 /* The quantization explainer + the showcase toggle. Three layers, like the
@@ -41,22 +42,8 @@ export function Quantization({
       <BandHeader
         idx="06"
         title="quantization"
-        sub="the same model, fewer bytes per weight — and the speed it buys."
-        explain={
-          <>
-            this model's weights are stored as <b>Q8_0</b> on disk — 8 bits each. the f32 path
-            expands every weight back into a 32-bit float before multiplying ({gib(f32Bytes)} GiB
-            to move per token); the q8 path reads the 8-bit blocks directly ({gib(q8Bytes)} GiB).
-            decode speed is bound by how fast weights stream from memory, so moving ~4× fewer
-            bytes is most of the win.
-            <br />
-            <br />
-            q8 adds no approximation of its own: <b>both paths read the same stored Q8 weights</b>
-            — q8 just skips expanding them to f32. so the results are near-identical — the same
-            prediction at each step (q8's pick matches f32's, verified) — and only the speed
-            changes. (the lossy step is the original quantization, before either path runs.)
-          </>
-        }
+        sub={SUB.quant}
+        explain={quantExplain(gib(f32Bytes), gib(q8Bytes))}
       >
         <BackendToggle backend={backend} disabled={busy} onChange={(b) => setParams({ ...params, backend: b })} />
         <button className="expand" onClick={() => setOpen(!open)}>
@@ -70,14 +57,14 @@ export function Quantization({
           <div className="q-name">f32</div>
           <div className="q-sub">weights expanded to 32-bit floats</div>
           <div className="q-big">{gib(f32Bytes)} GiB</div>
-          <div className="q-sub">{tps.f32 ? `${tps.f32.toFixed(1)} tok/s` : "— run to measure"}</div>
+          <div className="q-sub">{tps.f32 ? `${tps.f32.toFixed(1)} tok/s` : "run it to measure"}</div>
         </div>
         <div className="q-arrow">{speedup ? `${speedup.toFixed(2)}× faster →` : "→"}</div>
         <div className={"q-card" + (backend === "q8" ? " on" : "")}>
           <div className="q-name">q8</div>
           <div className="q-sub">8-bit blocks read directly</div>
           <div className="q-big">{gib(q8Bytes)} GiB</div>
-          <div className="q-sub">{tps.q8 ? `${tps.q8.toFixed(1)} tok/s` : "— run to measure"}</div>
+          <div className="q-sub">{tps.q8 ? `${tps.q8.toFixed(1)} tok/s` : "run it to measure"}</div>
         </div>
       </div>
 
@@ -101,7 +88,7 @@ function QuantBlock({ sample, backend }: { sample: QuantSample; backend: Backend
   return (
     <div className="q-block">
       <div className="q-block-head">
-        one real block from <b>{sample.tensor}</b> — 32 weights share one scale (
+        one real block from <b>{sample.tensor}</b>. 32 weights share a single scale (
         <b>{sample.scale.toExponential(3)}</b>):
       </div>
       <table className="m-table">

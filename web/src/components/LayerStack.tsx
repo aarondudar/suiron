@@ -2,12 +2,13 @@ import { edgesToWeights, headGlance, layerGlance, meanHeadWeights, q } from "../
 import type { Step, Trace } from "../types";
 import { BandHeader } from "./BandHeader";
 import { DotStrip } from "./DotStrip";
+import { EXPLAIN, SUB } from "./Explanations";
 
 const TAG_HELP: Record<string, string> = {
-  local: "attending to nearby words — grammar and phrasing",
-  focused: "locked onto one specific earlier word — retrieval",
-  broad: "attention spread wide — gathering general context",
-  sink: "parked on the first token — this layer found nothing it needed",
+  local: "looking at nearby tokens, the grammar of the sentence",
+  focused: "locked onto one specific earlier token",
+  broad: "attention spread out across many tokens",
+  sink: "parked on the first token, meaning it found nothing it needed",
 };
 
 export function LayerStack({
@@ -32,7 +33,7 @@ export function LayerStack({
     step.attn[l] && (
       <div className="detail" key={`d${l}`}>
         <div className="label">
-          layer {l} — its {trace.heads} heads, each reading the sentence its own way (kv group
+          layer {l}, its {trace.heads} heads. each head reads the sentence its own way (kv group
           = head ÷ {group})
         </div>
         <div className="heads">
@@ -84,7 +85,7 @@ export function LayerStack({
             </>
           )}
         </span>
-        <span className="rn" title="residual stream strength after this layer (rms) — grows as layers add information">
+        <span className="rn" title="how much information has built up by this layer (rms); it grows toward the top">
           {step.rnorm[l]?.toFixed(1) ?? ""}
         </span>
       </div>,
@@ -97,23 +98,8 @@ export function LayerStack({
       <BandHeader
         idx="04"
         title={<>inside the {trace.layers} layers</>}
-        sub="where each layer looked back in the text — hover a row, click for its heads."
-        explain={
-          <>
-            the token passes through every layer in turn; each looks back over earlier tokens
-            (attention) and writes what it found into a running summary, the residual stream. the
-            dots show <b>where that layer looked</b> — bigger = more attention, red = strongest;
-            the “→ word %” names its favorite target. the number at right is the residual's
-            strength (rms), growing bottom-to-top as each layer adds what it learned. patterns:
-            <br />· <b>local</b> — nearby words: grammar at work, common early.
-            <br />· <b>focused</b> — most attention on one earlier word: retrieval (watch
-            pronouns find their nouns).
-            <br />· <b>broad</b> — spread thin: gathering general context.
-            <br />· <b>sink</b> — piled on the first token. normal: attention must sum to 100%,
-            so a layer with nothing to fetch parks the leftover there — the model's "none of the
-            above".
-          </>
-        }
+        sub={SUB.layers}
+        explain={EXPLAIN.layers}
       />
       <div onMouseLeave={() => setHoverLayer(null)}>{rows}</div>
     </section>

@@ -1,5 +1,6 @@
 import { esc, q } from "../lib";
 import { BandHeader } from "./BandHeader";
+import { EXPLAIN, SUB } from "./Explanations";
 import type { Sel } from "../types";
 
 function DrawBar({ sel }: { sel: Sel & { r: number } }) {
@@ -39,7 +40,7 @@ export function Selection({ sel, isPrompt }: { sel?: Sel; isPrompt: boolean }) {
   const body = !sel ? (
     <div className="sel-math">
       {isPrompt
-        ? "prompt token — given by you, not chosen by the model. the model only predicts what follows it (see the band above)."
+        ? "prompt token. you typed this one, the model did not choose it. the model only predicts the tokens that come after it (see the band above)."
         : "no selection recorded for this position."}
     </div>
   ) : (
@@ -51,14 +52,8 @@ export function Selection({ sel, isPrompt }: { sel?: Sel; isPrompt: boolean }) {
       <BandHeader
         idx="03"
         title="how this token was chosen"
-        sub="from ranked guesses to one actual pick."
-        explain={
-          <>
-            sampling collapses the probabilities above into a single token — temperature reshapes
-            them, top-k/top-p trim the tail, then one uniform random draw lands in a token's
-            slice. at temperature 0 it's just the top pick. this is where "creativity" comes from.
-          </>
-        }
+        sub={SUB.selection}
+        explain={EXPLAIN.selection}
       />
       <div>{body}</div>
     </section>
@@ -76,7 +71,7 @@ function SelDetail({ sel }: { sel: Sel }) {
     return (
       <div className="sel-math">
         <span className="red">you</span> forced <span className="red">{q(chosen.t)}</span>{" "}
-        here — no sampling happened.{" "}
+        here, so no sampling happened.{" "}
         {wanted ? (
           <>
             the model's own favorite was <b>{q(fav.t)}</b> at{" "}
@@ -92,7 +87,7 @@ function SelDetail({ sel }: { sel: Sel }) {
           <>your pick matched the model's own favorite.</>
         )}{" "}
         every token after this point is the model continuing from the history{" "}
-        <b>you</b> altered — same math, different past.
+        <b>you</b> changed. the math is the same, the history is not.
       </div>
     );
   }
@@ -101,7 +96,7 @@ function SelDetail({ sel }: { sel: Sel }) {
     <>
       <div className="sel-params">
         {greedy ? (
-          <>greedy (temp <b>0</b>) — the highest logit wins, no randomness</>
+          <>greedy (temp <b>0</b>): the highest logit wins, with no randomness</>
         ) : (
           <>
             temp <b>{sel.temp}</b> · top-k <b>{sel.top_k}</b> · top-p <b>{sel.top_p}</b> ·
@@ -164,9 +159,9 @@ function SelDetail({ sel }: { sel: Sel }) {
                 {" "}→ renormalized to <b>{(chosen.pf * 100).toFixed(2)}%</b> after cuts
               </>
             )}
-            . the uniform draw <b>r = {sel.r!.toFixed(4)}</b> (from seed {sel.seed}) lands in{" "}
-            <span className="red">{q(chosen.t)}</span>'s segment of the cumulative bar above —
-            that is the entire reason this token exists in the output.
+            . the random draw <b>r = {sel.r!.toFixed(4)}</b> (from seed {sel.seed}) lands in{" "}
+            <span className="red">{q(chosen.t)}</span>'s segment of the bar above. that is the
+            whole reason this token is the one that came out.
           </div>
         </>
       )}

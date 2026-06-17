@@ -1,6 +1,7 @@
 import { fork } from "../api";
 import { DEFAULT_PARAMS, esc } from "../lib";
 import { BandHeader } from "./BandHeader";
+import { EXPLAIN, SUB } from "./Explanations";
 import type { Step } from "../types";
 
 export function Logits({
@@ -27,15 +28,8 @@ export function Logits({
       <BandHeader
         idx="02"
         title="what the model expects next"
-        sub="the model's ranked next-token guesses, as probabilities."
-        explain={
-          <>
-            once the token has passed through all the layers, the model scores every one of the
-            151,936 vocabulary tokens, and softmax turns those scores into probabilities — its
-            belief before any randomness. click a bar to <b>force</b> that token and watch the
-            rest regenerate from your choice.
-          </>
-        }
+        sub={SUB.logits}
+        explain={EXPLAIN.logits}
       />
       <div>
         {top.map(([id, text, p], i) => (

@@ -1,5 +1,6 @@
 import { generate, step, stop } from "../api";
 import { BandHeader } from "./BandHeader";
+import { EXPLAIN, SUB } from "./Explanations";
 import type { Backend, GenParams } from "../types";
 
 export function Controls({
@@ -34,18 +35,7 @@ export function Controls({
 
   return (
     <section>
-      <BandHeader
-        idx="00"
-        title="prompt"
-        sub="type text, choose how the model continues, then generate."
-        explain={
-          <>
-            the model only ever predicts the next token from the text so far. these controls set
-            the prompt and how adventurous the pick is — <b>temperature</b>, <b>top-k/p</b> — plus
-            which compute backend runs. none of it changes the model, only what you ask of it.
-          </>
-        }
-      />
+      <BandHeader idx="00" title="prompt" sub={SUB.prompt} explain={EXPLAIN.prompt} />
       <div className="ctl-row">
         <input
           type="text"
