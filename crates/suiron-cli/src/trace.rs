@@ -89,8 +89,17 @@ pub fn escape_json(s: &str) -> String {
     out
 }
 
+/// Live-session fields the lab UI polls on. None for a static recorded trace.
+pub struct Live {
+    pub busy: bool,
+    pub seq: u64,
+    pub backend: &'static str,
+    /// last measured decode tok/s per backend, for the speed comparison
+    pub tps_f32: Option<f64>,
+    pub tps_q8: Option<f64>,
+}
+
 /// Serialize a complete trace. Format v1; the viewer depends on this shape.
-/// `live` adds the busy/seq fields the lab UI polls on.
 #[allow(clippy::too_many_arguments)]
 pub fn write_trace(
     model_name: &str,
@@ -99,7 +108,7 @@ pub fn write_trace(
     tokens: &[(u32, String)],
     n_prompt: usize,
     steps: &[Step],
-    live: Option<(bool, u64)>,
+    live: Option<&Live>,
     fork: Option<&(usize, String)>,
     decode: impl Fn(u32) -> String,
 ) -> String {
@@ -108,8 +117,12 @@ pub fn write_trace(
         "{{\"v\":1,\"model\":\"{}\",\"quant\":\"{}\",\"layers\":{},\"heads\":{},\"kv_heads\":{},\"n_prompt\":{},",
         escape_json(model_name), quant, config.n_layers, config.n_heads, config.n_kv_heads, n_prompt
     ));
-    if let Some((busy, seq)) = live {
-        j.push_str(&format!("\"live\":true,\"busy\":{busy},\"seq\":{seq},"));
+    if let Some(l) = live {
+        let f = |t: Option<f64>| t.map_or("null".to_string(), |v| format!("{v:.2}"));
+        j.push_str(&format!(
+            "\"live\":true,\"busy\":{},\"seq\":{},\"backend\":\"{}\",\"tps\":{{\"f32\":{},\"q8\":{}}},",
+            l.busy, l.seq, l.backend, f(l.tps_f32), f(l.tps_q8)
+        ));
     }
     if let Some((pos, prev)) = fork {
         j.push_str(&format!("\"fork\":{{\"pos\":{pos},\"prev\":\"{}\"}},", escape_json(prev)));

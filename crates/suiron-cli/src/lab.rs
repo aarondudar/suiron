@@ -27,6 +27,11 @@ struct Shared {
     last_logits: Vec<f32>,
     /// (position, discarded tail text) of the most recent fork.
     fork: Option<(usize, String)>,
+    /// backend of the most recent run, and last measured decode tok/s per
+    /// backend — drives the lab's speed comparison.
+    last_backend: Backend,
+    tps_f32: Option<f64>,
+    tps_q8: Option<f64>,
 }
 
 #[derive(Clone, Copy)]
@@ -65,6 +70,9 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
         cache: None,
         last_logits: Vec::new(),
         fork: None,
+        last_backend: Backend::F32,
+        tps_f32: None,
+        tps_q8: None,
     }));
     let stop_flag = Arc::new(AtomicBool::new(false));
 
@@ -78,6 +86,13 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
         match (method.as_str(), path.split('?').next().unwrap_or("")) {
             ("GET", "/api/v1/trace") => {
                 let st = shared.lock().unwrap();
+                let live = crate::trace::Live {
+                    busy: st.busy,
+                    seq: st.seq,
+                    backend: st.last_backend.label(),
+                    tps_f32: st.tps_f32,
+                    tps_q8: st.tps_q8,
+                };
                 let json = write_trace(
                     &model_name,
                     "q8_0",
@@ -85,10 +100,16 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                     &st.tokens,
                     st.n_prompt,
                     &st.steps,
-                    Some((st.busy, st.seq)),
+                    Some(&live),
                     st.fork.as_ref(),
                     |id| tok.decode(&[id]),
                 );
+                respond(&mut s, "200 OK", "application/json", json.as_bytes());
+            }
+            ("GET", "/api/v1/quant-sample") => {
+                // one real Q8_0 block from layer 0's Q projection: the f16
+                // scale + 32 int8 quants + the f32 values they reconstruct to.
+                let json = quant_sample_json(&model);
                 respond(&mut s, "200 OK", "application/json", json.as_bytes());
             }
             ("GET", "/api/v1/source") => {
@@ -379,6 +400,8 @@ fn run_decode(
     stop_ids: &[u32],
 ) -> Vec<f32> {
     let mut sampler = Sampler::new(p.temp, p.top_k, p.top_p, p.seed);
+    let mut fwd_time = std::time::Duration::ZERO;
+    let mut fwd_count = 0u32;
     for _ in 0..p.n {
         if stop_flag.load(Ordering::Relaxed) || logits.is_empty() {
             break;
@@ -388,12 +411,53 @@ fn run_decode(
             break;
         }
         rec.begin_step();
+        let t = std::time::Instant::now();
         logits = forward(model, cache, id, p.backend, Some(&mut *rec));
+        fwd_time += t.elapsed();
+        fwd_count += 1;
         rec.record_logits(&logits, 10);
         rec.set_sel(sel);
         push_step(tok, rec, id, shared);
     }
+    // record decode tok/s for this backend (per-token forward cost)
+    if fwd_count > 0 {
+        let tps = fwd_count as f64 / fwd_time.as_secs_f64().max(1e-9);
+        let mut st = shared.lock().unwrap();
+        st.last_backend = p.backend;
+        match p.backend {
+            Backend::F32 => st.tps_f32 = Some(tps),
+            Backend::Q8 => st.tps_q8 = Some(tps),
+        }
+    }
     logits
+}
+
+/// One real Q8_0 block from `blk.0.attn_q` → JSON for the quant explainer:
+/// the shared f16 scale, the 32 int8 quants, and the f32 values they
+/// reconstruct to (value = scale × quant). All real, from the loaded model.
+fn quant_sample_json(model: &Model) -> String {
+    let mut j = String::from("{\"tensor\":\"blk.0.attn_q\"");
+    if let Some(b) = model.layers[0].wq.q8.as_ref() {
+        let block = &b[..34];
+        let scale = suiron_gguf::f16_to_f32(u16::from_le_bytes([block[0], block[1]]));
+        j.push_str(&format!(",\"scale\":{scale:.6},\"quants\":["));
+        for i in 0..32 {
+            if i > 0 {
+                j.push(',');
+            }
+            j.push_str(&format!("{}", block[2 + i] as i8));
+        }
+        j.push_str("],\"values\":[");
+        for i in 0..32 {
+            if i > 0 {
+                j.push(',');
+            }
+            j.push_str(&format!("{:.5}", scale * (block[2 + i] as i8) as f32));
+        }
+        j.push(']');
+    }
+    j.push('}');
+    j
 }
 
 fn push_step(tok: &Tokenizer, rec: &mut Recorder, id: u32, shared: &Mutex<Shared>) {

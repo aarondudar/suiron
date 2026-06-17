@@ -5,9 +5,11 @@ import { EmptyState } from "./components/EmptyState";
 import { LayerStack } from "./components/LayerStack";
 import { Logits } from "./components/Logits";
 import { Machine } from "./components/Machine";
+import { Quantization } from "./components/Quantization";
 import { Selection } from "./components/Selection";
 import { TokenStrip } from "./components/TokenStrip";
-import type { Trace } from "./types";
+import { DEFAULT_PARAMS } from "./lib";
+import type { GenParams, Trace } from "./types";
 
 export default function App() {
   const [trace, setTrace] = useState<Trace | null>(null);
@@ -16,6 +18,7 @@ export default function App() {
   const [follow, setFollow] = useState(true);
   const [explain, setExplain] = useState(false);
   const [prompt, setPrompt] = useState("");
+  const [params, setParams] = useState<GenParams>(DEFAULT_PARAMS);
   const [hoverLayer, setHoverLayer] = useState<number | null>(null);
   const lastSeq = useRef(-1);
   const followRef = useRef(follow);
@@ -84,6 +87,8 @@ export default function App() {
   const safeCur = Math.min(cur, trace.tokens.length - 1);
   const step = trace.tokens.length ? trace.steps[safeCur] : undefined;
   const hasTokens = trace.tokens.length > 0;
+  // while running, show what's actually running; otherwise what's selected
+  const activeBackend = trace.busy ? trace.backend ?? params.backend : params.backend;
 
   return (
     <>
@@ -99,8 +104,13 @@ export default function App() {
           </div>
         </div>
         <div className="pos">
+          <span className={"be-tag be-" + activeBackend}>{activeBackend}</span>
           token <b>{hasTokens ? safeCur : 0}</b> / {Math.max(0, trace.tokens.length - 1)}
-          <span className={"dot-live" + (trace.busy ? " on" : "")} />
+          <span
+            className={
+              "dot-live" + (trace.busy ? " on" : "") + (activeBackend === "q8" ? " fast" : "")
+            }
+          />
         </div>
       </header>
 
@@ -111,12 +121,14 @@ export default function App() {
         setFollow={setFollow}
         prompt={prompt}
         setPrompt={setPrompt}
+        params={params}
+        setParams={setParams}
         onStep={() => {
           jumpRef.current = true;
         }}
       />
 
-      {!hasTokens && <EmptyState onPick={setPrompt} />}
+      {!hasTokens && <EmptyState onPick={setPrompt} params={params} />}
 
       {hasTokens && step && (
         <>
@@ -138,6 +150,7 @@ export default function App() {
             setHoverLayer={setHoverLayer}
           />
           <Machine trace={trace} cur={safeCur} busy={!!trace.busy} />
+          <Quantization trace={trace} params={params} setParams={setParams} busy={!!trace.busy} />
         </>
       )}
 

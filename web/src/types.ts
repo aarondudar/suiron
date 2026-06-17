@@ -55,11 +55,17 @@ export interface Trace {
   live?: boolean;
   busy?: boolean;
   seq?: number;
+  /** backend the most recent run used */
+  backend?: Backend;
+  /** last measured decode tok/s per backend (null until each has run) */
+  tps?: { f32: number | null; q8: number | null };
   /** present after a counterfactual fork: where, and the discarded tail */
   fork?: { pos: number; prev: string };
   tokens: Tok[];
   steps: Step[];
 }
+
+export type Backend = "f32" | "q8";
 
 export interface GenParams {
   n: number;
@@ -68,4 +74,13 @@ export interface GenParams {
   top_p: number;
   seed: number;
   chat: boolean;
+  backend: Backend;
+}
+
+/** one real Q8_0 block from the model, for the quantization explainer */
+export interface QuantSample {
+  tensor: string;
+  scale: number;
+  quants: number[];
+  values: number[];
 }

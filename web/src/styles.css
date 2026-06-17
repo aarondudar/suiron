@@ -60,12 +60,23 @@ header .pos b { color: var(--ink); font-weight: 700; }
   opacity: 0.18; transition: opacity 0.3s;
 }
 .dot-live.on { opacity: 1; animation: pulse 1.1s ease-in-out infinite; }
+/* q8 runs faster — the pulse runs faster too. a visceral cue for the backend
+   while inferencing, within the monochrome+red system (no new colours). */
+.dot-live.on.fast { animation-duration: 0.5s; }
 @keyframes pulse {
   50% { opacity: 0.35; box-shadow: 0 0 7px 1px rgba(215, 25, 33, 0.5); }
 }
 @media (prefers-reduced-motion: reduce) {
   .dot-live.on { animation: none; }
 }
+
+/* active-backend tag in the header */
+.be-tag {
+  font-family: var(--dot); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; padding: 1px 6px; margin-right: 10px;
+  border: 1px solid var(--hair); color: var(--dim); vertical-align: 1px;
+}
+.be-tag.be-q8 { color: var(--red); border-color: var(--red); }
 
 /* ---------- sections: numbered schematic bands ---------- */
 section {
@@ -313,6 +324,40 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .code .c-num { color: #e0e0e0; }
 .code .c-str { color: #989898; }
 .code .c-comment { color: #8a8a8a; font-style: italic; }
+
+/* ---------- backend segmented toggle ---------- */
+.seg { display: inline-flex; border: 1px solid var(--hair); }
+.seg-dim { opacity: 0.5; }
+.seg-opt {
+  border: none; padding: 3px 11px; font-size: 10px; letter-spacing: 0.12em;
+  color: var(--dim); background: transparent; font-family: var(--dot); font-weight: 700;
+}
+.seg-opt:not(:last-child) { border-right: 1px solid var(--hair); }
+.seg-opt.on { color: var(--bg); background: var(--red); }
+.seg-opt:hover:not(.on):not(:disabled) { color: var(--ink); }
+
+/* ---------- quantization band ---------- */
+.q-cards { display: flex; align-items: stretch; gap: 12px; }
+.q-card {
+  flex: 1; border: 1px solid var(--hair); padding: 12px 14px; background: var(--bg);
+  transition: border-color 0.18s;
+}
+.q-card.on { border-color: var(--red); }
+.q-name {
+  font-family: var(--dot); font-weight: 700; font-size: 15px; letter-spacing: 0.1em;
+}
+.q-card.on .q-name { color: var(--red); }
+.q-sub { color: var(--dim); font-size: 10px; margin-top: 2px; }
+.q-big { font-family: var(--dot); font-weight: 700; font-size: 20px; margin: 8px 0 4px; }
+.q-arrow {
+  align-self: center; color: var(--dim); font-size: 10px; white-space: nowrap;
+  font-family: var(--dot); font-weight: 700;
+}
+.q-loading { color: var(--faint); margin-top: 10px; }
+.q-block { margin-top: 14px; }
+.q-block-head, .q-block-foot { color: var(--dim); font-size: 11px; line-height: 1.7; }
+.q-block-foot { margin-top: 6px; }
+.q-block-head b, .q-block-foot b { color: var(--ink); font-weight: normal; }
 
 /* ---------- empty state ---------- */
 .empty { text-align: center; padding: 56px 24px 60px; }

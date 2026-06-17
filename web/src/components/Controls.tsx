@@ -1,7 +1,5 @@
-import { useState } from "react";
 import { generate, step, stop } from "../api";
-import { DEFAULT_PARAMS } from "../lib";
-import type { GenParams } from "../types";
+import type { Backend, GenParams } from "../types";
 
 export function Controls({
   busy,
@@ -10,6 +8,8 @@ export function Controls({
   setFollow,
   prompt,
   setPrompt,
+  params,
+  setParams,
   onStep,
 }: {
   busy: boolean;
@@ -18,13 +18,14 @@ export function Controls({
   setFollow: (v: boolean) => void;
   prompt: string;
   setPrompt: (p: string) => void;
+  params: GenParams;
+  setParams: (p: GenParams) => void;
   onStep: () => void;
 }) {
-  const [p, setP] = useState<GenParams>(DEFAULT_PARAMS);
-
+  const p = params;
   const num =
     (k: keyof GenParams) => (e: React.ChangeEvent<HTMLInputElement>) =>
-      setP({ ...p, [k]: Number(e.target.value) });
+      setParams({ ...p, [k]: Number(e.target.value) });
 
   const go = () => {
     if (prompt.trim() && !busy) void generate(prompt, p);
@@ -63,6 +64,11 @@ export function Controls({
         </button>
       </div>
       <div className="ctl-row ctl-params">
+        <BackendToggle
+          backend={p.backend}
+          disabled={busy}
+          onChange={(b) => setParams({ ...p, backend: b })}
+        />
         <label>
           n <input type="number" value={p.n} min={1} max={512} onChange={num("n")} />
         </label>
@@ -79,12 +85,39 @@ export function Controls({
           seed <input type="number" value={p.seed} min={0} onChange={num("seed")} />
         </label>
         <label>
-          <input type="checkbox" checked={p.chat} onChange={(e) => setP({ ...p, chat: e.target.checked })} /> chat
+          <input type="checkbox" checked={p.chat} onChange={(e) => setParams({ ...p, chat: e.target.checked })} /> chat
         </label>
         <label>
           <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> follow
         </label>
       </div>
     </section>
+  );
+}
+
+/** Segmented f32 / q8 backend switch. Shared component (controls + the
+ *  quantization band both render it against the same param state). */
+export function BackendToggle({
+  backend,
+  disabled,
+  onChange,
+}: {
+  backend: Backend;
+  disabled?: boolean;
+  onChange: (b: Backend) => void;
+}) {
+  return (
+    <div className={"seg" + (disabled ? " seg-dim" : "")} title="weight arithmetic backend">
+      {(["f32", "q8"] as Backend[]).map((b) => (
+        <button
+          key={b}
+          className={"seg-opt" + (backend === b ? " on" : "")}
+          disabled={disabled}
+          onClick={() => onChange(b)}
+        >
+          {b}
+        </button>
+      ))}
+    </div>
   );
 }

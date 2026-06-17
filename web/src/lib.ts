@@ -16,6 +16,7 @@ export const DEFAULT_PARAMS: GenParams = {
   top_p: 0.95,
   seed: 7,
   chat: false,
+  backend: 'f32',
 }
 
 /** Model's softmax probability for generated token i (from the previous

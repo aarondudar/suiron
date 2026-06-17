@@ -1,5 +1,5 @@
 import { generate } from '../api'
-import { DEFAULT_PARAMS } from '../lib'
+import type { GenParams } from '../types'
 
 const SUGGESTIONS = [
   'The cat sat on the',
@@ -8,10 +8,10 @@ const SUGGESTIONS = [
   '1 + 1 =',
 ]
 
-export function EmptyState({ onPick }: { onPick: (p: string) => void }) {
+export function EmptyState({ onPick, params }: { onPick: (p: string) => void; params: GenParams }) {
   const run = (p: string) => {
     onPick(p)
-    void generate(p, DEFAULT_PARAMS)
+    void generate(p, params)
   }
 
   return (

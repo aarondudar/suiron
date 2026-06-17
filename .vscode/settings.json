@@ -2,5 +2,9 @@
   "github.copilot.enable": {
     "*": false
   },
-  "editor.inlineSuggest.enabled": false
+  "editor.inlineSuggest.enabled": false,
+  "files.associations": {
+    "*.metal": "cpp"
+  },
+  "C_Cpp.errorSquiggles": "disabled"
 }

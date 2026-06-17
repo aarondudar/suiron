@@ -1,62 +1,69 @@
 # suiron
 
-A large-language-model inference engine for Apple Silicon, written from scratch in Rust.
-Zero runtime dependencies: no candle, no tokenizers, no ggml bindings. Every layer of the stack, from the GGUF file parser to the Metal kernels, is implemented in this repository.
+An LLM inference engine for Apple Silicon, written from scratch in Rust — the
+GGUF parser, the byte-level BPE tokenizer, attention, RoPE, the Metal kernels —
+with no ML dependencies. Paired with a browser microscope that traces a real
+forward pass, token by token.
 
-## Why from scratch?
+<!-- DEMO GIF — record from `make lab`: type a prompt, step through a few
+     tokens, hover a layer so the attention arcs light up, expand a "math" card.
+     Save as docs/demo.gif and uncomment:
+![suiron inference microscope](docs/demo.gif)
+-->
 
-Inference engines are where systems programming meets modern ML: memory-mapped file
-formats, cache-aware matrix multiplication, GPU kernel design, numerical precision
-tradeoffs, and scheduling. Using a framework would hide exactly the parts worth learning.
-
-## Roadmap
-
-Each milestone is independently runnable and verified against `llama.cpp` output.
-
-- [x] **M0 — GGUF parser.** Parse the GGUF v3 container (metadata, tensor index, Q8_0
-      blocks) with a zero-dependency reader. `suiron inspect <model>` dumps the
-      architecture. _(done — see `crates/suiron-gguf`)_
-- [x] **M1 — One correct token.** Byte-level BPE tokenizer from GGUF vocab + fp32 CPU
-      forward pass (RMSNorm, RoPE, GQA attention, SwiGLU) for Qwen3-0.6B. Logits match
-      llama.cpp. _(done — tokenizer is token-exact vs `llama-tokenize` on 13/13 inputs;
-      greedy generation matches `llama-completion` token-for-token, 5/5 prompts × 32
-      tokens incl. Japanese and code)_
-- [x] **M2 — CPU generation.** KV cache, sampling (greedy/top-p/temperature), streaming
-      output. `suiron run <model> -p "..."`. _(done — UTF-8-safe streaming, seeded
-      sampling, `--chat` template, ~2 tok/s naive fp32 on M1 Pro)_
-- [x] **MV — Inference microscope.** _(parallel track, unlocked by M2.)_ `suiron trace`
-      records every intermediate of a real forward pass — tokenization, attention maps,
-      KV cache growth, ranked logits — and a zero-dependency local viewer renders it as
-      a minimalist, dot-matrix "glass box" you can step through token by token. No such
-      tool exists for real GGUF models; owning the forward pass makes it nearly free.
-      Design: [`docs/microscope.md`](docs/microscope.md). _(done — `suiron trace` +
-      `suiron view`; weights mode still to come)_
-- [x] **M3 — Metal backend.** Hand-written MSL kernels: matmul, RMSNorm, softmax,
-      fused attention. Correctness parity with the CPU path. _(done — zero-dep
-      Objective-C FFI, runtime-compiled MSL; matvec/rmsnorm/softmax kernels verified
-      vs CPU, full GPU forward parity, 4.1× decode speedup; attention not yet fused —
-      moves to M4 with the quantized kernels)_
-- [ ] **M4 — Quantized inference.** Q8_0/Q4 compute without dequantize-to-f32, on CPU
-      (NEON) and GPU.
-- [ ] **M5 — Paged KV cache + continuous batching.** Serve concurrent generations.
-- [ ] **M6 — Speculative decoding.** Draft-model acceleration.
-- [ ] **M7 — Server.** OpenAI-compatible HTTP API. Benchmarks vs llama.cpp published here.
+Everything from the file format up to the GPU is implemented here and verified
+token-for-token against `llama.cpp`. `suiron` began as the
+on-device engine for [Kana Master](https://github.com/aarondudar/Kana-Master-Mobile),
+a mobile app I developed for learning Japanese.
 
 ## Quick start
 
 ```sh
-make setup   # fetch model (~640 MB) + build engine + build frontend
-make lab     # launch the inference microscope in your browser
+make setup   # fetch model (~640 MB) + build engine + frontend
+make lab     # open the microscope in your browser
 ```
 
-`make dev` runs the frontend with hot reload (vite, /api proxied to the lab).
-`make help` lists everything. Under the hood it's only `cargo`, `npm`, `curl`:
+`make help` lists every target; `make dev` runs the frontend with hot reload.
+Or from the terminal:
 
 ```sh
-cargo run --release -p suiron-cli -- inspect models/Qwen3-0.6B-Q8_0.gguf
+cargo run --release -p suiron-cli -- run models/Qwen3-0.6B-Q8_0.gguf -p "The capital of France is"
 ```
 
-## Workspace layout
+## The microscope
+
+`suiron lab` keeps the model resident and serves a single-page instrument over a
+JSON API. You step through generation one token at a time and read, in real
+numbers, how each one was produced: attention per layer (with arcs back over the
+prompt), the residual stream, the ranked next-token logits, and the sampling
+decision that picked the winner. Click a candidate to force it instead and watch
+the model continue from the altered history. An "explain" toggle narrates each
+panel; a "machine" view shows the engine's own source beside the math for every
+stage. Built on `web/` (React + TypeScript) — see [`docs/microscope.md`](docs/microscope.md).
+
+## Roadmap
+
+Each milestone is independently runnable; quoted results are measured against
+llama.cpp on an M1 Pro.
+
+- [x] **M0 — GGUF parser.** Zero-dependency v3 reader (metadata, tensor index,
+      Q8_0 blocks). `suiron inspect`.
+- [x] **M1 — One correct token.** Byte-level BPE tokenizer + fp32 CPU forward
+      pass. Tokenizer is token-exact vs `llama-tokenize` (13/13 inputs incl.
+      Japanese, emoji, code); logits match llama.cpp.
+- [x] **M2 — CPU generation.** KV cache, sampling, UTF-8-safe streaming, chat
+      template. Greedy output matches `llama-completion` 5/5 prompts × 32 tokens.
+- [x] **MV — Inference microscope.** `suiron lab` + the `web/` frontend above.
+- [x] **M3 — Metal backend.** Hand-rolled Objective-C FFI (no crates),
+      runtime-compiled MSL kernels, full GPU forward parity with the CPU path,
+      ~4× decode speedup.
+- [ ] **M4 — Quantized inference.** Q8_0/Q4 compute without dequantizing to f32,
+      on CPU (NEON) and GPU.
+- [ ] **M5 — Paged KV cache + continuous batching.**
+- [ ] **M6 — Speculative decoding.**
+- [ ] **M7 — OpenAI-compatible HTTP server.**
+
+## Workspace
 
 | Crate          | Purpose                                                          |
 | -------------- | ---------------------------------------------------------------- |
@@ -64,18 +71,17 @@ cargo run --release -p suiron-cli -- inspect models/Qwen3-0.6B-Q8_0.gguf
 | `suiron-core`  | Tokenizer, fp32 forward pass, sampling, generation               |
 | `suiron-metal` | Metal GPU backend (hand-rolled Objective-C FFI, runtime MSL)     |
 | `suiron-cli`   | The `suiron` binary: `inspect`, `run`, `trace`, `lab`, …         |
-| `web/`         | Microscope frontend (React + TypeScript; not a crate)            |
+| `web/`         | Microscope frontend (React + TypeScript)                         |
 
-The zero-dependency rule applies to the inference engine — the Rust crates.
-The microscope frontend in `web/` is a normal Vite app that talks to
-`suiron lab`'s JSON API:
+The zero-dependency rule applies to the Rust crates — the engine. The `web/`
+frontend is an ordinary Vite app talking to the lab's JSON API.
 
-```sh
-cargo run --release -p suiron-cli -- lab models/Qwen3-0.6B-Q8_0.gguf
-cd web && npm install && npm run build   # then open http://127.0.0.1:4117
-# or for frontend development with hot reload:
-cd web && npm run dev                    # vite proxies /api to the lab
-```
+## Why from scratch
+
+Inference engines are where systems programming meets modern ML: binary file
+formats, cache-aware matrix multiplication, GPU kernel design, numerical
+precision tradeoffs, scheduling. A framework would hide exactly the parts worth
+learning.
 
 ## License
 
