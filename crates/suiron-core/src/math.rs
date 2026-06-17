@@ -55,6 +55,35 @@ pub fn dot(a: &[f32], b: &[f32]) -> f32 {
     a.iter().zip(b).map(|(x, y)| x * y).sum()
 }
 
+/// y = W·x where W is [rows, cols] stored as raw Q8_0 blocks (34 bytes:
+/// f16 scale + 32 i8 quants), x is f32. Each block is dequantized in
+/// registers and fused into the dot product — the full f32 weight matrix is
+/// never materialized. Same arithmetic as `matmul(dequantize_q8_0(w), x)`,
+/// but reading ~4× fewer weight bytes, which is the win on memory-bound
+/// decode. `cols` must be a multiple of 32 (the Q8_0 block size).
+pub fn matvec_q8_0(blocks: &[u8], x: &[f32], rows: usize, cols: usize) -> Vec<f32> {
+    debug_assert_eq!(cols % 32, 0);
+    debug_assert_eq!(x.len(), cols);
+    let blocks_per_row = cols / 32;
+    let mut out = vec![0.0f32; rows];
+    for (r, o) in out.iter_mut().enumerate() {
+        let mut acc = 0.0f32;
+        let row_base = r * blocks_per_row * 34;
+        for b in 0..blocks_per_row {
+            let block = &blocks[row_base + b * 34..][..34];
+            let scale = suiron_gguf::f16_to_f32(u16::from_le_bytes([block[0], block[1]]));
+            let xb = &x[b * 32..][..32];
+            let mut block_acc = 0.0f32;
+            for i in 0..32 {
+                block_acc += (block[2 + i] as i8) as f32 * xb[i];
+            }
+            acc += scale * block_acc;
+        }
+        *o = acc;
+    }
+    out
+}
+
 /// Rotary position embedding, in place on one head's q or k vector.
 /// NeoX pairing (i with i+d/2), per-pair angle = pos * base^(-2i/d).
 /// Qwen3: d = 128, base = 1e6 (`qwen3.rope.freq_base`).
@@ -83,6 +112,60 @@ mod tests {
             (got - want).abs() <= tol,
             "{what}: got {got}, want {want} (tolerance {tol})"
         );
+    }
+
+    /// f32 → f16 little-endian bytes (round-toward-zero), enough for tests.
+    fn f32_to_f16_le(v: f32) -> [u8; 2] {
+        let bits = v.to_bits();
+        let sign = ((bits >> 16) & 0x8000) as u16;
+        let exp = ((bits >> 23) & 0xff) as i32 - 127 + 15;
+        let frac = bits & 0x7f_ffff;
+        let h = if exp <= 0 {
+            sign
+        } else if exp >= 0x1f {
+            sign | 0x7c00
+        } else {
+            sign | ((exp as u16) << 10) | ((frac >> 13) as u16)
+        };
+        h.to_le_bytes()
+    }
+
+    /// Synthetic Q8_0 weight [rows, cols] + the exact f32 it dequantizes to.
+    fn synthetic_q8(rows: usize, cols: usize) -> (Vec<u8>, Vec<f32>) {
+        assert_eq!(cols % 32, 0);
+        let mut blocks = Vec::new();
+        let mut f32s = Vec::new();
+        for r in 0..rows {
+            for b in 0..cols / 32 {
+                let scale = 0.05 + 0.01 * ((r + b) % 7) as f32;
+                let sbytes = f32_to_f16_le(scale);
+                let d = suiron_gguf::f16_to_f32(u16::from_le_bytes(sbytes));
+                blocks.extend(sbytes);
+                for i in 0..32 {
+                    let q = (((r * 31 + b * 17 + i * 13) % 255) as i32 - 127) as i8;
+                    blocks.push(q as u8);
+                    f32s.push(d * q as f32);
+                }
+            }
+        }
+        (blocks, f32s)
+    }
+
+    #[test]
+    fn matvec_q8_0_matches_f32_path() {
+        // The quantized kernel must equal dequantize-then-matmul (same
+        // arithmetic, just fused) — only tiny f32 reassociation differs.
+        let (rows, cols) = (40, 128);
+        let (blocks, weights) = synthetic_q8(rows, cols);
+        let x: Vec<f32> = (0..cols).map(|i| ((i * 7 % 23) as f32 - 11.0) / 5.0).collect();
+
+        let quant = matvec_q8_0(&blocks, &x, rows, cols);
+        let reference = matmul(&weights, &x, rows, cols, 1);
+
+        assert_eq!(quant.len(), rows);
+        for (i, (q, r)) in quant.iter().zip(&reference).enumerate() {
+            assert_close(*q, *r, 1e-3, &format!("row {i}"));
+        }
     }
 
     #[test]

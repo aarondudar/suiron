@@ -21,7 +21,7 @@ fn gpu_forward_matches_cpu() {
 
     let mut max_diff = 0.0f32;
     for &t in &prompt {
-        let a = forward(&model, &mut cpu_cache, t, None);
+        let a = forward(&model, &mut cpu_cache, t, suiron_core::Backend::F32, None);
         let b = gpu.forward(&mut gpu_cache, t);
         for (x, y) in a.iter().zip(&b) {
             max_diff = max_diff.max((x - y).abs());

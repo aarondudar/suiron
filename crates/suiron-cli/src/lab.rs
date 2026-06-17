@@ -13,7 +13,7 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use suiron_core::{forward, KvCache, Model, Sampler, Tokenizer};
+use suiron_core::{forward, Backend, KvCache, Model, Sampler, Tokenizer};
 
 struct Shared {
     tokens: Vec<(u32, String)>,
@@ -37,6 +37,7 @@ struct Params {
     top_p: f32,
     seed: u64,
     chat: bool,
+    backend: Backend,
 }
 
 pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Error>> {
@@ -120,8 +121,9 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                 match setup {
                     Err(e) => respond(&mut s, "409 Conflict", "text/plain", e.as_bytes()),
                     Ok((mut c, id)) => {
+                        // deep inspection always uses the f32 reference math
                         let mut deep = crate::machine::DeepObserver::new(layer);
-                        forward(&model, &mut c, id, Some(&mut deep));
+                        forward(&model, &mut c, id, Backend::F32, Some(&mut deep));
                         let text = tok.decode(&[id]);
                         let json = crate::machine::inspect_json(&deep, pos, (id, &text));
                         respond(&mut s, "200 OK", "application/json", json.as_bytes());
@@ -284,7 +286,7 @@ fn generate_traced(
             break;
         }
         rec.begin_step();
-        logits = forward(model, &mut cache, t, Some(&mut rec));
+        logits = forward(model, &mut cache, t, p.backend, Some(&mut rec));
         rec.record_logits(&logits, 10);
         push_step(tok, &mut rec, t, shared);
     }
@@ -294,6 +296,7 @@ fn generate_traced(
 }
 
 /// Continue n tokens from wherever the resident state stands ("step").
+#[allow(clippy::too_many_arguments)]
 fn step_traced(
     model: &Model,
     tok: &Tokenizer,
@@ -352,7 +355,7 @@ fn fork_traced(
 
     let mut rec = Recorder::new(6);
     rec.begin_step();
-    let logits = forward(model, &mut cache, forced, Some(&mut rec));
+    let logits = forward(model, &mut cache, forced, p.backend, Some(&mut rec));
     rec.record_logits(&logits, 10);
     rec.set_sel(sel);
     push_step(tok, &mut rec, forced, shared);
@@ -385,7 +388,7 @@ fn run_decode(
             break;
         }
         rec.begin_step();
-        logits = forward(model, cache, id, Some(&mut *rec));
+        logits = forward(model, cache, id, p.backend, Some(&mut *rec));
         rec.record_logits(&logits, 10);
         rec.set_sel(sel);
         push_step(tok, rec, id, shared);
@@ -442,7 +445,15 @@ fn parse_fork(path: &str) -> (usize, u32) {
 }
 
 fn parse_params(path: &str) -> Params {
-    let mut p = Params { n: 32, temp: 0.0, top_k: 40, top_p: 0.95, seed: 7, chat: false };
+    let mut p = Params {
+        n: 32,
+        temp: 0.0,
+        top_k: 40,
+        top_p: 0.95,
+        seed: 7,
+        chat: false,
+        backend: Backend::F32,
+    };
     if let Some(q) = path.split_once('?').map(|(_, q)| q) {
         for kv in q.split('&') {
             let Some((k, v)) = kv.split_once('=') else { continue };
@@ -453,6 +464,7 @@ fn parse_params(path: &str) -> Params {
                 "top_p" => p.top_p = v.parse().unwrap_or(p.top_p),
                 "seed" => p.seed = v.parse().unwrap_or(p.seed),
                 "chat" => p.chat = v == "1",
+                "backend" => p.backend = Backend::parse(v),
                 _ => {}
             }
         }

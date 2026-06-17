@@ -1,7 +1,7 @@
 //! Integration tests against the real GGUF file. Skipped (not failed) when
 //! the model isn't downloaded, so CI without the 640 MB file stays green.
 
-use suiron_core::Tokenizer;
+use suiron_core::{forward, Backend, KvCache, Model, Tokenizer};
 use suiron_gguf::GgufFile;
 
 const MODEL: &str = "../../models/Qwen3-0.6B-Q8_0.gguf";
@@ -13,6 +13,37 @@ fn tokenizer() -> Option<Tokenizer> {
     }
     let file = GgufFile::open(MODEL).expect("model parses");
     Some(Tokenizer::from_gguf(&file).expect("tokenizer builds"))
+}
+
+#[test]
+fn q8_backend_agrees_with_f32() {
+    if !std::path::Path::new(MODEL).exists() {
+        eprintln!("skipping: {MODEL} not present");
+        return;
+    }
+    let file = GgufFile::open(MODEL).expect("parse");
+    let model = Model::load(&file).expect("load");
+    let prompt = [1782u32, 8251, 7578, 389, 279]; // "the cat sat on the"
+
+    let mut f32_cache = KvCache::new(&model);
+    let mut q8_cache = KvCache::new(&model);
+    let mut max_diff = 0.0f32;
+    for &t in &prompt {
+        let f = forward(&model, &mut f32_cache, t, Backend::F32, None);
+        let q = forward(&model, &mut q8_cache, t, Backend::Q8, None);
+        // both start from the same Q8_0 weights, so this is near-exact —
+        // only f32 accumulation order differs. argmax MUST agree.
+        assert_eq!(
+            suiron_core::sampling::argmax(&f),
+            suiron_core::sampling::argmax(&q),
+            "Q8 picked a different token than F32"
+        );
+        for (a, b) in f.iter().zip(&q) {
+            max_diff = max_diff.max((a - b).abs());
+        }
+    }
+    eprintln!("max |f32 - q8| logit diff over prompt: {max_diff}");
+    assert!(max_diff < 1e-2, "Q8 diverges from F32 by {max_diff}");
 }
 
 #[test]

@@ -1,14 +1,63 @@
-//! Qwen3 weights loaded to f32, plus the architecture config from metadata.
-//! Tensor shapes are row-major `[rows, cols]` — GGUF dims (innermost-first)
-//! are reversed once at load; nothing downstream sees GGUF order.
+//! Qwen3 weights + the architecture config from metadata. Tensor shapes are
+//! row-major `[rows, cols]` — GGUF dims (innermost-first) are reversed once
+//! at load; nothing downstream sees GGUF order.
+//!
+//! Each weight keeps an f32 copy (the permanent correctness reference) and,
+//! when the source was Q8_0, the raw quantized blocks too — so the compute
+//! backend is a runtime toggle, not a load-time decision.
 
-use suiron_gguf::GgufFile;
+use suiron_gguf::{GgmlType, GgufFile};
+
+use crate::math::{matmul, matvec_q8_0};
+
+/// Which arithmetic a weight·vector product uses. Same result (within
+/// quantization tolerance), different memory traffic and speed. f32 is the
+/// reference every other backend is checked against.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Backend {
+    /// Dequantized f32 weights. The M1–M3 path; slowest, exact reference.
+    F32,
+    /// Q8_0 weights read directly as blocks (~4× less weight memory traffic).
+    /// Not lossy vs F32 here — both start from the same Q8_0 weights on disk;
+    /// Q8 just skips materializing them as f32.
+    Q8,
+}
+
+impl Backend {
+    pub fn parse(s: &str) -> Backend {
+        match s {
+            "q8" => Backend::Q8,
+            _ => Backend::F32,
+        }
+    }
+    pub fn label(self) -> &'static str {
+        match self {
+            Backend::F32 => "f32",
+            Backend::Q8 => "q8",
+        }
+    }
+}
 
 pub struct Tensor {
     pub data: Vec<f32>,
-    /// Row-major. 2D weights: [out_dim, in_dim], so y = W·x is
-    /// matmul(w, x, out_dim, in_dim, 1). 1D norms: [len].
+    /// Raw Q8_0 blocks (34 bytes each) when the source tensor was Q8_0;
+    /// absent for f32 tensors (the norm weights).
+    pub q8: Option<Vec<u8>>,
+    /// Row-major. 2D weights: [out_dim, in_dim], so y = W·x is `matvec(x)`.
+    /// 1D norms: [len].
     pub shape: Vec<usize>,
+}
+
+impl Tensor {
+    /// y = W·x for a 2D weight [rows, cols], under the chosen backend.
+    /// Q8 falls back to f32 if this tensor wasn't quantized.
+    pub fn matvec(&self, x: &[f32], backend: Backend) -> Vec<f32> {
+        let (rows, cols) = (self.shape[0], self.shape[1]);
+        match (backend, &self.q8) {
+            (Backend::Q8, Some(blocks)) => matvec_q8_0(blocks, x, rows, cols),
+            _ => matmul(&self.data, x, rows, cols, 1),
+        }
+    }
 }
 
 pub struct Config {
@@ -86,7 +135,13 @@ impl Model {
             let info = file.tensor(name).ok_or_else(|| format!("missing tensor {name}"))?;
             let data = file.tensor_f32(info).map_err(|e| e.to_string())?;
             let shape: Vec<usize> = info.dims.iter().rev().map(|&d| d as usize).collect();
-            Ok(Tensor { data, shape })
+            // keep the raw Q8_0 blocks so the quantized backend can run without
+            // reloading; cheap (a byte-slice copy) next to the f32 dequant.
+            let q8 = match info.dtype {
+                GgmlType::Q8_0 => Some(file.tensor_bytes(info).map_err(|e| e.to_string())?.to_vec()),
+                _ => None,
+            };
+            Ok(Tensor { data, q8, shape })
         };
         let expect = |t: Tensor, shape: &[usize], name: &str| -> Result<Tensor, String> {
             if t.shape != shape {

@@ -2,8 +2,8 @@
 //! Mirrors llama.cpp's build_qwen3: per-head q/k RMSNorm before NeoX RoPE,
 //! GQA (q head h reads kv head h / (n_heads/n_kv_heads)), scale 1/√head_dim.
 
-use crate::math::{dot, matmul, rmsnorm, rope, silu, softmax};
-use crate::model::Model;
+use crate::math::{dot, rmsnorm, rope, silu, softmax};
+use crate::model::{Backend, Model};
 
 /// Per-layer K/V history. Layout per layer: [pos][kv_head][head_dim] flat.
 #[derive(Clone)]
@@ -48,10 +48,12 @@ pub trait Observer {
 }
 
 /// Process one token at position `cache.len`; returns logits over the vocab.
+/// `backend` selects the weight·vector arithmetic (f32 reference vs Q8).
 pub fn forward(
     model: &Model,
     cache: &mut KvCache,
     token: u32,
+    backend: Backend,
     mut obs: Option<&mut dyn Observer>,
 ) -> Vec<f32> {
     let c = &model.config;
@@ -73,9 +75,9 @@ pub fn forward(
         if let Some(o) = obs.as_deref_mut() {
             o.vector(li, "attn_norm", &xn);
         }
-        let mut q = matmul(&layer.wq.data, &xn, q_dim, h, 1);
-        let mut k = matmul(&layer.wk.data, &xn, kv_dim, h, 1);
-        let v = matmul(&layer.wv.data, &xn, kv_dim, h, 1);
+        let mut q = layer.wq.matvec(&xn, backend);
+        let mut k = layer.wk.matvec(&xn, backend);
+        let v = layer.wv.matvec(&xn, backend);
 
         // Qwen3: RMSNorm each head's q/k, then RoPE
         for head in 0..c.n_heads {
@@ -126,7 +128,7 @@ pub fn forward(
             }
         }
         // machine:attention:end
-        let proj = matmul(&layer.wo.data, &attn, h, q_dim, 1);
+        let proj = layer.wo.matvec(&attn, backend);
         for i in 0..h {
             x[i] += proj[i];
         }
@@ -136,8 +138,8 @@ pub fn forward(
 
         // machine:ffn:start
         let xn = rmsnorm(&x, &layer.ffn_norm.data, c.rms_eps);
-        let mut gate = matmul(&layer.ffn_gate.data, &xn, c.ffn, h, 1);
-        let up = matmul(&layer.ffn_up.data, &xn, c.ffn, h, 1);
+        let mut gate = layer.ffn_gate.matvec(&xn, backend);
+        let up = layer.ffn_up.matvec(&xn, backend);
         if let Some(o) = obs.as_deref_mut() {
             o.vector(li, "gate", &gate);
             o.vector(li, "up", &up);
@@ -145,7 +147,7 @@ pub fn forward(
         for i in 0..c.ffn {
             gate[i] = silu(gate[i]) * up[i];
         }
-        let down = matmul(&layer.ffn_down.data, &gate, h, c.ffn, 1);
+        let down = layer.ffn_down.matvec(&gate, backend);
         for i in 0..h {
             x[i] += down[i];
         }
@@ -162,14 +164,14 @@ pub fn forward(
 
     let xn = rmsnorm(&x, &model.output_norm.data, c.rms_eps);
     let w_out = model.output.as_ref().unwrap_or(&model.token_embd);
-    matmul(&w_out.data, &xn, c.vocab, h, 1)
+    w_out.matvec(&xn, backend)
 }
 
 /// Run all `tokens` through the model; returns logits after the last one.
-pub fn prefill(model: &Model, cache: &mut KvCache, tokens: &[u32]) -> Vec<f32> {
+pub fn prefill(model: &Model, cache: &mut KvCache, tokens: &[u32], backend: Backend) -> Vec<f32> {
     let mut logits = Vec::new();
     for &t in tokens {
-        logits = forward(model, cache, t, None);
+        logits = forward(model, cache, t, backend, None);
     }
     logits
 }

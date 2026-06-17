@@ -9,6 +9,6 @@ pub mod tokenizer;
 
 pub use forward::{forward, prefill, KvCache};
 pub use generate::generate;
-pub use model::Model;
+pub use model::{Backend, Model};
 pub use sampling::Sampler;
 pub use tokenizer::Tokenizer;

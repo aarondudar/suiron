@@ -72,7 +72,8 @@ fn usage() -> Result<(), Box<dyn std::error::Error>> {
          \x20 load     <model.gguf>                  load all weights to f32 and verify\n\
          \x20 next     <model.gguf> <text>           predict the next token (top 10)\n\
          \x20 run      <model.gguf> -p <prompt> [-n N] [--temp T] [--top-k K]\n\
-         \x20          [--top-p P] [--seed S] [--chat]   generate text (streams)\n\
+         \x20          [--top-p P] [--seed S] [--chat] [--gpu] [--backend f32|q8]\n\
+         \x20                                              generate text (streams)\n\
          \x20 trace    <model.gguf> -p <prompt> [-n N] [-o out.json]   record a forward pass\n\
          \x20 view     <trace.json> [port]              serve the microscope viewer\n\
          \x20 lab      <model.gguf> [port]              live microscope: model resident,\n\
@@ -114,9 +115,10 @@ fn trace_cmd(path: &str, rest: &[String]) -> Result<(), Box<dyn std::error::Erro
     let mut cache = suiron_core::KvCache::new(&model);
     let mut all_ids = ids.clone();
     let mut logits = Vec::new();
+    let be = suiron_core::Backend::F32; // traces use the reference math
     for &t in &ids {
         rec.begin_step();
-        logits = suiron_core::forward(&model, &mut cache, t, Some(&mut rec));
+        logits = suiron_core::forward(&model, &mut cache, t, be, Some(&mut rec));
         rec.record_logits(&logits, 10);
     }
     let mut sampler = suiron_core::Sampler::greedy(); // traces are deterministic
@@ -127,7 +129,7 @@ fn trace_cmd(path: &str, rest: &[String]) -> Result<(), Box<dyn std::error::Erro
         }
         all_ids.push(id);
         rec.begin_step();
-        logits = suiron_core::forward(&model, &mut cache, id, Some(&mut rec));
+        logits = suiron_core::forward(&model, &mut cache, id, be, Some(&mut rec));
         rec.record_logits(&logits, 10);
         rec.set_sel(sel);
     }
@@ -162,6 +164,7 @@ fn run(path: &str, rest: &[String]) -> Result<(), Box<dyn std::error::Error>> {
         .subsec_nanos() as u64;
     let mut chat = false;
     let mut gpu = false;
+    let mut backend = suiron_core::Backend::F32;
     let mut it = rest.iter();
     while let Some(arg) = it.next() {
         let mut val = || it.next().ok_or_else(|| format!("{arg} needs a value"));
@@ -174,6 +177,7 @@ fn run(path: &str, rest: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             "--seed" => seed = val()?.parse()?,
             "--chat" => chat = true,
             "--gpu" => gpu = true,
+            "--backend" => backend = suiron_core::Backend::parse(val()?),
             other => return Err(format!("unknown flag {other}").into()),
         }
     }
@@ -217,12 +221,12 @@ fn run(path: &str, rest: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             &model, &ids, &mut sampler, max_tokens, &stop, &mut on_token,
         )
     } else {
-        suiron_core::generate(&model, &ids, &mut sampler, max_tokens, &stop, on_token)
+        suiron_core::generate(&model, &ids, &mut sampler, max_tokens, &stop, backend, on_token)
     };
     println!();
     eprintln!(
         "\n[{} | prefill {} tok · {:.1} tok/s | decode {} tok · {:.1} tok/s | temp {temp} seed {seed}]",
-        if gpu { "gpu" } else { "cpu" },
+        if gpu { "gpu".to_string() } else { format!("cpu/{}", backend.label()) },
         stats.prompt_tokens,
         stats.prefill_tps(),
         stats.gen_tokens,
@@ -329,7 +333,7 @@ fn next(path: &str, text: &str) -> Result<(), Box<dyn std::error::Error>> {
 
     let start = Instant::now();
     let mut cache = suiron_core::KvCache::new(&model);
-    let logits = suiron_core::prefill(&model, &mut cache, &ids);
+    let logits = suiron_core::prefill(&model, &mut cache, &ids, suiron_core::Backend::F32);
     let elapsed = start.elapsed();
 
     let mut ranked: Vec<(usize, f32)> =

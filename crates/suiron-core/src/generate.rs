@@ -2,7 +2,7 @@
 //! token or the budget runs out. Printing is the caller's job (on_token).
 
 use crate::forward::{forward, prefill, KvCache};
-use crate::model::Model;
+use crate::model::{Backend, Model};
 use crate::sampling::Sampler;
 use std::time::{Duration, Instant};
 
@@ -22,18 +22,20 @@ impl GenStats {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn generate(
     model: &Model,
     prompt: &[u32],
     sampler: &mut Sampler,
     max_tokens: usize,
     stop: &[u32],
+    backend: Backend,
     mut on_token: impl FnMut(u32),
 ) -> GenStats {
     let mut cache = KvCache::new(model);
 
     let t0 = Instant::now();
-    let mut logits = prefill(model, &mut cache, prompt);
+    let mut logits = prefill(model, &mut cache, prompt, backend);
     let prefill_time = t0.elapsed();
 
     let t1 = Instant::now();
@@ -45,7 +47,7 @@ pub fn generate(
         }
         on_token(id);
         gen_tokens += 1;
-        logits = forward(model, &mut cache, id, None);
+        logits = forward(model, &mut cache, id, backend, None);
     }
 
     GenStats {
