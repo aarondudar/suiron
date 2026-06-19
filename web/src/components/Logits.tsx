@@ -27,7 +27,7 @@ export function Logits({
   return (
     <section>
       <BandHeader
-        idx="02"
+        idx="03"
         title={
           <>
             what the model expects next <Explain of="logits" />

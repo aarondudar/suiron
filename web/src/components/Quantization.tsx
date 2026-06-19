@@ -41,7 +41,7 @@ export function Quantization({
   return (
     <section>
       <BandHeader
-        idx="06"
+        idx="05"
         title={
           <>
             quantization <Explain of="quantization" />

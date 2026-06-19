@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { confidence, layerGlance, q } from "../lib";
 import type { FocusTarget, GenParams, Sel, Step, Trace } from "../types";
 import { EngineSource } from "./EngineSource";
+import { StageMath, type Stage } from "./StageMath";
 import { TemperatureDemo } from "./TemperatureDemo";
 
 /* always-on one-line subtitle under each band's title (depth 0). orientation,
@@ -15,8 +16,7 @@ export const SUB = {
   tokens: "your text, split into the pieces the model reads. click one to inspect it.",
   logits: "the model's ranked guesses for the next token.",
   selection: "how the model goes from ranked guesses to one actual token.",
-  layers: "what each layer looked at, from the first layer to the last.",
-  machine: "the real math that turned this token into a prediction.",
+  layers: "the token's vector flows through every layer in order; each one reads the earlier tokens. open a layer for its heads and math.",
   quant: "the same model stored in fewer bytes, and the speed that buys.",
 };
 
@@ -63,9 +63,52 @@ export interface Concept {
 /** a "the code" rung that reuses the live engine source endpoint. */
 const code = (fn: string): ExplainRung => ({ label: "the code", body: () => <EngineSource fn={fn} /> });
 
+/** a "the math" rung: this token's real numbers for one compute stage, fetched
+ *  on demand (the old band-05 math, relocated to the single depth surface). */
+const mathRung = (stage: Stage): ExplainRung => ({
+  label: "the math",
+  body: (c) => <StageMath ctx={c} stage={stage} />,
+});
+
 const tok = (c: ExplainCtx, p: number) => q(c.trace.tokens[p]?.t ?? "");
 
 export const CONCEPTS: Record<string, Concept> = {
+  model: {
+    id: "model",
+    title: "what this is",
+    highlight: () => ({ kind: "el", ref: "spec" }),
+    intro: (c) => (
+      <>
+        a language model does just one thing: given some text, it gives <b>every</b> token in its
+        fixed dictionary a score for how likely it is to come next, then picks one. everything else
+        on this page is how it computes that score well. this model is Qwen3-0.6B:{" "}
+        <b>{c.trace.layers}</b> layers stacked in order, <b>{c.trace.heads}</b> attention heads (
+        {c.trace.kv_heads} key/value groups), each token carried as <b>1,024</b> numbers, and a
+        dictionary of <b>151,936</b> possible tokens. keep that dictionary in mind; the whole story
+        comes back to it.
+      </>
+    ),
+  },
+
+  settings: {
+    id: "settings",
+    title: "the settings",
+    highlight: () => ({ kind: "el", ref: "ctl-params" }),
+    intro: (c) => {
+      const p = c.params;
+      return (
+        <>
+          these change how the model commits to a token once it has the scores, not what the model
+          knows. <b>temperature {p.temp}</b> sets how evenly it treats its options (0 always takes
+          the top one). <b>top-k {p.top_k}</b> keeps only that many options; <b>top-p {p.top_p}</b>{" "}
+          keeps the smallest set that covers that much probability; <b>seed {p.seed}</b> fixes the
+          randomness so a run repeats exactly. <b>backend {p.backend}</b> picks which arithmetic runs
+          (same answer, different speed). change one and re-run to see the choice change.
+        </>
+      );
+    },
+  },
+
   tokenization: {
     id: "tokenization",
     title: "tokens",
@@ -74,11 +117,11 @@ export const CONCEPTS: Record<string, Concept> = {
       const t = c.trace.tokens[c.cur];
       return (
         <>
-          the model does not read letters or whole words. it reads <b>tokens</b>, common chunks of
-          text. your text became {c.trace.tokens.length} of them. frequent words are usually one
-          token, and rarer words get split into a few. the token you are inspecting, number{" "}
-          {c.cur}, is {q(t?.t ?? "")}, which is entry <b>{t?.id}</b> in the model's fixed list of
-          151,936 possible tokens.
+          the model only knows the pieces in its dictionary, so the first job is always to chop your
+          text into them. these pieces are <b>tokens</b>, common chunks of text: frequent words are
+          usually one token, rarer words get split into a few. your text became{" "}
+          {c.trace.tokens.length} of them. the token you are inspecting, number {c.cur}, is{" "}
+          {q(t?.t ?? "")}, which is entry <b>{t?.id}</b> in that fixed dictionary of 151,936 tokens.
         </>
       );
     },
@@ -111,19 +154,37 @@ export const CONCEPTS: Record<string, Concept> = {
     },
   },
 
+  embedding: {
+    id: "embedding",
+    title: "the token becomes a vector",
+    highlight: (c) => ({ kind: "layer", layer: c.layer }),
+    rungs: [mathRung("embedding"), code("embedding")],
+    intro: (c) => (
+      <>
+        a token id is just a number, and you cannot do math with "entry 8251". so the model looks it
+        up in a big table that has <b>one row per dictionary entry</b>, getting a row of{" "}
+        <b>1,024 numbers</b> it learned during training. that row is the token's starting meaning,
+        and it is what flows into the stack of layers. as the token passes through, information from
+        the earlier tokens gets added on top of it. {q(c.trace.tokens[c.cur]?.t ?? "")} is the
+        vector entering layer 0 here. keep this table in mind: it comes back at the very end.
+      </>
+    ),
+  },
+
   attention: {
     id: "attention",
     title: "attention",
     highlight: (c) => ({ kind: "layer", layer: c.layer }),
-    rungs: [code("attention")],
+    rungs: [mathRung("attention"), code("attention")],
     intro: (c) => {
       const g = c.cur > 0 ? layerGlance(c.step, c.layer, c.cur + 1) : null;
       return (
         <>
-          the model is a stack of layers and the text passes through them in order. at each layer
-          every token looks back at earlier tokens and pulls in information from the ones that
-          matter. this looking-back is called <b>attention</b>. the dots in band 04 show where each
-          layer looked, bigger meaning more attention and red the strongest.{" "}
+          to predict what comes next, a token has to use its context, the words before it. at each
+          layer every token looks back at the earlier tokens and pulls in information from the ones
+          that matter. this looking-back is called <b>attention</b>, and it is the only step where
+          tokens share information. the dots in band 02 show where each layer looked, bigger meaning
+          more attention and red the strongest.{" "}
           {g ? (
             <>
               for this token, layer {c.layer} attended hardest back to {tok(c, g.topPos)} (
@@ -137,6 +198,21 @@ export const CONCEPTS: Record<string, Concept> = {
     },
   },
 
+  feedforward: {
+    id: "feedforward",
+    title: "feed-forward",
+    highlight: (c) => ({ kind: "layer", layer: c.layer }),
+    rungs: [mathRung("feedforward"), code("ffn")],
+    intro: () => (
+      <>
+        after a token has read the others through attention, each token is processed on its own. its{" "}
+        <b>1,024</b> numbers are expanded to <b>3,072</b>, each passed through a function called{" "}
+        <b>silu</b> that decides how much of it to keep, then squeezed back down to 1,024. no other
+        tokens are involved in this step. this is where most of the model's learned facts live.
+      </>
+    ),
+  },
+
   residual: {
     id: "residual",
     title: "the residual stream",
@@ -147,11 +223,13 @@ export const CONCEPTS: Record<string, Concept> = {
       const last = r.length - 1;
       return (
         <>
-          each layer does not replace the token's numbers, it <b>adds</b> its result onto a running
-          total called the <b>residual stream</b>. the number on the right of each layer row is how
-          big that running total has grown, measured as its rms (root mean square, a single number
-          for the overall size of the 1,024 values). here it climbs from <b>{r[0]?.toFixed(1)}</b>{" "}
-          at layer 0 to <b>{r[last]?.toFixed(1)}</b> at the top, as the model piles on information.
+          one layer only refines the meaning a little, so the model stacks <b>{c.trace.layers}</b>{" "}
+          of them and the token passes through every one. a layer does not replace the token's
+          numbers, it <b>adds</b> its result onto a running total called the <b>residual stream</b>.
+          the number on the right of each layer row is how big that running total has grown, measured
+          as its rms (root mean square, a single number for the overall size of the 1,024 values).
+          here it climbs from <b>{r[0]?.toFixed(1)}</b> at layer 0 to <b>{r[last]?.toFixed(1)}</b> at
+          the top, as understanding accumulates.
         </>
       );
     },
@@ -192,11 +270,13 @@ export const CONCEPTS: Record<string, Concept> = {
       }
       return (
         <>
-          once the token has passed through all the layers, the model gives a score (a <b>logit</b>)
-          to every token in its vocabulary, about 152,000 of them. <b>softmax</b> turns those scores
-          into probabilities that add up to 100%. this is the model's honest ranking before any
-          randomness.{read} click a bar to <b>force</b> that token instead and watch the model keep
-          going from your choice.
+          once the token has passed through all the layers, the model holds one final 1,024-number
+          vector. here is the trick that ties it together: to score the next token it compares that
+          vector against <b>every row of the same dictionary table that turned tokens into vectors at
+          the start</b>. the dictionary is used at both ends, once to read the text and once to score
+          what comes next. a closer match is a higher score (a <b>logit</b>); <b>softmax</b> turns
+          all 151,936 scores into probabilities that add up to 100%.{read} click a bar to{" "}
+          <b>force</b> that token instead and watch the model keep going from your choice.
         </>
       );
     },
@@ -283,17 +363,38 @@ export const CONCEPTS: Record<string, Concept> = {
       if (c.sel.r === null)
         return (
           <>
-            at temperature 0 there is no draw: the highest-scoring survivor always wins, and this
-            token was chosen that way. raise the temperature to turn this step into a weighted random
-            draw with a visible bar.
+            a ranking is not yet a choice, so the model has to commit to one token. at temperature 0
+            there is no randomness: the highest-scoring survivor always wins, and this token was
+            chosen that way. raise the temperature to turn this step into a weighted random draw with
+            a visible bar.
           </>
         );
       return (
         <>
-          after the cuts, the surviving tokens line up on a bar, each owning a slice as wide as its
-          probability. one random number, <b>r = {c.sel.r.toFixed(4)}</b> (fixed by the seed), lands
-          in exactly one slice and picks the winner: {tok(c, c.cur)}. same seed, same r, same token
-          every time.
+          a ranking is not yet a choice, so the model commits to one token. after the cuts, the
+          surviving tokens line up on a bar, each owning a slice as wide as its probability. one
+          random number, <b>r = {c.sel.r.toFixed(4)}</b> (fixed by the seed), lands in exactly one
+          slice and picks the winner: {tok(c, c.cur)}. same seed, same r, same token every time.
+        </>
+      );
+    },
+  },
+
+  loop: {
+    id: "loop",
+    title: "and then it repeats",
+    highlight: (c) => ({ kind: "token", pos: c.cur }),
+    rungs: [code("forward")],
+    intro: (c) => {
+      const t = q(c.trace.tokens[c.cur]?.t ?? "");
+      return (
+        <>
+          a language model only ever predicts <b>one</b> next token. once it is chosen it is added to
+          the end of the text, and the whole process you just watched runs again from the top, now
+          reading everything including the token it just wrote. that single repeated step is how a
+          few words become whole paragraphs. {t} was one full pass through the model; the next token
+          is another. generation is nothing more than the one function from the start — score the
+          dictionary, pick one — run over and over.
         </>
       );
     },
@@ -329,86 +430,5 @@ export const CONCEPTS: Record<string, Concept> = {
         </>
       );
     },
-  },
-};
-
-/* ---------------------------------------------------------------------------
-   band 05 "the machine" — per-stage cards. Each `plain` takes the same context
-   object (some stages ignore it) so the component can call them uniformly.
-   These stay as the deepest always-available view; the Explainer's rungs reuse
-   the same engine source the cards do.
-   --------------------------------------------------------------------------- */
-export interface MachineCtx {
-  nTokens: number;
-  cur: number;
-  tokText: string;
-  tokId: number | undefined;
-  layer: number;
-}
-
-export const MACHINE: Record<string, { title: string; plain: (c: MachineCtx) => ReactNode }> = {
-  tokenize: {
-    title: "1 · tokenize",
-    plain: (c) => (
-      <>
-        your text was split into {c.nTokens} tokens, each one looked up in the model's fixed list
-        of 151,936 possible tokens. the token you are inspecting, number {c.cur}, is {c.tokText},
-        which is entry {c.tokId} in that list.
-      </>
-    ),
-  },
-  meaning: {
-    title: "2 · token meaning",
-    plain: (c) => (
-      <>
-        each token's id points to a row of 1,024 numbers the model learned during training. that
-        row is the token's starting meaning. as it moves through the layers, information from
-        other tokens gets added in. those 1,024 numbers (a vector) are what enters layer {c.layer}.
-      </>
-    ),
-  },
-  normalize: {
-    title: "3 · normalize (rmsnorm)",
-    plain: () => (
-      <>
-        before the next step the 1,024 numbers are rescaled to a consistent size. their
-        proportions stay the same, only the overall scale changes. this keeps the values from
-        growing or shrinking too much as they pass through layer after layer. the step is called
-        rmsnorm.
-      </>
-    ),
-  },
-  attention: {
-    title: "4 · attention",
-    plain: () => (
-      <>
-        this is the step where the token reads the earlier tokens. it builds a <b>query</b> from
-        its own numbers, and every earlier token offers a <b>key</b> and a <b>value</b>. comparing
-        the query to each key gives a score for how relevant that token is. <b>softmax</b> turns
-        the scores into percentages, and the token takes a blend of the values weighted by those
-        percentages. this is the only step where tokens share information.
-      </>
-    ),
-  },
-  feedforward: {
-    title: "5 · feed-forward (swiglu)",
-    plain: () => (
-      <>
-        after reading context, the token is processed on its own. its 1,024 numbers are expanded
-        to 3,072, each passed through a function called <b>silu</b> that decides how much of it to
-        keep, then squeezed back down to 1,024. no other tokens are involved in this step.
-      </>
-    ),
-  },
-  score: {
-    title: "6 · score every token",
-    plain: () => (
-      <>
-        after the last layer, the final 1,024 numbers are compared against the stored meaning of
-        every token in the vocabulary, one comparison each. a closer match means a higher score.
-        those scores are exactly what band 02 shows, and the choice among them is band 03. so this
-        is the same ending you already saw.
-      </>
-    ),
   },
 };

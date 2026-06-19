@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 
 /* Renders one real function from the engine, fetched live from
-   /api/v1/source. Shared by band 05 ("the machine") and the Explainer's
-   "the code" rungs. Click-gated everywhere it is used, so the default view
-   never makes this call. */
+   /api/v1/source. Used by the Explainer's "the code" rungs (alongside StageMath
+   for "the math"). Click-gated, so the default view never makes this call. */
 
 /* Hand-rolled Rust highlighter — ~40 lines, monochrome layers only (red
    stays reserved for the model's choices). Good enough for our own engine

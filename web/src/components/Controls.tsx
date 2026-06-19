@@ -14,6 +14,8 @@ export function Controls({
   params,
   setParams,
   onStep,
+  onWalk,
+  canWalk,
 }: {
   busy: boolean;
   hasTokens: boolean;
@@ -24,6 +26,8 @@ export function Controls({
   params: GenParams;
   setParams: (p: GenParams) => void;
   onStep: () => void;
+  onWalk: () => void;
+  canWalk: boolean;
 }) {
   const p = params;
   const num =
@@ -36,7 +40,15 @@ export function Controls({
 
   return (
     <section>
-      <BandHeader idx="00" title="prompt" sub={SUB.prompt} />
+      <BandHeader
+        idx="00"
+        title={
+          <>
+            prompt <Explain of="settings" />
+          </>
+        }
+        sub={SUB.prompt}
+      />
       <div className="ctl-row">
         <input
           type="text"
@@ -62,8 +74,16 @@ export function Controls({
         <button disabled={!busy} onClick={() => void stop()}>
           stop
         </button>
+        <button
+          className="walk-go"
+          disabled={!canWalk || busy}
+          title="walk through how this works, top to bottom"
+          onClick={onWalk}
+        >
+          ▶ start
+        </button>
       </div>
-      <div className="ctl-row ctl-params">
+      <div className="ctl-row ctl-params" data-explain-el="ctl-params">
         <BackendToggle
           backend={p.backend}
           disabled={busy}

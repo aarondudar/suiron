@@ -10,6 +10,8 @@ import { CONCEPTS, type ExplainCtx, type ExplainRung } from "./Explanations";
 interface ExplainerApi {
   /** id of the open concept, or null when closed */
   active: string | null;
+  /** docked mode (during a walk): no scrim, the page stays visible and lit */
+  docked: boolean;
   open: (id: string) => void;
   close: () => void;
   /** FORWARD: the band-05 "token lifespan" stepper (a later step) writes the
@@ -29,17 +31,18 @@ export function useExplainer(): ExplainerApi {
   return v;
 }
 
-/** A quiet per-concept anchor: a small superscript marker placed next to the
- *  thing it explains. Its own click only opens the Explainer — it stops
+/** A quiet per-concept anchor placed next to the thing it explains. Default is a
+ *  small "?" disc; pass `label` for an inline text anchor (used by the per-layer
+ *  stage breadcrumb). Its own click only opens the Explainer — it stops
  *  propagation so the host's primary click (force a token, edit an input,
  *  inspect) is untouched. */
-export function Explain({ of }: { of: string }) {
+export function Explain({ of, label }: { of: string; label?: string }) {
   const { open } = useExplainer();
   const title = CONCEPTS[of]?.title ?? of;
   return (
     <button
       type="button"
-      className="explain-anchor"
+      className={label ? "explain-link" : "explain-anchor"}
       aria-label={`explain: ${title}`}
       title={`explain: ${title}`}
       onClick={(e) => {
@@ -47,7 +50,7 @@ export function Explain({ of }: { of: string }) {
         open(of);
       }}
     >
-      ?
+      {label ?? "?"}
     </button>
   );
 }
@@ -65,7 +68,7 @@ function Rung({ rung, ctx }: { rung: ExplainRung; ctx: ExplainCtx }) {
 }
 
 export function Explainer({ ctx }: { ctx: ExplainCtx | null }) {
-  const { active, close } = useExplainer();
+  const { active, docked, close } = useExplainer();
 
   useEffect(() => {
     if (!active) return;
@@ -81,8 +84,13 @@ export function Explainer({ ctx }: { ctx: ExplainCtx | null }) {
 
   return (
     <>
-      <div className="explainer-scrim" onClick={close} />
-      <aside className="explainer" role="dialog" aria-label={concept?.title ?? "explain"}>
+      {/* docked (walk) mode has no scrim so the lit instrument stays visible */}
+      {!docked && <div className="explainer-scrim" onClick={close} />}
+      <aside
+        className={"explainer" + (docked ? " docked" : "")}
+        role="dialog"
+        aria-label={concept?.title ?? "explain"}
+      >
         <div className="explainer-head">
           <span className="explainer-title">{concept?.title ?? active}</span>
           <button className="explainer-x" onClick={close} aria-label="close">

@@ -146,17 +146,50 @@ footer {
 }
 
 /* ---------- explain anchor: a quiet per-concept marker ---------- */
-/* a small superscript "?" placed next to the thing it explains. its own click
-   only opens the Explainer (it stops propagation), so the host's primary
-   action is untouched. */
+/* a small "?" badge placed next to the thing it explains. inverted by default
+   (red disc, dark glyph) so it reads as a live affordance; on hover it flips
+   to an outlined glyph. its own click only opens the Explainer (it stops
+   propagation), so the host's primary action is untouched. */
 .explain-anchor {
-  border: none; background: transparent; padding: 0 2px; margin: 0 1px;
-  font: inherit; font-size: var(--t-micro); line-height: 1; color: var(--faint);
-  cursor: pointer; vertical-align: super; letter-spacing: 0;
-  transition: color 0.15s;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; height: 13px; padding: 0; margin: 0 2px;
+  border: 1px solid var(--red); border-radius: 50%;
+  background: var(--red); color: var(--bg);
+  font-family: var(--dot); font-weight: 700; font-size: 9px; line-height: 1;
+  letter-spacing: 0; cursor: pointer; vertical-align: super;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
 }
-.explain-anchor:hover:not(:disabled) { color: var(--red); border: none; }
-.explain-anchor:active:not(:disabled) { background: transparent; color: var(--red); }
+.explain-anchor:hover:not(:disabled) {
+  background: transparent; color: var(--red); border-color: var(--red);
+  transform: scale(1.12);
+}
+.explain-anchor:active:not(:disabled) { background: var(--red); color: var(--bg); }
+
+/* inline text variant of the anchor, for the per-layer stage breadcrumb */
+.explain-link {
+  border: none; background: transparent; padding: 0; margin: 0;
+  font: inherit; font-size: var(--t-body); color: var(--ink); cursor: pointer;
+  letter-spacing: inherit; text-transform: none;
+  border-bottom: 1px dotted var(--faint); transition: color 0.15s, border-color 0.15s;
+}
+.explain-link:hover:not(:disabled) { color: var(--red); border-bottom-color: var(--red); }
+.explain-link:active:not(:disabled) { background: transparent; color: var(--red); }
+
+/* the per-layer "math, stage by stage" breadcrumb inside an opened layer */
+.stage-crumb {
+  color: var(--dim); font-size: var(--t-tiny); letter-spacing: 0.04em;
+  margin: 2px 0 var(--sp-2);
+}
+
+/* the quantization aside: set off from the lifecycle bands, not numbered */
+.aside-divider {
+  display: flex; align-items: center; gap: var(--sp-3);
+  color: var(--faint); font-size: var(--t-tiny); text-transform: lowercase;
+  letter-spacing: 0.12em; margin: var(--sp-5) 0 var(--sp-3);
+}
+.aside-divider::before, .aside-divider::after {
+  content: ""; flex: 1; height: 1px; background: var(--hair);
+}
 
 /* ---------- el-focus: what the Explainer is pointing at ---------- */
 /* an element the active concept (or the future stepper) is highlighting. red
@@ -202,9 +235,36 @@ footer {
 .explainer-rung-body {
   margin-top: var(--sp-2); color: var(--dim); font-size: var(--t-body); line-height: 1.7;
 }
+/* docked: during a walk the drawer sits beside the page with no scrim, so the
+   lit instrument stays visible. a red left edge marks it as the active guide. */
+.explainer.docked { border-left: 2px solid var(--red); box-shadow: -12px 0 28px rgba(0,0,0,0.45); }
 @media (prefers-reduced-motion: reduce) {
   .explainer-scrim, .explainer { animation: none; }
 }
+
+/* ---------- the walk: entry button + fixed player bar ---------- */
+.walk-go { border-color: var(--red); color: var(--red); }
+.walk-go:hover:not(:disabled) { background: var(--red); color: var(--bg); }
+
+.walk-bar {
+  position: fixed; left: 50%; bottom: var(--sp-4); transform: translateX(-50%);
+  z-index: 50; display: flex; align-items: center; gap: var(--sp-3);
+  background: var(--surface); border: 1px solid var(--red);
+  padding: var(--sp-2) var(--sp-3); box-shadow: 0 6px 28px rgba(0, 0, 0, 0.5);
+  animation: walkbar-in 0.16s ease;
+}
+@keyframes walkbar-in { from { transform: translate(-50%, 8px); opacity: 0; } }
+.walk-where {
+  font-size: var(--t-tiny); color: var(--dim); letter-spacing: 0.06em;
+  white-space: nowrap; min-width: 14ch; text-align: center;
+}
+.walk-where b { color: var(--ink); font-family: var(--dot); }
+.walk-step {
+  padding: 2px 12px; font-size: var(--t-body); border-color: var(--hair); color: var(--ink);
+}
+.walk-x { padding: 2px 9px; font-size: var(--t-body); color: var(--dim); }
+.walk-x:hover:not(:disabled) { border-color: var(--red); color: var(--red); }
+@media (prefers-reduced-motion: reduce) { .walk-bar { animation: none; } }
 
 /* ---------- temperature interactive (the one v2.0 demo) ---------- */
 .temp-demo {
@@ -544,6 +604,9 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   }
   @keyframes sheet-in { from { transform: translateY(16px); opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .explainer { animation: none; } }
+
+  /* during a walk, keep the sheet short so the lit instrument stays on screen */
+  .explainer.docked { max-height: 42vh; border-left: none; border-top: 2px solid var(--red); }
 
   .empty { padding: 40px var(--sp-3) 44px; }
   .empty-jp { font-size: 40px; }

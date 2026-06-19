@@ -2,18 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getTrace } from "./api";
 import { Controls } from "./components/Controls";
 import { EmptyState } from "./components/EmptyState";
-import { Explainer, ExplainerProvider } from "./components/Explainer";
+import { Explain, Explainer, ExplainerProvider } from "./components/Explainer";
 import { CONCEPTS, type ExplainCtx } from "./components/Explanations";
 import { LayerStack } from "./components/LayerStack";
 import { Logits } from "./components/Logits";
-import { Machine } from "./components/Machine";
 import { Quantization } from "./components/Quantization";
 import { Selection } from "./components/Selection";
 import { TokenStrip } from "./components/TokenStrip";
+import { focusSelector, WALK, WalkBar } from "./components/Walk";
 import { DEFAULT_PARAMS } from "./lib";
 import type { FocusTarget, GenParams, Trace } from "./types";
 
 const NONE: FocusTarget = { kind: "none" };
+const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export default function App() {
   const [trace, setTrace] = useState<Trace | null>(null);
@@ -30,6 +31,10 @@ export default function App() {
   const [active, setActive] = useState<string | null>(null);
   const [hoverFocus, setHoverFocus] = useState<FocusTarget>(NONE);
   const [progFocus, setProgFocus] = useState<FocusTarget>(NONE);
+  /** the walk: index of the active stop, or null when not walking */
+  const [walk, setWalk] = useState<number | null>(null);
+  const walkRef = useRef(walk);
+  walkRef.current = walk;
 
   const lastSeq = useRef(-1);
   const followRef = useRef(follow);
@@ -94,11 +99,12 @@ export default function App() {
   const explainer = useMemo(
     () => ({
       active,
+      docked: walk !== null,
       open: (id: string) => setActive(id),
       close: () => setActive(null),
       setProgramFocus: setProgFocus,
     }),
-    [active],
+    [active, walk],
   );
 
   const safeCur = trace ? Math.min(cur, trace.tokens.length - 1) : 0;
@@ -135,6 +141,58 @@ export default function App() {
     return () => els.forEach((el) => el.classList.remove("el-focus"));
   }, [elRef]);
 
+  // ---- the walk: a guided read of the page, one token's whole life ----
+  const exitWalk = () => {
+    setWalk(null);
+    setActive(null);
+    setProgFocus(NONE);
+  };
+  // apply a walk stop: open its concept, light its instrument, optionally scroll.
+  // ◀/▶/entry scroll; re-anchoring after a token change does not (the user moved).
+  const applyStop = (i: number, scroll: boolean) => {
+    if (!ctx || i < 0 || i >= WALK.length) {
+      exitWalk();
+      return;
+    }
+    const stop = WALK[i];
+    if (stop.expandLayer) setOpenLayer(ctx.layer);
+    setActive(stop.concept);
+    const tgt = CONCEPTS[stop.concept]?.highlight?.(ctx) ?? NONE;
+    setProgFocus(tgt);
+    setWalk(i);
+    if (scroll) {
+      const sel = focusSelector(tgt);
+      if (sel)
+        requestAnimationFrame(() =>
+          document
+            .querySelector(sel)
+            ?.scrollIntoView({ block: "center", behavior: REDUCED ? "auto" : "smooth" }),
+        );
+    }
+  };
+  const goToStop = (i: number) => applyStop(i, true);
+
+  // scrubbing or forking to another token keeps the walk alive and follows the
+  // token: re-anchor the current stop to the new token, without yanking scroll.
+  useEffect(() => {
+    if (walkRef.current !== null) applyStop(walkRef.current, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [safeCur]);
+
+  // Esc ends the walk
+  useEffect(() => {
+    if (walk === null) return;
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setWalk(null);
+        setActive(null);
+        setProgFocus(NONE);
+      }
+    };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [walk]);
+
   if (!trace) return <div className="label">connecting to suiron…</div>;
 
   const hasTokens = trace.tokens.length > 0;
@@ -148,10 +206,11 @@ export default function App() {
           <div className="brand">
             suiron<span className="jp">推論</span>
           </div>
-          <div className="spec">
+          <div className="spec" data-explain-el="spec">
             {trace.model.toLowerCase()} · {trace.quant} · {trace.layers} layers · {trace.heads}h/
             {trace.kv_heads}kv · {trace.n_prompt} prompt +{" "}
             {Math.max(0, trace.tokens.length - trace.n_prompt)} generated
+            <Explain of="model" />
           </div>
         </div>
         <div className="head-right">
@@ -179,6 +238,8 @@ export default function App() {
         onStep={() => {
           jumpRef.current = true;
         }}
+        onWalk={() => goToStop(0)}
+        canWalk={hasTokens && safeCur >= trace.n_prompt}
       />
 
       {!hasTokens && <EmptyState onPick={setPrompt} params={params} />}
@@ -186,8 +247,6 @@ export default function App() {
       {hasTokens && step && (
         <>
           <TokenStrip trace={trace} step={step} cur={safeCur} setCur={setCur} focus={focus} />
-          <Logits step={step} cur={safeCur} busy={!!trace.busy} setHover={setHoverFocus} />
-          <Selection sel={step.sel} isPrompt={safeCur < trace.n_prompt} />
           <LayerStack
             trace={trace}
             step={step}
@@ -197,7 +256,9 @@ export default function App() {
             setHover={setHoverFocus}
             focus={focus}
           />
-          <Machine trace={trace} cur={safeCur} busy={!!trace.busy} />
+          <Logits step={step} cur={safeCur} busy={!!trace.busy} setHover={setHoverFocus} />
+          <Selection sel={step.sel} isPrompt={safeCur < trace.n_prompt} />
+          <div className="aside-divider">the same model, faster · an aside, not a step</div>
           <Quantization trace={trace} params={params} setParams={setParams} busy={!!trace.busy} />
         </>
       )}
@@ -206,6 +267,15 @@ export default function App() {
         <span>suiron — 推論 · every value on this page came from a real forward pass of the model file</span>
       </footer>
 
+      {walk !== null && (
+        <WalkBar
+          index={walk}
+          title={WALK[walk].label}
+          onPrev={() => goToStop(walk - 1)}
+          onNext={() => goToStop(walk + 1)}
+          onExit={exitWalk}
+        />
+      )}
       <Explainer ctx={ctx} />
     </ExplainerProvider>
   );

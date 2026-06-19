@@ -70,6 +70,7 @@ export function TokenStrip({
         sub={SUB.tokens}
       >
         <Explain of="confidence" />
+        <Explain of="loop" />
         <label className="arc-toggle">
           <input type="checkbox" checked={arcs} onChange={(e) => setArcs(e.target.checked)} /> arcs
         </label>
@@ -89,6 +90,7 @@ export function TokenStrip({
           return (
             <span
               key={i}
+              data-explain-el={"token-" + i}
               className={
                 "tok" +
                 (i >= trace.n_prompt || forced ? " gen" : "") +

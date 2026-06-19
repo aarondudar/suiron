@@ -42,6 +42,10 @@ export function LayerStack({
           layer {l}, its {trace.heads} heads. each head reads the sentence its own way (kv group
           = head ÷ {group})
         </div>
+        <div className="stage-crumb">
+          this layer's math: normalize → <Explain of="attention" label="attention" /> →{" "}
+          <Explain of="feedforward" label="feed-forward" />
+        </div>
         <div className="heads">
           {step.attn[l].map((edges, h) => {
             const g = headGlance(edges);
@@ -102,7 +106,7 @@ export function LayerStack({
   return (
     <section>
       <BandHeader
-        idx="04"
+        idx="02"
         title={
           <>
             inside the {trace.layers} layers <Explain of="attention" />
@@ -110,6 +114,7 @@ export function LayerStack({
         }
         sub={SUB.layers}
       >
+        <Explain of="embedding" />
         <Explain of="residual" />
       </BandHeader>
       <div onMouseLeave={() => setHover({ kind: "none" })}>{rows}</div>
