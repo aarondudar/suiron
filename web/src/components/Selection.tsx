@@ -1,6 +1,7 @@
 import { esc, q } from "../lib";
 import { BandHeader } from "./BandHeader";
-import { EXPLAIN, SUB } from "./Explanations";
+import { Explain } from "./Explainer";
+import { SUB } from "./Explanations";
 import type { Sel } from "../types";
 
 function DrawBar({ sel }: { sel: Sel & { r: number } }) {
@@ -21,7 +22,7 @@ function DrawBar({ sel }: { sel: Sel & { r: number } }) {
 
   return (
     <div className="draw-wrap">
-      <div className="draw-bar">
+      <div className="draw-bar" data-explain-el="draw-bar">
         {segs}
         {cum < 0.999 && (
           <div
@@ -51,9 +52,12 @@ export function Selection({ sel, isPrompt }: { sel?: Sel; isPrompt: boolean }) {
     <section>
       <BandHeader
         idx="03"
-        title="how this token was chosen"
+        title={
+          <>
+            how this token was chosen <Explain of="draw" />
+          </>
+        }
         sub={SUB.selection}
-        explain={EXPLAIN.selection}
       />
       <div>{body}</div>
     </section>

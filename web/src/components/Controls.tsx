@@ -1,6 +1,7 @@
 import { generate, step, stop } from "../api";
 import { BandHeader } from "./BandHeader";
-import { EXPLAIN, SUB } from "./Explanations";
+import { Explain } from "./Explainer";
+import { SUB } from "./Explanations";
 import type { Backend, GenParams } from "../types";
 
 export function Controls({
@@ -35,7 +36,7 @@ export function Controls({
 
   return (
     <section>
-      <BandHeader idx="00" title="prompt" sub={SUB.prompt} explain={EXPLAIN.prompt} />
+      <BandHeader idx="00" title="prompt" sub={SUB.prompt} />
       <div className="ctl-row">
         <input
           type="text"
@@ -71,14 +72,17 @@ export function Controls({
         <label>
           n <input type="number" value={p.n} min={1} max={512} onChange={num("n")} />
         </label>
-        <label>
+        <label data-explain-el="ctl-temp">
           temp <input type="number" value={p.temp} step={0.1} min={0} max={2} onChange={num("temp")} />
+          <Explain of="temperature" />
         </label>
-        <label>
+        <label data-explain-el="ctl-topk">
           top-k <input type="number" value={p.top_k} min={0} onChange={num("top_k")} />
+          <Explain of="topk" />
         </label>
-        <label>
+        <label data-explain-el="ctl-topp">
           top-p <input type="number" value={p.top_p} step={0.05} min={0} max={1} onChange={num("top_p")} />
+          <Explain of="topp" />
         </label>
         <label>
           seed <input type="number" value={p.seed} min={0} onChange={num("seed")} />
@@ -106,7 +110,11 @@ export function BackendToggle({
   onChange: (b: Backend) => void;
 }) {
   return (
-    <div className={"seg" + (disabled ? " seg-dim" : "")} title="weight arithmetic backend">
+    <div
+      className={"seg" + (disabled ? " seg-dim" : "")}
+      title="weight arithmetic backend"
+      data-explain-el="ctl-backend"
+    >
       {(["f32", "q8"] as Backend[]).map((b) => (
         <button
           key={b}

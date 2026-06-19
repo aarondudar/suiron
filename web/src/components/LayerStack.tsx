@@ -1,8 +1,9 @@
 import { edgesToWeights, headGlance, layerGlance, meanHeadWeights, q } from "../lib";
-import type { Step, Trace } from "../types";
+import type { FocusTarget, Step, Trace } from "../types";
 import { BandHeader } from "./BandHeader";
 import { DotStrip } from "./DotStrip";
-import { EXPLAIN, SUB } from "./Explanations";
+import { Explain } from "./Explainer";
+import { SUB } from "./Explanations";
 
 const TAG_HELP: Record<string, string> = {
   local: "looking at nearby tokens, the grammar of the sentence",
@@ -17,15 +18,20 @@ export function LayerStack({
   nPos,
   openLayer,
   setOpenLayer,
-  setHoverLayer,
+  setHover,
+  focus,
 }: {
   trace: Trace;
   step: Step;
   nPos: number;
   openLayer: number;
   setOpenLayer: (l: number) => void;
-  setHoverLayer: (l: number | null) => void;
+  setHover: (f: FocusTarget) => void;
+  /** the effective focus, so an explained layer (attention/residual) lights its
+   *  own row here, not only the arcs in band 01 */
+  focus: FocusTarget;
 }) {
+  const litLayer = focus.kind === "layer" ? focus.layer : null;
   const group = trace.heads / trace.kv_heads;
   const tokAt = (p: number) => q(trace.tokens[p]?.t ?? "");
 
@@ -64,13 +70,13 @@ export function LayerStack({
     rows.push(
       <div
         key={l}
-        className={"row" + (l === openLayer ? " open" : "")}
+        className={"row" + (l === openLayer ? " open" : "") + (l === litLayer ? " lit" : "")}
         onClick={() => setOpenLayer(openLayer === l ? -1 : l)}
-        onMouseEnter={() => setHoverLayer(l)}
-        onMouseLeave={() => setHoverLayer(null)}
+        onMouseEnter={() => setHover({ kind: "layer", layer: l })}
+        onMouseLeave={() => setHover({ kind: "none" })}
       >
         <span className="lnum">{l}</span>
-        <div className="row-dots">
+        <div className="row-dots" data-explain-el={"layer-dots-" + l}>
           <DotStrip weights={meanHeadWeights(step, l, nPos)} nPos={nPos} />
         </div>
         <span className="glance">
@@ -97,11 +103,16 @@ export function LayerStack({
     <section>
       <BandHeader
         idx="04"
-        title={<>inside the {trace.layers} layers</>}
+        title={
+          <>
+            inside the {trace.layers} layers <Explain of="attention" />
+          </>
+        }
         sub={SUB.layers}
-        explain={EXPLAIN.layers}
-      />
-      <div onMouseLeave={() => setHoverLayer(null)}>{rows}</div>
+      >
+        <Explain of="residual" />
+      </BandHeader>
+      <div onMouseLeave={() => setHover({ kind: "none" })}>{rows}</div>
     </section>
   );
 }

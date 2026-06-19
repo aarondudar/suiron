@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { attnSources, confBar, confColor, confidence, esc } from "../lib";
 import { BandHeader } from "./BandHeader";
-import { EXPLAIN, SUB } from "./Explanations";
-import type { Step, Trace } from "../types";
+import { Explain } from "./Explainer";
+import { SUB } from "./Explanations";
+import type { FocusTarget, Step, Trace } from "../types";
 
 const NARROW = "(max-width: 640px)";
 
@@ -11,18 +12,20 @@ export function TokenStrip({
   step,
   cur,
   setCur,
-  focusLayer,
-  hoverCand,
+  focus,
 }: {
   trace: Trace;
   step: Step;
   cur: number;
   setCur: (i: number) => void;
-  /** when set (hovered layer row), arcs show only that layer's attention */
-  focusLayer: number | null;
-  /** a logit candidate id being hovered → flash its occurrences in the strip */
-  hoverCand: number | null;
+  /** the one thing the lab is lighting up (hover, the open Explainer, or a
+   *  programmatic writer); this band reacts to the foci that touch tokens. */
+  focus: FocusTarget;
 }) {
+  // unpack the foci this band visualizes
+  const focusLayer = focus.kind === "layer" ? focus.layer : null;
+  const candId = focus.kind === "candidate" ? focus.id : null;
+  const focusTok = focus.kind === "token" ? focus.pos : null;
   const [arcs, setArcs] = useState(true);
   const [hoverTok, setHoverTok] = useState<number | null>(null);
   const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
@@ -44,7 +47,7 @@ export function TokenStrip({
 
   // which token's attention sources to highlight inline: the hovered one, or —
   // on a phone, where arcs are off and there's no hover — the current token.
-  const srcPos = hoverTok ?? (narrow ? cur : null);
+  const srcPos = hoverTok ?? focusTok ?? (narrow ? cur : null);
   const sources = srcPos != null && srcPos > 0 ? attnSources(trace.steps[srcPos], srcPos) : [];
   const srcSet = new Set(sources.map((s) => s.pos));
   const topSrc = sources[0]?.pos;
@@ -59,10 +62,14 @@ export function TokenStrip({
     <section>
       <BandHeader
         idx="01"
-        title="tokens"
+        title={
+          <>
+            tokens <Explain of="tokenization" />
+          </>
+        }
         sub={SUB.tokens}
-        explain={EXPLAIN.tokens}
       >
+        <Explain of="confidence" />
         <label className="arc-toggle">
           <input type="checkbox" checked={arcs} onChange={(e) => setArcs(e.target.checked)} /> arcs
         </label>
@@ -88,7 +95,7 @@ export function TokenStrip({
                 (forced ? " forced" : "") +
                 (isCur ? " cur" : "") +
                 (srcSet.has(i) ? (i === topSrc ? " src-top" : " src") : "") +
-                (hoverCand !== null && tok.id === hoverCand ? " cand-match" : "")
+                (candId !== null && tok.id === candId ? " cand-match" : "")
               }
               style={!isCur && conf !== null ? { color: confColor(conf) } : undefined}
               title={

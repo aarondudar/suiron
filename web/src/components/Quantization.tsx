@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { getQuantSample } from "../api";
 import { BandHeader } from "./BandHeader";
 import { BackendToggle } from "./Controls";
-import { quantExplain, SUB } from "./Explanations";
+import { Explain } from "./Explainer";
+import { SUB } from "./Explanations";
 import type { Backend, GenParams, QuantSample, Trace } from "../types";
 
 /* The quantization explainer + the showcase toggle. Three layers, like the
@@ -41,9 +42,12 @@ export function Quantization({
     <section>
       <BandHeader
         idx="06"
-        title="quantization"
+        title={
+          <>
+            quantization <Explain of="quantization" />
+          </>
+        }
         sub={SUB.quant}
-        explain={quantExplain(gib(f32Bytes), gib(q8Bytes))}
       >
         <BackendToggle backend={backend} disabled={busy} onChange={(b) => setParams({ ...params, backend: b })} />
         <button className="expand" onClick={() => setOpen(!open)}>

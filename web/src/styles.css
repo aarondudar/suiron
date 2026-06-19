@@ -138,31 +138,102 @@ footer {
   letter-spacing: 0.08em;
 }
 
-/* ---------- band header: title / always-on subtitle / explain (depth 1) ---------- */
+/* ---------- band header: title / always-on subtitle ---------- */
 .band-ctl { margin-left: auto; display: flex; align-items: center; gap: var(--sp-2); }
 .band-sub {
   color: var(--dim); font-size: var(--t-tiny); text-transform: none;
   letter-spacing: 0.04em; margin: -6px 0 var(--sp-3); max-width: 72ch;
 }
-/* depth 1 — revealed by the global toggle. grid-rows 0fr→1fr animates height
-   with no magic numbers; the inner clips so padding collapses cleanly. */
-.band-explain {
-  display: grid; grid-template-rows: 0fr; opacity: 0;
-  transition: grid-template-rows 0.16s ease, opacity 0.16s ease;
-}
-body.explain .band-explain { grid-template-rows: 1fr; opacity: 1; }
-.explain-inner { overflow: hidden; min-height: 0; }
-.explain-body {
-  color: var(--dim); font-size: var(--t-body); line-height: 1.7; max-width: 68ch;
-  border-left: 1px solid var(--hair); padding: 2px 0 var(--sp-3) var(--sp-3);
-  margin-bottom: 4px;
-}
-.explain-body b { color: var(--ink); font-weight: normal; }
-@media (prefers-reduced-motion: reduce) { .band-explain { transition: none; } }
 
-/* the global explain control (header) */
-#explain-toggle { padding: 4px 12px; font-size: var(--t-tiny); }
-body.explain #explain-toggle { border-color: var(--red); color: var(--red); }
+/* ---------- explain anchor: a quiet per-concept marker ---------- */
+/* a small superscript "?" placed next to the thing it explains. its own click
+   only opens the Explainer (it stops propagation), so the host's primary
+   action is untouched. */
+.explain-anchor {
+  border: none; background: transparent; padding: 0 2px; margin: 0 1px;
+  font: inherit; font-size: var(--t-micro); line-height: 1; color: var(--faint);
+  cursor: pointer; vertical-align: super; letter-spacing: 0;
+  transition: color 0.15s;
+}
+.explain-anchor:hover:not(:disabled) { color: var(--red); border: none; }
+.explain-anchor:active:not(:disabled) { background: transparent; color: var(--red); }
+
+/* ---------- el-focus: what the Explainer is pointing at ---------- */
+/* an element the active concept (or the future stepper) is highlighting. red
+   stays the "look here" signal, applied as a hairline ring so it reads as a
+   pointer, not a fill. */
+.el-focus {
+  outline: 1px solid var(--red); outline-offset: 3px;
+  transition: outline-color 0.15s;
+}
+
+/* ---------- the Explainer: drawer (desktop) / bottom sheet (mobile) ---------- */
+.explainer-scrim {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); z-index: 40;
+  animation: scrim-in 0.16s ease;
+}
+.explainer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 92vw); z-index: 41;
+  background: var(--surface); border-left: 1px solid var(--hair);
+  display: flex; flex-direction: column;
+  animation: drawer-in 0.18s ease;
+}
+@keyframes scrim-in { from { opacity: 0; } }
+@keyframes drawer-in { from { transform: translateX(12px); opacity: 0; } }
+.explainer-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-4) var(--sp-4) var(--sp-3); border-bottom: 1px solid var(--hair);
+}
+.explainer-title {
+  font-family: var(--dot); font-weight: 700; font-size: var(--t-base);
+  letter-spacing: 0.1em; text-transform: lowercase; color: var(--ink);
+}
+.explainer-x {
+  border: none; background: transparent; color: var(--dim); font-size: var(--t-lg);
+  line-height: 1; padding: 0 var(--sp-2);
+}
+.explainer-x:hover:not(:disabled) { border: none; color: var(--red); }
+.explainer-body { padding: var(--sp-4); overflow-y: auto; }
+.explainer-intro {
+  color: var(--dim); font-size: var(--t-body); line-height: 1.8; max-width: 60ch;
+}
+.explainer-intro b { color: var(--ink); font-weight: normal; }
+.explainer-rung { margin-top: var(--sp-3); }
+.explainer-rung-body {
+  margin-top: var(--sp-2); color: var(--dim); font-size: var(--t-body); line-height: 1.7;
+}
+@media (prefers-reduced-motion: reduce) {
+  .explainer-scrim, .explainer { animation: none; }
+}
+
+/* ---------- temperature interactive (the one v2.0 demo) ---------- */
+.temp-demo {
+  margin-top: var(--sp-3); padding: var(--sp-3); border: 1px solid var(--hair);
+  background: var(--bg);
+}
+.temp-demo-ctl {
+  display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-3);
+  font-size: var(--t-tiny); color: var(--dim);
+}
+.temp-demo-ctl input[type="range"] { flex: 1; accent-color: var(--red); }
+.temp-demo-ctl b { color: var(--ink); font-family: var(--dot); min-width: 3.5ch; }
+.temp-demo-reset { padding: 1px 8px; font-size: var(--t-micro); }
+.temp-row { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: 4px; }
+.temp-tok {
+  width: 8ch; flex: none; color: var(--ink); white-space: pre; overflow: hidden;
+  text-overflow: ellipsis; font-size: var(--t-body);
+}
+.temp-track { flex: 1; height: 8px; background: #161616; }
+.temp-fill {
+  height: 100%; background: var(--dim); transition: width 0.18s ease;
+}
+.temp-fill.top { background: var(--red); }
+.temp-p {
+  width: 5ch; flex: none; text-align: right; font-size: var(--t-tiny); color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.temp-demo-note { margin-top: var(--sp-2); color: var(--faint); font-size: var(--t-micro); }
+@media (prefers-reduced-motion: reduce) { .temp-fill { transition: none; } }
 
 /* ---------- controls ---------- */
 .ctl-row { display: flex; gap: var(--sp-2); margin-bottom: 10px; align-items: center; }
@@ -227,6 +298,9 @@ button.busy { border-color: var(--red); color: var(--red); }
 .row:hover { background: #0e0e0e; }
 .row:hover .lnum { color: var(--ink); }
 .row.open .lnum { color: var(--red); }
+/* a layer being explained (or hovered) lights its own row */
+.row.lit { background: #0e0e0e; box-shadow: inset 2px 0 0 var(--red); }
+.row.lit .lnum { color: var(--ink); }
 .lnum {
   width: 26px; text-align: right; color: var(--faint); font-size: var(--t-body);
   font-family: var(--dot); font-weight: 700;
@@ -458,6 +532,18 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 
   /* quantization cards stack */
   .q-cards { flex-direction: column; }
+
+  /* the Explainer becomes a bottom sheet: full width, anchored to the bottom,
+     capped height with its own scroll. matches the layer-row track's scroll
+     containment so a flick inside it doesn't drag the page. */
+  .explainer {
+    top: auto; left: 0; right: 0; width: 100%; max-height: 78vh;
+    border-left: none; border-top: 1px solid var(--hair);
+    overscroll-behavior: contain; touch-action: pan-y;
+    animation: sheet-in 0.18s ease;
+  }
+  @keyframes sheet-in { from { transform: translateY(16px); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .explainer { animation: none; } }
 
   .empty { padding: 40px var(--sp-3) 44px; }
   .empty-jp { font-size: 40px; }

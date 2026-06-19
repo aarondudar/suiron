@@ -84,3 +84,16 @@ export interface QuantSample {
   quants: number[];
   values: number[];
 }
+
+/** What the lab is currently lighting up. A superset of B1's original two foci
+ *  (a logit candidate, a layer row) plus a token and a registered DOM anchor.
+ *  Written from three sources, resolved by priority in App: a transient hover,
+ *  a programmatic writer (reserved for the band-05 stepper), and the open
+ *  Explainer concept's sticky highlight. `el` points at any element carrying a
+ *  matching `data-explain-el` attribute, so new anchors are just markup. */
+export type FocusTarget =
+  | { kind: "none" }
+  | { kind: "token"; pos: number } // a token + its attention sources
+  | { kind: "candidate"; id: number } // a logit candidate's occurrences
+  | { kind: "layer"; layer: number } // a layer row + its arcs
+  | { kind: "el"; ref: string }; // a registered anchor (a control, a bar, a dot row)

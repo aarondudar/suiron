@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getTrace } from "./api";
 import { Controls } from "./components/Controls";
 import { EmptyState } from "./components/EmptyState";
+import { Explainer, ExplainerProvider } from "./components/Explainer";
+import { CONCEPTS, type ExplainCtx } from "./components/Explanations";
 import { LayerStack } from "./components/LayerStack";
 import { Logits } from "./components/Logits";
 import { Machine } from "./components/Machine";
@@ -9,18 +11,26 @@ import { Quantization } from "./components/Quantization";
 import { Selection } from "./components/Selection";
 import { TokenStrip } from "./components/TokenStrip";
 import { DEFAULT_PARAMS } from "./lib";
-import type { GenParams, Trace } from "./types";
+import type { FocusTarget, GenParams, Trace } from "./types";
+
+const NONE: FocusTarget = { kind: "none" };
 
 export default function App() {
   const [trace, setTrace] = useState<Trace | null>(null);
   const [cur, setCur] = useState(0);
   const [openLayer, setOpenLayer] = useState(-1);
   const [follow, setFollow] = useState(true);
-  const [explain, setExplain] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [params, setParams] = useState<GenParams>(DEFAULT_PARAMS);
-  const [hoverLayer, setHoverLayer] = useState<number | null>(null);
-  const [hoverCand, setHoverCand] = useState<number | null>(null);
+
+  // the open Explainer concept, and the focus the lab is lighting up. Focus has
+  // three sources resolved by priority: a transient hover, a programmatic
+  // writer (reserved for the band-05 stepper, fed via the Explainer context),
+  // and the open concept's sticky highlight.
+  const [active, setActive] = useState<string | null>(null);
+  const [hoverFocus, setHoverFocus] = useState<FocusTarget>(NONE);
+  const [progFocus, setProgFocus] = useState<FocusTarget>(NONE);
+
   const lastSeq = useRef(-1);
   const followRef = useRef(follow);
   followRef.current = follow;
@@ -79,20 +89,60 @@ export default function App() {
     return () => document.removeEventListener("keydown", onKey);
   }, [onKey]);
 
+  // the Explainer context: anchors call open(); the future stepper writes the
+  // programmatic focus through setProgramFocus.
+  const explainer = useMemo(
+    () => ({
+      active,
+      open: (id: string) => setActive(id),
+      close: () => setActive(null),
+      setProgramFocus: setProgFocus,
+    }),
+    [active],
+  );
+
+  const safeCur = trace ? Math.min(cur, trace.tokens.length - 1) : 0;
+  const step = trace && trace.tokens.length ? trace.steps[safeCur] : undefined;
+
+  // one context, built per render from trace + viewing state; nothing here
+  // triggers an engine call.
+  const ctx: ExplainCtx | null =
+    trace && step
+      ? {
+          trace,
+          cur: safeCur,
+          step,
+          sel: step.sel,
+          params,
+          layer: openLayer >= 0 ? openLayer : Math.floor(trace.layers / 2),
+        }
+      : null;
+
+  // resolve the effective focus: hover (transient) > program > the open
+  // concept's sticky highlight.
+  const sticky: FocusTarget =
+    active && ctx && CONCEPTS[active]?.highlight ? CONCEPTS[active].highlight!(ctx) : NONE;
+  const focus: FocusTarget =
+    hoverFocus.kind !== "none" ? hoverFocus : progFocus.kind !== "none" ? progFocus : sticky;
+
+  // an `el` focus lights up any element carrying the matching data attribute,
+  // so registering a new anchor is just markup.
+  const elRef = focus.kind === "el" ? focus.ref : null;
   useEffect(() => {
-    document.body.classList.toggle("explain", explain);
-  }, [explain]);
+    if (!elRef) return;
+    const els = document.querySelectorAll(`[data-explain-el="${elRef}"]`);
+    els.forEach((el) => el.classList.add("el-focus"));
+    return () => els.forEach((el) => el.classList.remove("el-focus"));
+  }, [elRef]);
 
   if (!trace) return <div className="label">connecting to suiron…</div>;
 
-  const safeCur = Math.min(cur, trace.tokens.length - 1);
-  const step = trace.tokens.length ? trace.steps[safeCur] : undefined;
   const hasTokens = trace.tokens.length > 0;
   // while running, show what's actually running; otherwise what's selected
   const activeBackend = trace.busy ? trace.backend ?? params.backend : params.backend;
 
   return (
-    <>
+    <ExplainerProvider value={explainer}>
       <header>
         <div>
           <div className="brand">
@@ -105,9 +155,6 @@ export default function App() {
           </div>
         </div>
         <div className="head-right">
-          <button id="explain-toggle" onClick={() => setExplain(!explain)}>
-            explain: {explain ? "on" : "off"}
-          </button>
           <div className="pos">
             <span className={"be-tag be-" + activeBackend}>{activeBackend}</span>
             token <b>{hasTokens ? safeCur : 0}</b> / {Math.max(0, trace.tokens.length - 1)}
@@ -138,15 +185,8 @@ export default function App() {
 
       {hasTokens && step && (
         <>
-          <TokenStrip
-            trace={trace}
-            step={step}
-            cur={safeCur}
-            setCur={setCur}
-            focusLayer={hoverLayer}
-            hoverCand={hoverCand}
-          />
-          <Logits step={step} cur={safeCur} busy={!!trace.busy} setHoverCand={setHoverCand} />
+          <TokenStrip trace={trace} step={step} cur={safeCur} setCur={setCur} focus={focus} />
+          <Logits step={step} cur={safeCur} busy={!!trace.busy} setHover={setHoverFocus} />
           <Selection sel={step.sel} isPrompt={safeCur < trace.n_prompt} />
           <LayerStack
             trace={trace}
@@ -154,7 +194,8 @@ export default function App() {
             nPos={safeCur + 1}
             openLayer={openLayer}
             setOpenLayer={setOpenLayer}
-            setHoverLayer={setHoverLayer}
+            setHover={setHoverFocus}
+            focus={focus}
           />
           <Machine trace={trace} cur={safeCur} busy={!!trace.busy} />
           <Quantization trace={trace} params={params} setParams={setParams} busy={!!trace.busy} />
@@ -164,6 +205,8 @@ export default function App() {
       <footer>
         <span>suiron — 推論 · every value on this page came from a real forward pass of the model file</span>
       </footer>
-    </>
+
+      <Explainer ctx={ctx} />
+    </ExplainerProvider>
   );
 }

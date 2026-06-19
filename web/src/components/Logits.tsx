@@ -1,19 +1,20 @@
 import { fork } from "../api";
 import { DEFAULT_PARAMS, esc } from "../lib";
 import { BandHeader } from "./BandHeader";
-import { EXPLAIN, SUB } from "./Explanations";
-import type { Step } from "../types";
+import { Explain } from "./Explainer";
+import { SUB } from "./Explanations";
+import type { FocusTarget, Step } from "../types";
 
 export function Logits({
   step,
   cur,
   busy,
-  setHoverCand,
+  setHover,
 }: {
   step: Step;
   cur: number;
   busy: boolean;
-  setHoverCand: (id: number | null) => void;
+  setHover: (f: FocusTarget) => void;
 }) {
   const top = step.top ?? [];
   const pmax = top.length ? top[0][2] : 1;
@@ -27,23 +28,27 @@ export function Logits({
     <section>
       <BandHeader
         idx="02"
-        title="what the model expects next"
+        title={
+          <>
+            what the model expects next <Explain of="logits" />
+          </>
+        }
         sub={SUB.logits}
-        explain={EXPLAIN.logits}
       />
       <div>
         {top.map(([id, text, p], i) => (
           <div
             className={"bar-row" + (busy ? " frozen" : " clickable") + (i === 0 ? " win" : "")}
             key={id}
+            data-explain-el={"logit-" + i}
             title={
               busy
                 ? "wait for generation to finish"
                 : `fork: force "${esc(text)}" as the next token`
             }
             onClick={() => doFork(id)}
-            onMouseEnter={() => setHoverCand(id)}
-            onMouseLeave={() => setHoverCand(null)}
+            onMouseEnter={() => setHover({ kind: "candidate", id })}
+            onMouseLeave={() => setHover({ kind: "none" })}
           >
             <span className="bar-tok">{esc(text)}</span>
             <div className="bar-wrap">
