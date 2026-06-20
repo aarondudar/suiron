@@ -35,7 +35,8 @@ export function Controls({
       setParams({ ...p, [k]: Number(e.target.value) });
 
   const go = () => {
-    if (prompt.trim() && !busy) void generate(prompt, p);
+    const text = prompt.trim();
+    if (text && !busy) void generate(text, p);
   };
 
   return (
@@ -80,7 +81,7 @@ export function Controls({
           title="walk through how this works, top to bottom"
           onClick={onWalk}
         >
-          ▶ start
+          ▶ inspect
         </button>
       </div>
       <div className="ctl-row ctl-params" data-explain-el="ctl-params">

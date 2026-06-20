@@ -10,8 +10,9 @@ const SUGGESTIONS = [
 
 export function EmptyState({ onPick, params }: { onPick: (p: string) => void; params: GenParams }) {
   const run = (p: string) => {
-    onPick(p)
-    void generate(p, params)
+    const text = p.trim()
+    onPick(text)
+    void generate(text, params)
   }
 
   return (
