@@ -1,24 +1,11 @@
 import { useState } from "react";
-import { esc } from "../lib";
+import { esc, softmaxAt } from "../lib";
 import type { Cand } from "../types";
 
-/* The one v2.0 interactive: temperature applied to THIS token's real options.
-   Pure client-side softmax over the candidate logits already in the trace, so
-   it makes no engine call and is WASM-safe. temp 0 collapses to the single top
-   pick; high temp flattens toward uniform. */
-
-function softmaxAt(logits: number[], t: number): number[] {
-  if (t <= 0) {
-    // temperature 0 is the limit: all mass on the highest logit (argmax)
-    let m = 0;
-    for (let i = 1; i < logits.length; i++) if (logits[i] > logits[m]) m = i;
-    return logits.map((_, i) => (i === m ? 1 : 0));
-  }
-  const max = Math.max(...logits);
-  const ex = logits.map((l) => Math.exp((l - max) / t));
-  const sum = ex.reduce((a, b) => a + b, 0);
-  return ex.map((e) => e / sum);
-}
+/* Temperature applied to THIS token's real options. Pure client-side softmax
+   over the candidate logits already in the trace, so it makes no engine call
+   and is WASM-safe. temp 0 collapses to the single top pick; high temp flattens
+   toward uniform. */
 
 export function TemperatureDemo({ cand, temp }: { cand: Cand[]; temp: number }) {
   const [t, setT] = useState(temp);

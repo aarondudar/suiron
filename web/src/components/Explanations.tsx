@@ -1,19 +1,25 @@
 /* All the explanatory copy in one place, so the voice can be tuned without
    touching component logic. JSX (not .ts) because the copy uses <b> emphasis.
-   Voice: plain language, real terms defined in passing, no em-dashes, no
-   out-of-scope analogies. */
+   Voice: textbook-clear and authoritative. Sentence case for body prose;
+   subtitles, labels, and data stay lowercase. Third-person declarative, with
+   imperatives only for real UI actions. Every term is defined once in its home
+   concept and reused by name. No em-dashes, no teasers. Canonical terms:
+   vocabulary (not "dictionary"), token / token ID, embedding table, residual
+   stream, attention, logit, softmax, weights. */
 import type { ReactNode } from "react";
 import { confidence, layerGlance, q } from "../lib";
 import type { FocusTarget, GenParams, Sel, Step, Trace } from "../types";
 import { EngineSource } from "./EngineSource";
 import { StageMath, type Stage } from "./StageMath";
 import { TemperatureDemo } from "./TemperatureDemo";
+import { TopKDemo } from "./TopKDemo";
+import { TopPDemo } from "./TopPDemo";
 
 /* always-on one-line subtitle under each band's title (depth 0). orientation,
    not explanation — the Explainer is the on-demand depth. */
 export const SUB = {
   prompt: "type some text and choose how the model continues it.",
-  tokens: "your text, split into the pieces the model reads. click one to inspect it.",
+  tokens: "the input text, split into the pieces the model reads. click one to inspect it.",
   logits: "the model's ranked guesses for the next token.",
   selection: "how the model goes from ranked guesses to one actual token.",
   layers: "the token's vector flows through every layer in order; each one reads the earlier tokens. open a layer for its heads and math.",
@@ -79,13 +85,12 @@ export const CONCEPTS: Record<string, Concept> = {
     highlight: () => ({ kind: "el", ref: "spec" }),
     intro: (c) => (
       <>
-        a language model does just one thing: given some text, it gives <b>every</b> token in its
-        fixed dictionary a score for how likely it is to come next, then picks one. everything else
-        on this page is how it computes that score well. this model is Qwen3-0.6B:{" "}
-        <b>{c.trace.layers}</b> layers stacked in order, <b>{c.trace.heads}</b> attention heads (
-        {c.trace.kv_heads} key/value groups), each token carried as <b>1,024</b> numbers, and a
-        dictionary of <b>151,936</b> possible tokens. keep that dictionary in mind; the whole story
-        comes back to it.
+        A language model does one thing: given some text, it assigns every token in its{" "}
+        <b>vocabulary</b> a score for how likely that token is to come next, then picks one. The
+        vocabulary is the fixed set of <b>151,936</b> tokens this model knows; everything else here
+        is how it computes that score well. The model is Qwen3-0.6B: <b>{c.trace.layers}</b> layers
+        stacked in order, <b>{c.trace.heads}</b> attention heads in <b>{c.trace.kv_heads}</b>{" "}
+        key/value groups, each token carried as <b>1,024</b> numbers.
       </>
     ),
   },
@@ -94,19 +99,14 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "settings",
     title: "the settings",
     highlight: () => ({ kind: "el", ref: "ctl-params" }),
-    intro: (c) => {
-      const p = c.params;
-      return (
-        <>
-          these change how the model commits to a token once it has the scores, not what the model
-          knows. <b>temperature {p.temp}</b> sets how evenly it treats its options (0 always takes
-          the top one). <b>top-k {p.top_k}</b> keeps only that many options; <b>top-p {p.top_p}</b>{" "}
-          keeps the smallest set that covers that much probability; <b>seed {p.seed}</b> fixes the
-          randomness so a run repeats exactly. <b>backend {p.backend}</b> picks which arithmetic runs
-          (same answer, different speed). change one and re-run to see the choice change.
-        </>
-      );
-    },
+    intro: () => (
+      <>
+        These control how the model commits to a token once it has the scores, not what the model
+        knows. Each is explained at its own marker: temperature, top-k, and top-p above, the seed at
+        the random draw, and the backend under quantization. Change one and re-run to see the choice
+        change.
+      </>
+    ),
   },
 
   tokenization: {
@@ -117,11 +117,11 @@ export const CONCEPTS: Record<string, Concept> = {
       const t = c.trace.tokens[c.cur];
       return (
         <>
-          the model only knows the pieces in its dictionary, so the first job is always to chop your
-          text into them. these pieces are <b>tokens</b>, common chunks of text: frequent words are
-          usually one token, rarer words get split into a few. your text became{" "}
-          {c.trace.tokens.length} of them. the token you are inspecting, number {c.cur}, is{" "}
-          {q(t?.t ?? "")}, which is entry <b>{t?.id}</b> in that fixed dictionary of 151,936 tokens.
+          The model only reads tokens from its vocabulary, so the first step is to split the input
+          text into them. A <b>token</b> is a common chunk of text: frequent words are usually a
+          single token, rarer words split into a few. The text became {c.trace.tokens.length} of
+          them. The token under inspection, number {c.cur}, is {q(t?.t ?? "")}; its{" "}
+          <b>token ID</b> is <b>{t?.id}</b>, its index into the vocabulary of 151,936 tokens.
         </>
       );
     },
@@ -137,18 +137,18 @@ export const CONCEPTS: Record<string, Concept> = {
       if (conf === null)
         return (
           <>
-            this is a prompt token, one you typed. the model did not generate it, so it has no
-            confidence to show. select a generated token (anything after your prompt) to see how
-            sure the model was when it produced it.
+            This is a prompt token, part of the text the run started from, not generated by the
+            model, so it has no confidence to show. Select a generated token, any one after the
+            prompt, to see how sure the model was when it produced it.
           </>
         );
       return (
         <>
-          the small bar and the brightness under a generated token show how sure the model was when
-          it picked it. here it gave {tok(c, c.cur)} a probability of <b>{(conf * 100).toFixed(1)}%</b>.
-          a bright, full bar means it was confident; a short, dim one means it was choosing among
-          many roughly equal options. this number is the probability from the step that produced
-          this token, run through <b>softmax</b>.
+          The bar and the brightness under a generated token show how sure the model was when it
+          picked it. Here it gave {tok(c, c.cur)} a probability of{" "}
+          <b>{(conf * 100).toFixed(1)}%</b>. A full, bright bar means high confidence; a short, dim
+          one means the choice was close among many options. This is the token's <b>softmax</b>{" "}
+          probability at the step that produced it.
         </>
       );
     },
@@ -161,12 +161,14 @@ export const CONCEPTS: Record<string, Concept> = {
     rungs: [mathRung("embedding"), code("embedding")],
     intro: (c) => (
       <>
-        a token id is just a number, and you cannot do math with "entry 8251". so the model looks it
-        up in a big table that has <b>one row per dictionary entry</b>, getting a row of{" "}
-        <b>1,024 numbers</b> it learned during training. that row is the token's starting meaning,
-        and it is what flows into the stack of layers. as the token passes through, information from
-        the earlier tokens gets added on top of it. {q(c.trace.tokens[c.cur]?.t ?? "")} is the
-        vector entering layer 0 here. keep this table in mind: it comes back at the very end.
+        A token ID is only an index; there is no arithmetic to perform on "entry 8251". The model
+        looks the index up in an <b>embedding table</b> with one row per vocabulary entry, each a
+        vector of <b>1,024</b> numbers learned during training. That row is the token's starting
+        representation, before any context has been mixed in, and it is what enters the stack of
+        layers. As the token passes through, each layer adds information gathered from earlier
+        tokens. For the current token, {q(c.trace.tokens[c.cur]?.t ?? "")}, this row is the vector
+        entering layer 0. The same table reappears at the final stage, where its rows are reused to
+        convert the output vector into a score for every token in the vocabulary.
       </>
     ),
   },
@@ -180,18 +182,18 @@ export const CONCEPTS: Record<string, Concept> = {
       const g = c.cur > 0 ? layerGlance(c.step, c.layer, c.cur + 1) : null;
       return (
         <>
-          to predict what comes next, a token has to use its context, the words before it. at each
-          layer every token looks back at the earlier tokens and pulls in information from the ones
-          that matter. this looking-back is called <b>attention</b>, and it is the only step where
-          tokens share information. the dots in band 02 show where each layer looked, bigger meaning
+          Predicting the next token requires context, the tokens that came before. <b>Attention</b>{" "}
+          is the step that supplies it: at each layer, every token looks back at the earlier tokens
+          and pulls in information from the ones that matter. It is the only step where tokens
+          exchange information. The highlighted dots show where each layer looked, larger meaning
           more attention and red the strongest.{" "}
           {g ? (
             <>
-              for this token, layer {c.layer} attended hardest back to {tok(c, g.topPos)} (
+              For this token, layer {c.layer} attended hardest back to {tok(c, g.topPos)} (
               <b>{(g.share * 100).toFixed(0)}%</b> of its attention).
             </>
           ) : (
-            <>the first token has nothing earlier to look at, so there is no attention to show.</>
+            <>The first token has nothing earlier to look at, so there is no attention to show.</>
           )}
         </>
       );
@@ -205,10 +207,10 @@ export const CONCEPTS: Record<string, Concept> = {
     rungs: [mathRung("feedforward"), code("ffn")],
     intro: () => (
       <>
-        after a token has read the others through attention, each token is processed on its own. its{" "}
-        <b>1,024</b> numbers are expanded to <b>3,072</b>, each passed through a function called{" "}
-        <b>silu</b> that decides how much of it to keep, then squeezed back down to 1,024. no other
-        tokens are involved in this step. this is where most of the model's learned facts live.
+        After attention has mixed in context, each token is processed on its own. Its <b>1,024</b>{" "}
+        numbers are expanded to <b>3,072</b>, passed through a function called <b>silu</b> that
+        decides how much of each to keep, then compressed back to 1,024. No other tokens are
+        involved. This feed-forward step is where most of the model's learned facts are stored.
       </>
     ),
   },
@@ -223,13 +225,13 @@ export const CONCEPTS: Record<string, Concept> = {
       const last = r.length - 1;
       return (
         <>
-          one layer only refines the meaning a little, so the model stacks <b>{c.trace.layers}</b>{" "}
-          of them and the token passes through every one. a layer does not replace the token's
-          numbers, it <b>adds</b> its result onto a running total called the <b>residual stream</b>.
-          the number on the right of each layer row is how big that running total has grown, measured
-          as its rms (root mean square, a single number for the overall size of the 1,024 values).
-          here it climbs from <b>{r[0]?.toFixed(1)}</b> at layer 0 to <b>{r[last]?.toFixed(1)}</b> at
-          the top, as understanding accumulates.
+          A single layer refines the meaning only a little, so the model stacks{" "}
+          <b>{c.trace.layers}</b> of them and the token passes through every one. A layer does not
+          replace the token's numbers; it <b>adds</b> its result onto a running total called the{" "}
+          <b>residual stream</b>. The number at the right of each layer row is the size of that
+          running total, its rms (root mean square, one number summarizing the magnitude of the 1,024
+          values). It climbs from <b>{r[0]?.toFixed(1)}</b> at layer 0 to{" "}
+          <b>{r[last]?.toFixed(1)}</b> at the top as information accumulates.
         </>
       );
     },
@@ -251,32 +253,31 @@ export const CONCEPTS: Record<string, Concept> = {
           gap > 0.5 ? (
             <>
               {" "}
-              here it is a runaway: {q(a[1])} at <b>{(a[2] * 100).toFixed(0)}%</b>, far ahead of
-              everything else.
+              Here one token runs away with it: {q(a[1])} at <b>{(a[2] * 100).toFixed(0)}%</b>, far
+              ahead of the rest.
             </>
           ) : gap < 0.08 ? (
             <>
               {" "}
-              here it is nearly a tie: {q(a[1])} at <b>{(a[2] * 100).toFixed(0)}%</b> against{" "}
+              Here it is nearly a tie: {q(a[1])} at <b>{(a[2] * 100).toFixed(0)}%</b> against{" "}
               {q(b[1])} at <b>{(b[2] * 100).toFixed(0)}%</b>.
             </>
           ) : (
             <>
               {" "}
-              here {q(a[1])} leads at <b>{(a[2] * 100).toFixed(0)}%</b>, with {q(b[1])} behind at{" "}
+              Here {q(a[1])} leads at <b>{(a[2] * 100).toFixed(0)}%</b>, with {q(b[1])} behind at{" "}
               <b>{(b[2] * 100).toFixed(0)}%</b>.
             </>
           );
       }
       return (
         <>
-          once the token has passed through all the layers, the model holds one final 1,024-number
-          vector. here is the trick that ties it together: to score the next token it compares that
-          vector against <b>every row of the same dictionary table that turned tokens into vectors at
-          the start</b>. the dictionary is used at both ends, once to read the text and once to score
-          what comes next. a closer match is a higher score (a <b>logit</b>); <b>softmax</b> turns
-          all 151,936 scores into probabilities that add up to 100%.{read} click a bar to{" "}
-          <b>force</b> that token instead and watch the model keep going from your choice.
+          Once the token has passed through every layer, the model holds one final 1,024-number
+          vector. To score the next token it compares that vector against every row of the{" "}
+          <b>embedding table</b>, the same table that turned token IDs into vectors at the start: a
+          closer match means a higher score. Each raw score is a <b>logit</b>. <b>Softmax</b> then
+          turns all 151,936 logits into probabilities that add up to 100%.{read} Click a bar to{" "}
+          <b>force</b> that token instead and watch the model continue from that choice.
         </>
       );
     },
@@ -292,18 +293,18 @@ export const CONCEPTS: Record<string, Concept> = {
       if (!c.sel)
         return (
           <>
-            <b>temperature</b> controls how evenly the model treats its options when it commits to
-            one token. select a generated token to see it applied to a real distribution and try the
+            <b>Temperature</b> controls how evenly the model treats its options when it commits to a
+            token. Select a generated token to see it applied to a real distribution and try the
             slider.
           </>
         );
       return (
         <>
-          <b>temperature</b> reshapes the probabilities just before the random draw. low temperature
-          sharpens them toward the single top pick; high temperature flattens them so less likely
-          tokens get a real chance. at temperature 0 there is no randomness at all. this token was
-          produced at temperature <b>{c.sel.temp}</b>. drag the slider below to watch this token's
-          own options re-balance.
+          <b>Temperature</b> reshapes the softmax probabilities just before the random draw. Low
+          temperature sharpens them toward the single top token; high temperature flattens them so
+          less likely tokens get a real chance; at temperature 0 there is no randomness. This token
+          was produced at temperature <b>{c.sel.temp}</b>. Drag the slider to rebalance this token's
+          own options.
         </>
       );
     },
@@ -313,17 +314,17 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "topk",
     title: "top-k",
     highlight: () => ({ kind: "el", ref: "ctl-topk" }),
-    // post-v2: a TopKDemo interactive drops in here as one more entry, no reshape.
+    interactive: (c) => (c.sel ? <TopKDemo cand={c.sel.cand} k={c.sel.top_k} temp={c.sel.temp} /> : null),
     intro: (c) => (
       <>
-        <b>top-k</b> keeps only the k highest-scoring tokens and discards the rest before the draw
+        <b>Top-k</b> keeps only the k highest-scoring tokens and discards the rest before the draw
         {c.sel ? (
           <>
             ; this token used k = <b>{c.sel.top_k}</b>
           </>
         ) : null}
-        . it is a hard cap that stops the model from ever picking something wildly unlikely, no
-        matter how the randomness falls.
+        . It is a hard cap that prevents the model from ever selecting a very unlikely token,
+        regardless of how the random draw falls.
       </>
     ),
   },
@@ -332,17 +333,17 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "topp",
     title: "top-p",
     highlight: () => ({ kind: "el", ref: "ctl-topp" }),
-    // post-v2: a TopPDemo interactive drops in here the same way.
+    interactive: (c) => (c.sel ? <TopPDemo cand={c.sel.cand} p={c.sel.top_p} temp={c.sel.temp} /> : null),
     intro: (c) => (
       <>
-        <b>top-p</b> (also called nucleus) keeps the smallest group of top tokens whose
-        probabilities add up to p, then draws only from those
+        <b>Top-p</b> (nucleus sampling) keeps the smallest group of top tokens whose probabilities
+        add up to p, then draws only from those
         {c.sel ? (
           <>
             ; this token used p = <b>{c.sel.top_p}</b>
           </>
         ) : null}
-        . unlike top-k it adapts to the moment: a confident step keeps just a few options, an
+        . Unlike top-k it adapts to the moment: a confident step keeps just a few options, an
         uncertain one keeps more.
       </>
     ),
@@ -356,25 +357,25 @@ export const CONCEPTS: Record<string, Concept> = {
       if (!c.sel)
         return (
           <>
-            this is a prompt token, so nothing was drawn. select a generated token to see how a
-            single random number turns the ranked options into one actual choice.
+            This is a prompt token, so nothing was drawn. Select a generated token to see how a
+            single random number turns the ranked options into one choice.
           </>
         );
       if (c.sel.r === null)
         return (
           <>
-            a ranking is not yet a choice, so the model has to commit to one token. at temperature 0
+            A ranking is not yet a choice, so the model must commit to one token. At temperature 0
             there is no randomness: the highest-scoring survivor always wins, and this token was
-            chosen that way. raise the temperature to turn this step into a weighted random draw with
-            a visible bar.
+            chosen that way. Raise the temperature to turn this step into a weighted random draw.
           </>
         );
       return (
         <>
-          a ranking is not yet a choice, so the model commits to one token. after the cuts, the
-          surviving tokens line up on a bar, each owning a slice as wide as its probability. one
-          random number, <b>r = {c.sel.r.toFixed(4)}</b> (fixed by the seed), lands in exactly one
-          slice and picks the winner: {tok(c, c.cur)}. same seed, same r, same token every time.
+          A ranking is not yet a choice, so the model commits to one token. The surviving tokens line
+          up on a bar, each owning a slice as wide as its probability, and one random number lands in
+          a single slice and selects it. Here <b>r = {c.sel.r.toFixed(4)}</b>, drawn from the{" "}
+          <b>seed</b>, a fixed starting point for the randomness so the same settings reproduce the
+          same draw. It selects {tok(c, c.cur)}.
         </>
       );
     },
@@ -389,12 +390,11 @@ export const CONCEPTS: Record<string, Concept> = {
       const t = q(c.trace.tokens[c.cur]?.t ?? "");
       return (
         <>
-          a language model only ever predicts <b>one</b> next token. once it is chosen it is added to
-          the end of the text, and the whole process you just watched runs again from the top, now
-          reading everything including the token it just wrote. that single repeated step is how a
-          few words become whole paragraphs. {t} was one full pass through the model; the next token
-          is another. generation is nothing more than the one function from the start — score the
-          dictionary, pick one — run over and over.
+          The model predicts only <b>one</b> token at a time. Once a token is chosen it is appended
+          to the text, and the entire process repeats from the start, now reading everything
+          including the token just written. {t} was one full pass through the model; the next token
+          is another. Generation is this single function, score the vocabulary and pick one token,
+          run over and over.
         </>
       );
     },
@@ -412,21 +412,22 @@ export const CONCEPTS: Record<string, Concept> = {
       const q8 = gib((params * 34) / 32); // 34 bytes per 32 weights
       return (
         <>
-          a model is a big pile of numbers called <b>weights</b>, and they can be stored at different
-          sizes. <b>f32</b> keeps each weight as a full 32-bit number, so {f32} GiB has to move
-          through memory for every token. <b>q8</b> stores each weight in 8 bits, a quarter of the
-          size, so the same work moves only {q8} GiB. speed here is limited by how fast numbers can
-          be read from memory, so moving fewer of them is most of why q8 is faster.{" "}
+          The model is a large array of numbers called <b>weights</b>. This file already stores them
+          in 8-bit blocks (the Q8_0 format). The two backends read the same blocks but move different
+          amounts of memory: <b>f32</b> first expands each weight to a full 32-bit float, so {f32} GiB
+          passes through memory for every token, while <b>q8</b> multiplies the 8-bit blocks directly
+          and moves only {q8} GiB. Speed here is limited by how fast weights can be read from memory,
+          so moving fewer bytes is most of why q8 is faster.{" "}
           {tps.f32 && tps.q8 ? (
             <>
-              measured on this machine: <b>{tps.f32.toFixed(1)}</b> vs <b>{tps.q8.toFixed(1)}</b>{" "}
+              Measured on this machine: <b>{tps.f32.toFixed(1)}</b> vs <b>{tps.q8.toFixed(1)}</b>{" "}
               tok/s.
             </>
           ) : (
-            <>run both backends to measure the difference live.</>
+            <>Run both backends to measure the difference live.</>
           )}{" "}
-          q8 is a lossy approximation that lands on the same prediction (checked against f32); only
-          the speed differs.
+          Both backends use the same numbers and produce the same token; only the memory moved, and
+          so the speed, differs.
         </>
       );
     },

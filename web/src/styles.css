@@ -292,6 +292,15 @@ footer {
   width: 5ch; flex: none; text-align: right; font-size: var(--t-tiny); color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
+/* running cumulative column (top-p) */
+.temp-cum {
+  width: 4ch; flex: none; text-align: right; font-size: var(--t-micro); color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+/* a token cut by top-k / top-p: dimmed and struck, so the surviving set reads */
+.temp-row.cut { opacity: 0.4; }
+.temp-row.cut .temp-tok { text-decoration: line-through; }
+.temp-row.cut .temp-fill { background: var(--faint); }
 .temp-demo-note { margin-top: var(--sp-2); color: var(--faint); font-size: var(--t-micro); }
 @media (prefers-reduced-motion: reduce) { .temp-fill { transition: none; } }
 

@@ -3,6 +3,21 @@ import type { AttnEdge, GenParams, Step, Trace } from './types'
 /** display text for a token (empty renders as a middle dot) */
 export const esc = (t: string) => (t === '' ? '·' : t)
 
+/** Softmax over logits at temperature t. t<=0 is the limit: all mass on the
+ *  argmax (one-hot). Shared by the temperature / top-k / top-p demos, which all
+ *  recompute from this token's real logits client-side (no engine call). */
+export function softmaxAt(logits: number[], t: number): number[] {
+  if (t <= 0) {
+    let m = 0
+    for (let i = 1; i < logits.length; i++) if (logits[i] > logits[m]) m = i
+    return logits.map((_, i) => (i === m ? 1 : 0))
+  }
+  const max = Math.max(...logits)
+  const ex = logits.map((l) => Math.exp((l - max) / t))
+  const sum = ex.reduce((a, b) => a + b, 0)
+  return ex.map((e) => e / sum)
+}
+
 /** token text in display quotes: q(" the") → “ the” */
 export const q = (t: string) => `“${esc(t)}”`
 
