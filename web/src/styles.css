@@ -242,6 +242,20 @@ footer {
   .explainer-scrim, .explainer { animation: none; }
 }
 
+/* On a wide enough desktop the drawer makes room instead of covering the page:
+   the content column slides left into the remaining width and the scrim drops,
+   so the main page stays fully lit beside the drawer rather than dimmed under it.
+   Gated to a width where the 1200px content still fits uncramped (W − drawer ≥
+   1200); below this the drawer overlays with its scrim (the focused modal read). */
+@media (min-width: 1680px) {
+  body { transition: padding-right 0.2s ease; }
+  body:has(.explainer) { padding-right: calc(min(420px, 92vw) + var(--sp-5)); }
+  body:has(.explainer) .explainer-scrim { display: none; }
+}
+@media (min-width: 1680px) and (prefers-reduced-motion: reduce) {
+  body { transition: none; }
+}
+
 /* ---------- the walk: entry button + fixed player bar ---------- */
 .walk-go { border-color: var(--red); color: var(--red); }
 .walk-go:hover:not(:disabled) { background: var(--red); color: var(--bg); }
@@ -614,11 +628,73 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   @keyframes sheet-in { from { transform: translateY(16px); opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .explainer { animation: none; } }
 
-  /* during a walk, keep the sheet short so the lit instrument stays on screen */
-  .explainer.docked { max-height: 42vh; border-left: none; border-top: 2px solid var(--red); }
+  /* during a walk, keep the sheet short so the lit instrument stays on screen,
+     and lift it clear of the fixed walk-bar so the nav buttons stay reachable */
+  .explainer.docked {
+    bottom: calc(var(--sp-4) + 44px); max-height: 42vh;
+    border-left: none; border-top: 2px solid var(--red);
+  }
 
   .empty { padding: 40px var(--sp-3) 44px; }
   .empty-jp { font-size: 40px; }
+}
+
+/* ---------- the geometry view ---------- */
+.geo-toggle .seg-opt { font-size: var(--t-tiny); text-transform: lowercase; }
+
+.geo-wrap { display: flex; gap: var(--sp-5); align-items: stretch; }
+.geo-svg { flex: 1 1 auto; width: 100%; max-width: 760px; height: auto; display: block; }
+.geo-side { flex: 0 0 220px; display: flex; flex-direction: column; gap: var(--sp-4); justify-content: center; }
+
+/* faint reference rings — scale, not data */
+.geo-guide { fill: none; stroke: var(--hair); stroke-width: 1; }
+
+/* the focus at the centre */
+.geo-focus { fill: var(--ink); }
+.geo-focus-label {
+  fill: var(--dim); font-family: var(--mono); font-size: var(--t-tiny);
+  text-anchor: middle; text-transform: lowercase; letter-spacing: 0.04em;
+}
+
+/* spokes — quiet, so the node's distance reads before the line */
+.geo-spoke { stroke: var(--hair); stroke-width: 1; }
+
+/* candidate / neighbour nodes */
+.geo-node circle { fill: var(--faint); transition: r 0.18s ease, fill 0.18s ease; }
+.geo-node text {
+  fill: var(--ink); font-family: var(--mono); font-size: var(--t-tiny);
+  text-anchor: middle;
+}
+.geo-node:hover circle { fill: var(--ink); }
+.geo-node.win circle { fill: var(--red); }
+.geo-node.win text { fill: var(--red); }
+.geo-node-label, .geo-focus-label, .geo-src-label, .geo-status { pointer-events: none; }
+
+/* attention overlay — edge opacity/width carries the real weight */
+.geo-edge { fill: none; stroke: var(--red); stroke-linecap: round; }
+.geo-src circle { fill: var(--dim); }
+.geo-src:hover circle { fill: var(--ink); }
+.geo-src-label {
+  fill: var(--dim); font-family: var(--mono); font-size: var(--t-micro);
+  text-anchor: middle;
+}
+.geo-status { fill: var(--dim); font-family: var(--mono); font-size: var(--t-tiny); text-anchor: middle; }
+
+/* the one large numeral, Doto */
+.geo-figure-box { border: 1px solid var(--hair); padding: var(--sp-3) var(--sp-4); }
+.geo-figure { font-family: var(--dot); font-weight: 700; font-size: var(--t-xl); color: var(--ink); }
+.geo-figure-cap { color: var(--dim); font-size: var(--t-tiny); margin-top: var(--sp-1); }
+
+.geo-honest { color: var(--faint); font-size: var(--t-tiny); line-height: 1.6; }
+.geo-honest b { color: var(--dim); font-weight: 600; }
+.geo-key { color: var(--red); }
+
+/* motion: the radius settle is the only animation; off under reduced-motion */
+.geo-svg.still .geo-node circle { transition: none; }
+
+@media (max-width: 720px) {
+  .geo-wrap { flex-direction: column; gap: var(--sp-3); }
+  .geo-side { flex: 1 1 auto; }
 }
 
 /* ---------- scrollbar ---------- */

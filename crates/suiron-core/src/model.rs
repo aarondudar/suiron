@@ -125,6 +125,9 @@ pub struct Model {
     pub output_norm: Tensor, // [hidden]
     /// Untied output projection; None for Qwen3-0.6B (tied embeddings).
     pub output: Option<Tensor>,
+    /// L2 norm |emb_i| of every embedding row, precomputed once at load so a
+    /// cosine query is a single matrix pass. One f32 per vocabulary entry.
+    emb_norms: Vec<f32>,
 }
 
 impl Model {
@@ -171,11 +174,21 @@ impl Model {
             });
         }
 
+        let token_embd = expect(tensor("token_embd.weight")?, &[config.vocab, h], "token_embd")?;
+        // Cache |emb_i| once; reused by every cosine-neighbor query.
+        let emb_norms: Vec<f32> = (0..config.vocab)
+            .map(|r| {
+                let row = &token_embd.data[r * h..r * h + h];
+                row.iter().map(|v| v * v).sum::<f32>().sqrt()
+            })
+            .collect();
+
         Ok(Self {
-            token_embd: expect(tensor("token_embd.weight")?, &[config.vocab, h], "token_embd")?,
+            token_embd,
             layers,
             output_norm: expect(tensor("output_norm.weight")?, &[h], "output_norm")?,
             output: file.tensor("output.weight").is_some().then(|| tensor("output.weight")).transpose()?,
+            emb_norms,
             config,
         })
     }
@@ -185,5 +198,39 @@ impl Model {
         let h = self.config.hidden;
         let start = token as usize * h;
         &self.token_embd.data[start..start + h]
+    }
+
+    /// Top-`n` vocabulary entries by cosine similarity to an arbitrary
+    /// hidden-dim direction `query`, strongest first as `(token_id, cosine)`.
+    ///
+    /// `cos(a, b) = (a·b) / (|a| |b|)` over the whole embedding matrix, using
+    /// the row norms cached at load. Pure over the resident model (no I/O, no
+    /// mutation) so the future WASM build can call it directly. A token queried
+    /// against its own row scores exactly 1.0.
+    pub fn neighbors(&self, query: &[f32], n: usize) -> Vec<(u32, f32)> {
+        let h = self.config.hidden;
+        let qn = query.iter().map(|v| v * v).sum::<f32>().sqrt();
+        if qn == 0.0 || n == 0 {
+            return Vec::new();
+        }
+        let mut scored: Vec<(u32, f32)> = (0..self.config.vocab)
+            .map(|r| {
+                let row = &self.token_embd.data[r * h..r * h + h];
+                let dot: f32 = row.iter().zip(query).map(|(a, b)| a * b).sum();
+                let denom = self.emb_norms[r] * qn;
+                let cos = if denom > 0.0 { dot / denom } else { 0.0 };
+                (r as u32, cos)
+            })
+            .collect();
+        // descending cosine; NaN-safe (treat as -inf so it sinks)
+        scored.sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        scored.truncate(n);
+        scored
+    }
+
+    /// Cosine neighbors of a token, using its own embedding row as the query.
+    /// The first result is the token itself (cosine 1.0).
+    pub fn neighbors_of(&self, token: u32, n: usize) -> Vec<(u32, f32)> {
+        self.neighbors(self.embedding(token), n)
     }
 }

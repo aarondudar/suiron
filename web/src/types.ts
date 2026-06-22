@@ -77,6 +77,14 @@ export interface GenParams {
   backend: Backend;
 }
 
+/** a vocabulary entry near a query vector by cosine similarity, from
+ *  /api/v1/neighbors. cos is the real (a·b)/(|a||b|); a token vs itself is 1. */
+export interface Neighbor {
+  id: number;
+  token: string;
+  cos: number;
+}
+
 /** one real Q8_0 block from the model, for the quantization explainer */
 export interface QuantSample {
   tensor: string;

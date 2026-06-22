@@ -112,6 +112,29 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                 let json = quant_sample_json(&model);
                 respond(&mut s, "200 OK", "application/json", json.as_bytes());
             }
+            ("GET", "/api/v1/neighbors") => {
+                // cosine neighbors of a token over the embedding matrix. Pure
+                // read of the resident model — safe to answer even while busy.
+                let (id, n) = parse_neighbors(&path);
+                if id == u32::MAX || id as usize >= model.config.vocab {
+                    respond(&mut s, "400 Bad Request", "text/plain", b"bad id");
+                } else {
+                    let nbrs = model.neighbors_of(id, n.clamp(1, 64));
+                    let mut j = String::from("[");
+                    for (i, (tid, cos)) in nbrs.iter().enumerate() {
+                        if i > 0 {
+                            j.push(',');
+                        }
+                        let text = tok.decode(&[*tid]);
+                        j.push_str(&format!(
+                            "{{\"id\":{tid},\"token\":\"{}\",\"cos\":{cos:.6}}}",
+                            crate::trace::escape_json(&text)
+                        ));
+                    }
+                    j.push(']');
+                    respond(&mut s, "200 OK", "application/json", j.as_bytes());
+                }
+            }
             ("GET", "/api/v1/source") => {
                 let name = path
                     .split_once("fn=")
@@ -506,6 +529,22 @@ fn parse_fork(path: &str) -> (usize, u32) {
         }
     }
     (pos, token)
+}
+
+/// neighbors params: ?id=<token id>&n=<count> (n defaults to 12)
+fn parse_neighbors(path: &str) -> (u32, usize) {
+    let (mut id, mut n) = (u32::MAX, 12usize);
+    if let Some(q) = path.split_once('?').map(|(_, q)| q) {
+        for kv in q.split('&') {
+            let Some((k, v)) = kv.split_once('=') else { continue };
+            match k {
+                "id" => id = v.parse().unwrap_or(u32::MAX),
+                "n" => n = v.parse().unwrap_or(n),
+                _ => {}
+            }
+        }
+    }
+    (id, n)
 }
 
 fn parse_params(path: &str) -> Params {

@@ -1,4 +1,4 @@
-import type { GenParams, QuantSample, Trace } from "./types";
+import type { GenParams, Neighbor, QuantSample, Trace } from "./types";
 
 // Relative paths: proxied by vite in dev, served by suiron itself in prod.
 
@@ -11,6 +11,15 @@ export async function getTrace(): Promise<Trace> {
 export async function getQuantSample(): Promise<QuantSample> {
   const r = await fetch("/api/v1/quant-sample");
   if (!r.ok) throw new Error(`quant-sample: ${r.status}`);
+  return r.json();
+}
+
+/** Top-n cosine neighbors of a token over the embedding matrix. A pure model
+ *  read — gated client-side behind the geometry "meaning" read so it never
+ *  fires on idle. */
+export async function getNeighbors(id: number, n = 12): Promise<Neighbor[]> {
+  const r = await fetch(`/api/v1/neighbors?id=${id}&n=${n}`);
+  if (!r.ok) throw new Error(`neighbors: ${r.status}`);
   return r.json();
 }
 

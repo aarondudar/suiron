@@ -4,6 +4,7 @@ import { Controls } from "./components/Controls";
 import { EmptyState } from "./components/EmptyState";
 import { Explain, Explainer, ExplainerProvider } from "./components/Explainer";
 import { CONCEPTS, type ExplainCtx } from "./components/Explanations";
+import { Geometry } from "./components/Geometry";
 import { LayerStack } from "./components/LayerStack";
 import { Logits } from "./components/Logits";
 import { Quantization } from "./components/Quantization";
@@ -257,6 +258,7 @@ export default function App() {
             focus={focus}
           />
           <Logits step={step} cur={safeCur} busy={!!trace.busy} setHover={setHoverFocus} />
+          <Geometry trace={trace} step={step} cur={safeCur} active={active} setHover={setHoverFocus} />
           <Selection sel={step.sel} isPrompt={safeCur < trace.n_prompt} />
           <div className="aside-divider">the same model, faster · an aside, not a step</div>
           <Quantization trace={trace} params={params} setParams={setParams} busy={!!trace.busy} />
