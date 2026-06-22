@@ -135,8 +135,13 @@ footer {
   border-top: 1px solid var(--hair);
   padding-top: var(--sp-3); margin-top: var(--sp-5);
   display: flex; justify-content: space-between; align-items: center;
-  letter-spacing: 0.08em;
+  gap: var(--sp-4); letter-spacing: 0.08em; flex-wrap: wrap;
 }
+footer a {
+  color: var(--dim); text-decoration: none;
+  border-bottom: 1px dotted var(--faint); transition: color 0.15s, border-color 0.15s;
+}
+footer a:hover { color: var(--red); border-bottom-color: var(--red); }
 
 /* ---------- band header: title / always-on subtitle ---------- */
 .band-ctl { margin-left: auto; display: flex; align-items: center; gap: var(--sp-2); }
@@ -626,9 +631,23 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   color: var(--faint); letter-spacing: 0.3em; margin-bottom: 18px;
   user-select: none;
 }
-.empty-line { color: var(--dim); font-size: var(--t-body); max-width: 52ch; margin: 0 auto 26px; }
+/* layered hook: beat-1 line + maker line + CTA are all above the fold; the Qwen
+   facts (empty-more) are the optional second layer below the buttons. */
+.empty-hook { color: var(--ink); font-size: var(--t-md); line-height: 1.6; max-width: 58ch; margin: 0 auto var(--sp-3); }
+.empty-maker { color: var(--dim); font-size: var(--t-tiny); line-height: 1.7; max-width: 62ch; margin: 0 auto var(--sp-5); }
+.empty-cta { margin: 0 auto; }
+.empty-cta-label {
+  display: block; color: var(--dim); font-size: var(--t-tiny);
+  text-transform: lowercase; letter-spacing: 0.1em; margin-bottom: var(--sp-2);
+}
 .empty-chips { display: flex; gap: var(--sp-2); justify-content: center; flex-wrap: wrap; }
 .empty-chips button { white-space: pre; }
+.empty-hint { display: block; color: var(--faint); font-size: var(--t-tiny); margin-top: var(--sp-3); }
+.empty-more {
+  color: var(--faint); font-size: var(--t-tiny); line-height: 1.7; max-width: 64ch;
+  margin: var(--sp-5) auto 0; padding-top: var(--sp-4); border-top: 1px solid var(--hair);
+}
+.empty-more b { color: var(--dim); font-weight: normal; }
 
 /* ---------- horizontal-scroll tracks (wide content) ---------- */
 /* the layer row's dot strip and the selection table can exceed a phone's
@@ -772,6 +791,52 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   .geo-wrap { flex-direction: column; gap: var(--sp-3); align-items: stretch; }
   .geo-honest { flex: 1 1 auto; }
 }
+
+/* ---------- onboarding: tour hint + lifecycle lead-in ---------- */
+.tour-hint {
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin: var(--sp-3) 0; padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--hair); border-left: 2px solid var(--red);
+  color: var(--dim); font-size: var(--t-tiny); letter-spacing: 0.04em;
+}
+.tour-hint-go {
+  border: none; background: transparent; padding: 0; color: var(--red);
+  font: inherit; cursor: pointer; border-bottom: 1px dotted var(--red);
+}
+.tour-hint-go:hover { color: var(--ink); border-bottom-color: var(--ink); }
+.tour-hint-x {
+  margin-left: auto; border: none; background: transparent; color: var(--faint);
+  font-size: var(--t-base); line-height: 1; padding: 0 var(--sp-1); cursor: pointer;
+}
+.tour-hint-x:hover { color: var(--red); }
+
+/* the six bands are one sequence — a token's life — not a dashboard */
+.lifecycle-lead {
+  color: var(--faint); font-size: var(--t-tiny); text-transform: lowercase;
+  letter-spacing: 0.08em; margin: var(--sp-2) 0 var(--sp-4);
+}
+
+/* ---------- tokenization demo (the BPE aha) ---------- */
+.tok-demo { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
+.tok-chip {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
+  border: 1px solid var(--hair); padding: 3px 6px; background: var(--surface);
+}
+.tok-chip.cur { border-color: var(--red); }
+.tok-chip-text { color: var(--ink); font-size: var(--t-body); white-space: pre; }
+.tok-chip.cur .tok-chip-text { color: var(--red); }
+.tok-chip-id {
+  color: var(--faint); font-family: var(--dot); font-size: var(--t-micro);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- residual rms sparkline ---------- */
+.spark-wrap { margin-top: var(--sp-3); }
+.spark { width: 100%; max-width: 248px; height: auto; display: block; }
+.spark-line { fill: none; stroke: var(--dim); stroke-width: 1.25; }
+.spark-cur { fill: var(--red); }
+.spark-cap { color: var(--faint); font-size: var(--t-tiny); margin-top: var(--sp-1); }
+.spark-cap b { color: var(--ink); }
 
 /* ---------- scrollbar ---------- */
 ::-webkit-scrollbar { width: 8px; height: 8px; }

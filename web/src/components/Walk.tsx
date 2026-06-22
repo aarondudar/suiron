@@ -23,6 +23,7 @@ export const WALK: WalkStop[] = [
   { concept: "attention", label: "attention", expandLayer: true },
   { concept: "feedforward", label: "feed-forward" },
   { concept: "logits", label: "the prediction" },
+  { concept: "geometry", label: "what comes next" },
   { concept: "draw", label: "the draw" },
   { concept: "loop", label: "and then repeat" },
 ];

@@ -304,11 +304,12 @@ export function Geometry({
 }) {
   const [read, setRead] = useState<Read>("prediction");
 
-  // follow the Explainer: the embedding concept opens the meaning read, the
-  // logits concept the prediction read. The manual toggle still wins afterward.
+  // follow the Explainer: the embedding concept opens the meaning read; the
+  // logits and geometry concepts the prediction read (the walk's geometry stop
+  // lands on the next-token payoff). The manual toggle still wins afterward.
   useEffect(() => {
     if (active === "embedding") setRead("meaning");
-    else if (active === "logits") setRead("prediction");
+    else if (active === "logits" || active === "geometry") setRead("prediction");
   }, [active]);
 
   return (
@@ -335,12 +336,11 @@ export function Geometry({
       <div className="geo-wrap">
         <GeometryView trace={trace} step={step} cur={cur} read={read} onHover={setHover} />
         <p className="geo-honest">
-          Distance from the center is the only spatial claim, and it is real: in{" "}
-          <b>what comes next</b>, closer in means the model scores the token higher; in{" "}
-          <b>what it means</b>, closer in means a higher cosine similarity to this token. Edge
-          thickness is the real attention each earlier token fed in. Angle and any jitter are layout
-          only; they carry no meaning. <span className="geo-key">Red</span> marks the single
-          strongest — the winning candidate, or the nearest neighbor.
+          Closer to the center means the model scores it higher in <b>what comes next</b>, or sits
+          at a higher cosine similarity to this token in <b>what it means</b>. Distance is the only
+          thing the position encodes; angle and any jitter are just layout. Edge thickness is the
+          attention each earlier token contributed. <span className="geo-key">Red</span> marks the
+          strongest: the winning candidate, or the nearest neighbor.
         </p>
       </div>
     </section>

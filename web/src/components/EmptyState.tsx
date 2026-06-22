@@ -1,5 +1,6 @@
 import { generate } from '../api'
-import type { GenParams } from '../types'
+import { ModelOverview } from './ModelOverview'
+import type { GenParams, Trace } from '../types'
 
 const SUGGESTIONS = [
   'The cat sat on the',
@@ -9,10 +10,12 @@ const SUGGESTIONS = [
 ]
 
 export function EmptyState({
+  trace,
   onPick,
   params,
   onGenerate,
 }: {
+  trace: Trace
   onPick: (p: string) => void
   params: GenParams
   onGenerate: () => void
@@ -27,17 +30,37 @@ export function EmptyState({
   return (
     <section className="empty">
       <div className="empty-jp">suiron</div>
-      <p className="empty-line">
-        watch a language model think. type a prompt above, or pick one below, and every number
-        you see comes from a real forward pass running on this machine.
+
+      {/* beat 1 — the one-line hook, graspable on its own */}
+      <p className="empty-hook">
+        Watch a real language model predict the next token, one step at a time. Every number on the
+        page is computed live, not pre-recorded.
       </p>
-      <div className="empty-chips">
-        {SUGGESTIONS.map((s) => (
-          <button key={s} onClick={() => run(s)}>
-            {s}
-          </button>
-        ))}
+
+      {/* the maker hook — built, not wrapped */}
+      <p className="empty-maker">
+        A from-scratch inference engine in Rust, verified token-for-token against llama.cpp: the
+        GGUF parser, tokenizer, attention, and Metal kernels are all hand-written, with no ML
+        libraries.
+      </p>
+
+      {/* the CTA — high, before the deeper overview */}
+      <div className="empty-cta">
+        <span className="empty-cta-label">run an example and take the tour</span>
+        <div className="empty-chips">
+          {SUGGESTIONS.map((s) => (
+            <button key={s} onClick={() => run(s)}>
+              {s}
+            </button>
+          ))}
+        </div>
+        <span className="empty-hint">or type your own prompt above.</span>
       </div>
+
+      {/* beat 2 — the optional second layer: what a model is, what this one is */}
+      <p className="empty-more">
+        <ModelOverview trace={trace} />
+      </p>
     </section>
   )
 }

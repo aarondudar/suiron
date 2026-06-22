@@ -35,6 +35,11 @@ export default function App() {
   const [walk, setWalk] = useState<number | null>(null);
   const walkRef = useRef(walk);
   walkRef.current = walk;
+  /** front door: an example was launched with "take the tour"; open the walk
+   *  once it produces a generated token (the tour itself steps manually) */
+  const [pendingTour, setPendingTour] = useState(false);
+  /** the one-time "take the guided tour" nudge after a plain run */
+  const [hintDone, setHintDone] = useState(() => localStorage.getItem("suiron-tour-hint") === "1");
 
   const lastSeq = useRef(-1);
   const curRef = useRef(cur);
@@ -169,7 +174,18 @@ export default function App() {
         );
     }
   };
-  const goToStop = (i: number) => applyStop(i, true);
+  const dismissHint = () => {
+    setHintDone(true);
+    try {
+      localStorage.setItem("suiron-tour-hint", "1");
+    } catch {
+      /* private mode — fine, just won't persist */
+    }
+  };
+  const goToStop = (i: number) => {
+    dismissHint(); // taking the tour retires the nudge
+    applyStop(i, true);
+  };
 
   // scrubbing or forking to another token keeps the walk alive and follows the
   // token: re-anchor the current stop to the new token, without yanking scroll.
@@ -191,6 +207,18 @@ export default function App() {
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
   }, [walk]);
+
+  // front door: once the "run + tour" example has produced a generated token and
+  // generation is idle, open the walk at its first stop. Generation itself is
+  // never auto-run beyond the single requested example; the walk steps manually.
+  useEffect(() => {
+    if (!pendingTour || !trace || trace.busy) return;
+    if (trace.tokens.length > trace.n_prompt) {
+      setPendingTour(false);
+      goToStop(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trace, pendingTour]);
 
   if (!trace) return <div className="label">connecting to suiron…</div>;
 
@@ -245,16 +273,33 @@ export default function App() {
 
       {!hasTokens && (
         <EmptyState
+          trace={trace}
           onPick={setPrompt}
           params={params}
           onGenerate={() => {
             jumpRef.current = true;
+            setPendingTour(true); // the empty-state chips are "run + take the tour"
           }}
         />
       )}
 
+      {hasTokens && safeCur >= trace.n_prompt && walk === null && !hintDone && (
+        <div className="tour-hint">
+          new here?{" "}
+          <button className="tour-hint-go" onClick={() => goToStop(0)}>
+            ▶ take the guided tour
+          </button>
+          <button className="tour-hint-x" onClick={dismissHint} aria-label="dismiss">
+            ×
+          </button>
+        </div>
+      )}
+
       {hasTokens && step && (
         <>
+          <div className="lifecycle-lead">
+            one token's life, top to bottom: input → prediction → the next token
+          </div>
           <TokenStrip trace={trace} step={step} cur={safeCur} setCur={setCur} focus={focus} />
           <LayerStack
             trace={trace}
@@ -274,7 +319,16 @@ export default function App() {
       )}
 
       <footer>
-        <span>suiron — 推論 · every value on this page came from a real forward pass of the model file</span>
+        <span>
+          suiron · 推論 · a from-scratch LLM inference engine in Rust, verified token-for-token
+          against llama.cpp
+        </span>
+        <span>
+          <a href="https://github.com/aarondudar/suiron" target="_blank" rel="noopener noreferrer">
+            github.com/aarondudar/suiron
+          </a>{" "}
+          · Aaron Dudar
+        </span>
       </footer>
 
       {walk !== null && (

@@ -75,10 +75,10 @@ export function Controls({
         <button
           className="walk-go"
           disabled={!canWalk || busy}
-          title="walk through how this works, top to bottom"
+          title="take the guided tour of how this token was produced, top to bottom"
           onClick={onWalk}
         >
-          ▶ inspect
+          ▶ guided tour
         </button>
       </div>
       <div className="ctl-row ctl-params" data-explain-el="ctl-params">

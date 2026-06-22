@@ -12,6 +12,9 @@ import type { FocusTarget, GenParams, Sel, Step, Trace } from "../types";
 import { EngineSource } from "./EngineSource";
 import { Term } from "./Explainer";
 import { GeometryCard, type Read } from "./Geometry";
+import { ModelOverview } from "./ModelOverview";
+import { RnormSparkline } from "./RnormSparkline";
+import { TokenizeDemo } from "./TokenizeDemo";
 import { TemperatureDemo } from "./TemperatureDemo";
 import { TopKDemo } from "./TopKDemo";
 import { TopPDemo } from "./TopPDemo";
@@ -86,16 +89,7 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "model",
     title: "what this is",
     highlight: () => ({ kind: "el", ref: "spec" }),
-    intro: (c) => (
-      <>
-        A language model does one thing: given some text, it assigns every token in its{" "}
-        <b>vocabulary</b> a score for how likely that token is to come next, then picks one. The
-        vocabulary is the fixed set of <b>151,936</b> tokens this model knows; everything else here
-        is how it computes that score well. The model is Qwen3-0.6B: <b>{c.trace.layers}</b> layers
-        stacked in order, <b>{c.trace.heads}</b> attention heads in <b>{c.trace.kv_heads}</b>{" "}
-        key/value groups, each token carried as <b>1,024</b> numbers.
-      </>
-    ),
+    intro: (c) => <ModelOverview trace={c.trace} />,
   },
 
   settings: {
@@ -116,6 +110,7 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "tokenization",
     title: "tokens",
     highlight: (c) => ({ kind: "token", pos: c.cur }),
+    interactive: (c) => <TokenizeDemo ctx={c} />,
     intro: (c) => {
       const t = c.trace.tokens[c.cur];
       return (
@@ -228,6 +223,7 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "residual",
     title: "the residual stream",
     highlight: (c) => ({ kind: "layer", layer: c.layer }),
+    interactive: (c) => <RnormSparkline step={c.step} layer={c.layer} layers={c.trace.layers} />,
     rungs: [code("forward")],
     intro: (c) => {
       const r = c.step.rnorm ?? [];
@@ -305,7 +301,7 @@ export const CONCEPTS: Record<string, Concept> = {
           Every token's <b>1,024</b> numbers are a direction in space, and directions that point a
           similar way mean similar things. This view draws that directly. <b>What it means</b>{" "}
           centers on the inspected token and places its closest vocabulary entries around it, with
-          distance set by real <b>cosine</b> similarity, so the nearest entries are the ones the
+          distance set by <b>cosine</b> similarity, so the nearest entries are the ones the
           model treats as most alike. <b>What comes next</b> centers on the direction the token
           produces after every layer and arranges the candidate next-tokens around it by how high
           the model scores each, so the strongest sits closest to the center
@@ -315,8 +311,7 @@ export const CONCEPTS: Record<string, Concept> = {
             </>
           ) : null}
           . The attention edges show the earlier tokens that built that direction. Distance is the
-          only spatial claim and it is always a real number; the angle around the center is just
-          spacing.
+          only thing the position encodes; the angle around the center is just spacing.
         </>
       );
     },
