@@ -62,15 +62,11 @@ export function TokenStrip({
     <section>
       <BandHeader
         idx="01"
-        title={
-          <>
-            tokens <Explain of="tokenization" />
-          </>
-        }
+        title={<Explain of="tokenization">tokens</Explain>}
         sub={SUB.tokens}
       >
-        <Explain of="confidence" />
-        <Explain of="loop" />
+        <Explain of="confidence" label="confidence" />
+        <Explain of="loop" label="loop" />
         <label className="arc-toggle">
           <input type="checkbox" checked={arcs} onChange={(e) => setArcs(e.target.checked)} /> arcs
         </label>

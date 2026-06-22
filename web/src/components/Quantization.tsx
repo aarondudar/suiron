@@ -41,12 +41,8 @@ export function Quantization({
   return (
     <section>
       <BandHeader
-        idx="05"
-        title={
-          <>
-            quantization <Explain of="quantization" />
-          </>
-        }
+        idx="06"
+        title={<Explain of="quantization">quantization</Explain>}
         sub={SUB.quant}
       >
         <BackendToggle backend={backend} disabled={busy} onChange={(b) => setParams({ ...params, backend: b })} />

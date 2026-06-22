@@ -10,10 +10,12 @@ import type { ReactNode } from "react";
 import { confidence, layerGlance, q } from "../lib";
 import type { FocusTarget, GenParams, Sel, Step, Trace } from "../types";
 import { EngineSource } from "./EngineSource";
-import { StageMath, type Stage } from "./StageMath";
+import { Term } from "./Explainer";
+import { GeometryCard, type Read } from "./Geometry";
 import { TemperatureDemo } from "./TemperatureDemo";
 import { TopKDemo } from "./TopKDemo";
 import { TopPDemo } from "./TopPDemo";
+import { UnderHood } from "./UnderHood";
 
 /* always-on one-line subtitle under each band's title (depth 0). orientation,
    not explanation — the Explainer is the on-demand depth. */
@@ -70,11 +72,11 @@ export interface Concept {
 /** a "the code" rung that reuses the live engine source endpoint. */
 const code = (fn: string): ExplainRung => ({ label: "the code", body: () => <EngineSource fn={fn} /> });
 
-/** a "the math" rung: this token's real numbers for one compute stage, fetched
- *  on demand (the old band-05 math, relocated to the single depth surface). */
-const mathRung = (stage: Stage): ExplainRung => ({
-  label: "the math",
-  body: (c) => <StageMath ctx={c} stage={stage} />,
+/** a collapsed "geometric picture" rung: the compact geometry card as a coda
+ *  (the standalone band carries its prominence; in the drawer it closes the read). */
+const geoRung = (read: Read): ExplainRung => ({
+  label: "the geometric picture",
+  body: (c) => <GeometryCard ctx={c} read={read} />,
 });
 
 const tok = (c: ExplainCtx, p: number) => q(c.trace.tokens[p]?.t ?? "");
@@ -159,12 +161,15 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "embedding",
     title: "the token becomes a vector",
     highlight: (c) => ({ kind: "layer", layer: c.layer }),
-    rungs: [mathRung("embedding"), code("embedding")],
+    interactive: (c) => <UnderHood ctx={c} stage="embedding" />,
+    rungs: [geoRung("meaning")],
     intro: (c) => (
       <>
-        A token ID is only an index; there is no arithmetic to perform on "entry 8251". The model
-        looks the index up in an <b>embedding table</b> with one row per vocabulary entry, each a
-        vector of <b>1,024</b> numbers learned during training. That row is the token's starting
+        A <Term name="token">token ID</Term> is only an index; there is no arithmetic to perform on
+        "entry 8251". The model looks the index up in an{" "}
+        <Term name="token_embd">embedding table</Term> with one row per vocabulary entry, each a
+        vector of <Term name="h">1,024</Term> numbers learned during training. That row is the
+        token's starting
         representation, before any context has been mixed in, and it is what enters the stack of
         layers. As the token passes through, each layer adds information gathered from earlier
         tokens. For the current token, {q(c.trace.tokens[c.cur]?.t ?? "")}, this row is the vector
@@ -178,16 +183,18 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "attention",
     title: "attention",
     highlight: (c) => ({ kind: "layer", layer: c.layer }),
-    rungs: [mathRung("attention"), code("attention")],
+    interactive: (c) => <UnderHood ctx={c} stage="attention" />,
     intro: (c) => {
       const g = c.cur > 0 ? layerGlance(c.step, c.layer, c.cur + 1) : null;
       return (
         <>
           Predicting the next token requires context, the tokens that came before. <b>Attention</b>{" "}
           is the step that supplies it: at each layer, every token looks back at the earlier tokens
-          and pulls in information from the ones that matter. It is the only step where tokens
-          exchange information. The highlighted dots show where each layer looked, larger meaning
-          more attention and red the strongest.{" "}
+          and pulls in information from the ones that matter. It does this by scoring every earlier
+          token, turning those <Term name="scores">scores</Term> into{" "}
+          <Term name="weights">weights</Term> with softmax, then blending the tokens by those
+          weights. It is the only step where tokens exchange information. The highlighted dots show
+          where each layer looked, larger meaning more attention and red the strongest.{" "}
           {g ? (
             <>
               For this token, layer {c.layer} attended hardest back to {tok(c, g.topPos)} (
@@ -205,12 +212,13 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "feedforward",
     title: "feed-forward",
     highlight: (c) => ({ kind: "layer", layer: c.layer }),
-    rungs: [mathRung("feedforward"), code("ffn")],
+    interactive: (c) => <UnderHood ctx={c} stage="feedforward" />,
     intro: () => (
       <>
         After attention has mixed in context, each token is processed on its own. Its <b>1,024</b>{" "}
-        numbers are expanded to <b>3,072</b>, passed through a function called <b>silu</b> that
-        decides how much of each to keep, then compressed back to 1,024. No other tokens are
+        numbers are expanded to <b>3,072</b> by two projections, a <Term name="gate">gate</Term> and
+        an <Term name="up">up</Term>, then a function called <Term name="silu">silu</Term> decides
+        how much of each to keep before they are compressed back to 1,024. No other tokens are
         involved. This feed-forward step is where most of the model's learned facts are stored.
       </>
     ),
@@ -232,7 +240,7 @@ export const CONCEPTS: Record<string, Concept> = {
           <b>residual stream</b>. The number at the right of each layer row is the size of that
           running total, its rms (root mean square, one number summarizing the magnitude of the 1,024
           values). It climbs from <b>{r[0]?.toFixed(1)}</b> at layer 0 to{" "}
-          <b>{r[last]?.toFixed(1)}</b> at the top as information accumulates.
+          <b>{r[last]?.toFixed(1)}</b> at the final layer as information accumulates.
         </>
       );
     },
@@ -242,6 +250,7 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "logits",
     title: "what the model expects next",
     highlight: () => ({ kind: "el", ref: "logit-0" }),
+    interactive: (c) => <GeometryCard ctx={c} read="prediction" />,
     rungs: [code("matmul")],
     intro: (c) => {
       const top = c.step.top ?? [];
@@ -298,8 +307,8 @@ export const CONCEPTS: Record<string, Concept> = {
           centers on the inspected token and places its closest vocabulary entries around it, with
           distance set by real <b>cosine</b> similarity, so the nearest entries are the ones the
           model treats as most alike. <b>What comes next</b> centers on the direction the token
-          produces after every layer and places the candidate next-tokens around it, with distance
-          set by their <b>logit</b> below the top guess
+          produces after every layer and arranges the candidate next-tokens around it by how high
+          the model scores each, so the strongest sits closest to the center
           {win ? (
             <>
               ; here it points hardest at {q(win[1])}

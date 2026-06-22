@@ -51,6 +51,7 @@ export interface Trace {
   layers: number;
   heads: number;
   kv_heads: number;
+  head_dim: number;
   n_prompt: number;
   live?: boolean;
   busy?: boolean;

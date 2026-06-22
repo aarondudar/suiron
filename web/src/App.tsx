@@ -21,7 +21,6 @@ export default function App() {
   const [trace, setTrace] = useState<Trace | null>(null);
   const [cur, setCur] = useState(0);
   const [openLayer, setOpenLayer] = useState(-1);
-  const [follow, setFollow] = useState(true);
   const [prompt, setPrompt] = useState("");
   const [params, setParams] = useState<GenParams>(DEFAULT_PARAMS);
 
@@ -38,11 +37,10 @@ export default function App() {
   walkRef.current = walk;
 
   const lastSeq = useRef(-1);
-  const followRef = useRef(follow);
-  followRef.current = follow;
   const curRef = useRef(cur);
   curRef.current = cur;
-  /** set by step+1: the next growth always advances the view */
+  /** set by generate / step+1: the next growth advances the view to the
+   *  frontier once, so a fresh run jumps to its output even after a scrub-back */
   const jumpRef = useRef(false);
 
   // poll: fast while the model is generating, slow when idle
@@ -58,10 +56,10 @@ export default function App() {
           lastSeq.current = t.seq ?? -1;
           setTrace((prev) => {
             const grew = !prev || t.tokens.length > prev.tokens.length;
-            // advance when following, when stepping, or when already parked
-            // on the frontier — never yank a user who scrubbed back
+            // advance on a fresh run / step, or when already parked on the
+            // frontier — never yank a user who scrubbed back mid-stream
             const atFrontier = prev && curRef.current === prev.tokens.length - 1;
-            if (grew && grewTo >= 0 && (followRef.current || jumpRef.current || atFrontier)) {
+            if (grew && grewTo >= 0 && (jumpRef.current || atFrontier)) {
               setCur(grewTo);
               jumpRef.current = false;
             }
@@ -208,10 +206,11 @@ export default function App() {
             suiron<span className="jp">推論</span>
           </div>
           <div className="spec" data-explain-el="spec">
-            {trace.model.toLowerCase()} · {trace.quant} · {trace.layers} layers · {trace.heads}h/
-            {trace.kv_heads}kv · {trace.n_prompt} prompt +{" "}
-            {Math.max(0, trace.tokens.length - trace.n_prompt)} generated
-            <Explain of="model" />
+            <Explain of="model">
+              {trace.model.toLowerCase()} · {trace.quant} · {trace.layers} layers · {trace.heads}h/
+              {trace.kv_heads}kv · {trace.n_prompt} prompt +{" "}
+              {Math.max(0, trace.tokens.length - trace.n_prompt)} generated
+            </Explain>
           </div>
         </div>
         <div className="head-right">
@@ -230,12 +229,13 @@ export default function App() {
       <Controls
         busy={!!trace.busy}
         hasTokens={hasTokens}
-        follow={follow}
-        setFollow={setFollow}
         prompt={prompt}
         setPrompt={setPrompt}
         params={params}
         setParams={setParams}
+        onGenerate={() => {
+          jumpRef.current = true;
+        }}
         onStep={() => {
           jumpRef.current = true;
         }}
@@ -243,7 +243,15 @@ export default function App() {
         canWalk={hasTokens && safeCur >= trace.n_prompt}
       />
 
-      {!hasTokens && <EmptyState onPick={setPrompt} params={params} />}
+      {!hasTokens && (
+        <EmptyState
+          onPick={setPrompt}
+          params={params}
+          onGenerate={() => {
+            jumpRef.current = true;
+          }}
+        />
+      )}
 
       {hasTokens && step && (
         <>

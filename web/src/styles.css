@@ -165,15 +165,21 @@ footer {
 }
 .explain-anchor:active:not(:disabled) { background: var(--red); color: var(--bg); }
 
-/* inline text variant of the anchor, for the per-layer stage breadcrumb */
+/* the explained text IS the trigger: it reads as ordinary text at rest and
+   highlights (red + a dotted underline) on hover / focus / tap. font and color
+   inherit so it sits invisibly inside a band title, a param label, or prose
+   until pointed at. `cursor: help` is the resting affordance. */
 .explain-link {
   border: none; background: transparent; padding: 0; margin: 0;
-  font: inherit; font-size: var(--t-body); color: var(--ink); cursor: pointer;
-  letter-spacing: inherit; text-transform: none;
-  border-bottom: 1px dotted var(--faint); transition: color 0.15s, border-color 0.15s;
+  font: inherit; color: inherit; cursor: help;
+  letter-spacing: inherit; text-transform: inherit;
+  border-bottom: 1px solid transparent; transition: color 0.15s, border-color 0.15s;
 }
-.explain-link:hover:not(:disabled) { color: var(--red); border-bottom-color: var(--red); }
-.explain-link:active:not(:disabled) { background: transparent; color: var(--red); }
+.explain-link:hover:not(:disabled),
+.explain-link:focus-visible:not(:disabled) {
+  color: var(--red); border-bottom: 1px dotted var(--red);
+}
+.explain-link:active:not(:disabled) { color: var(--red); }
 
 /* the per-layer "math, stage by stage" breadcrumb inside an opened layer */
 .stage-crumb {
@@ -404,7 +410,9 @@ button.busy { border-color: var(--red); color: var(--red); }
   padding: var(--sp-4); margin: var(--sp-2) 0 var(--sp-3) 38px;
   background: var(--bg);
 }
-.heads { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 10px; }
+.heads { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 10px; }
+/* minmax(0,…) + per-cell scroll keeps wide dot strips from blowing out the grid */
+.head { min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; }
 .head .hl {
   color: var(--dim); font-size: var(--t-tiny); margin-bottom: 4px;
   font-family: var(--dot); font-weight: 600; letter-spacing: 0.08em;
@@ -532,6 +540,51 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .code .c-str { color: #989898; }
 .code .c-comment { color: #8a8a8a; font-style: italic; }
 
+/* ---------- the woven "under the hood" view ---------- */
+.under-hood { margin-top: var(--sp-3); }
+.uh-controls {
+  display: flex; align-items: center; gap: var(--sp-3);
+  color: var(--dim); font-size: var(--t-tiny); margin-bottom: var(--sp-1);
+}
+.uh-sel { display: flex; align-items: center; gap: 6px; }
+.uh-sel input {
+  width: 48px; background: var(--surface); border: 1px solid var(--hair);
+  color: var(--ink); font: inherit; padding: 1px 4px; text-align: right;
+}
+.uh-loading { color: var(--red); }
+.uh-code { margin-top: 0; }
+
+/* a curated, hoverable named quantity inside the source. quiet dotted underline
+   so it reads as interactive; its highlight is an ink-brighten, never red. */
+.uh-var {
+  border-bottom: 1px dotted var(--faint); cursor: help;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+}
+.uh-var:hover, .uh-var.hot { color: #fff; background: #1d1d1d; border-bottom-color: var(--ink); }
+
+/* the matching prose term: reads like the intro's <b> at rest, lights in sync */
+.uh-term {
+  color: var(--ink); font-weight: normal; cursor: help;
+  border-bottom: 1px dotted var(--faint); transition: color 0.12s, border-color 0.12s;
+}
+.uh-term:hover, .uh-term.hot { color: #fff; border-bottom-color: var(--ink); }
+
+/* the fixed readout: shows the hovered name's real value for this token. fixed
+   so the code above never reflows. */
+.uh-readout {
+  margin-top: var(--sp-2); padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--hair); border-left: 2px solid var(--faint);
+  background: var(--surface); font-size: var(--t-tiny); line-height: 1.6;
+  min-height: 2.4em; color: var(--dim);
+}
+.uh-readout-name { color: var(--ink); font-weight: 600; font-family: var(--dot); }
+.uh-readout-meaning { color: var(--dim); }
+.uh-val { color: var(--ink); font-variant-numeric: tabular-nums; }
+.uh-readout-idle { color: var(--faint); }
+@media (prefers-reduced-motion: reduce) {
+  .uh-var, .uh-term { transition: none; }
+}
+
 /* ---------- backend segmented toggle ---------- */
 .seg { display: inline-flex; border: 1px solid var(--hair); }
 .seg-dim { opacity: 0.5; }
@@ -581,7 +634,15 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 /* the layer row's dot strip and the selection table can exceed a phone's
    width; these wrappers scroll them instead of breaking the page. harmless
    on desktop (no overflow → no scrollbar). */
-.row-dots { display: flex; }
+/* the dot strip takes the leftover width and scrolls inside itself when there
+   are many positions (~90+ tokens), so the page never gains a horizontal
+   scrollbar and the layer number / glance / rms columns stay pinned in view.
+   `flex: 0 1 auto` keeps short sequences compact (no stretch). */
+.row-dots {
+  display: flex; flex: 0 1 auto; min-width: 0;
+  overflow-x: auto; overscroll-behavior-x: contain;
+}
+.lnum, .glance, .rn { flex-shrink: 0; }
 .tbl-scroll { overflow-x: auto; }
 
 /* ---------- mobile / narrow viewport ---------- */
@@ -642,24 +703,24 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 /* ---------- the geometry view ---------- */
 .geo-toggle .seg-opt { font-size: var(--t-tiny); text-transform: lowercase; }
 
-.geo-wrap { display: flex; gap: var(--sp-5); align-items: stretch; }
-.geo-svg { flex: 1 1 auto; width: 100%; max-width: 760px; height: auto; display: block; }
-.geo-side { flex: 0 0 220px; display: flex; flex-direction: column; gap: var(--sp-4); justify-content: center; }
+.geo-wrap { display: flex; gap: var(--sp-5); align-items: center; }
+.geo-view { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); }
+.geo-svg { width: 100%; max-width: 760px; height: auto; display: block; }
 
 /* faint reference rings — scale, not data */
 .geo-guide { fill: none; stroke: var(--hair); stroke-width: 1; }
 
-/* the focus at the centre */
+/* the focus at the center */
 .geo-focus { fill: var(--ink); }
 .geo-focus-label {
   fill: var(--dim); font-family: var(--mono); font-size: var(--t-tiny);
-  text-anchor: middle; text-transform: lowercase; letter-spacing: 0.04em;
+  text-anchor: middle; letter-spacing: 0.04em;
 }
 
 /* spokes — quiet, so the node's distance reads before the line */
 .geo-spoke { stroke: var(--hair); stroke-width: 1; }
 
-/* candidate / neighbour nodes */
+/* candidate / neighbor nodes */
 .geo-node circle { fill: var(--faint); transition: r 0.18s ease, fill 0.18s ease; }
 .geo-node text {
   fill: var(--ink); font-family: var(--mono); font-size: var(--t-tiny);
@@ -668,10 +729,20 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .geo-node:hover circle { fill: var(--ink); }
 .geo-node.win circle { fill: var(--red); }
 .geo-node.win text { fill: var(--red); }
-.geo-node-label, .geo-focus-label, .geo-src-label, .geo-status { pointer-events: none; }
+.geo-node-label, .geo-focus-label, .geo-src-label, .geo-status, .geo-region { pointer-events: none; }
 
-/* attention overlay — edge opacity/width carries the real weight */
-.geo-edge { fill: none; stroke: var(--red); stroke-linecap: round; }
+/* literal-token treatment: whitespace / non-printing / repeat-runs read as a
+   deliberate "literal token", never a render error. quiet, never red. */
+.geo-lit { fill: var(--dim); text-decoration: underline dotted; letter-spacing: 0.08em; }
+
+/* attention overlay — its own labeled region; edge weight/opacity = real
+   attention, monochrome (red is reserved for the winner only) */
+.geo-divider { stroke: var(--hair); stroke-width: 1; }
+.geo-region {
+  fill: var(--dim); font-family: var(--mono); font-size: var(--t-micro);
+  text-transform: lowercase; letter-spacing: 0.08em;
+}
+.geo-edge { fill: none; stroke: var(--ink); stroke-linecap: round; }
 .geo-src circle { fill: var(--dim); }
 .geo-src:hover circle { fill: var(--ink); }
 .geo-src-label {
@@ -680,21 +751,26 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 .geo-status { fill: var(--dim); font-family: var(--mono); font-size: var(--t-tiny); text-anchor: middle; }
 
-/* the one large numeral, Doto */
-.geo-figure-box { border: 1px solid var(--hair); padding: var(--sp-3) var(--sp-4); }
+/* figure caption under the view: the one large numeral (Doto) + its reading */
+.geo-cap { display: flex; align-items: baseline; gap: var(--sp-2); }
 .geo-figure { font-family: var(--dot); font-weight: 700; font-size: var(--t-xl); color: var(--ink); }
-.geo-figure-cap { color: var(--dim); font-size: var(--t-tiny); margin-top: var(--sp-1); }
+.geo-figure-cap { color: var(--dim); font-size: var(--t-tiny); }
 
-.geo-honest { color: var(--faint); font-size: var(--t-tiny); line-height: 1.6; }
+.geo-honest { flex: 0 0 230px; color: var(--faint); font-size: var(--t-tiny); line-height: 1.6; }
 .geo-honest b { color: var(--dim); font-weight: 600; }
 .geo-key { color: var(--red); }
+
+/* the compact drawer card: fan only, simplified read */
+.geo-card { margin-top: var(--sp-3); }
+.geo-card .geo-svg { max-width: 360px; margin: 0 auto; }
+.geo-card-note { color: var(--faint); font-size: var(--t-tiny); line-height: 1.6; margin-top: var(--sp-2); }
 
 /* motion: the radius settle is the only animation; off under reduced-motion */
 .geo-svg.still .geo-node circle { transition: none; }
 
 @media (max-width: 720px) {
-  .geo-wrap { flex-direction: column; gap: var(--sp-3); }
-  .geo-side { flex: 1 1 auto; }
+  .geo-wrap { flex-direction: column; gap: var(--sp-3); align-items: stretch; }
+  .geo-honest { flex: 1 1 auto; }
 }
 
 /* ---------- scrollbar ---------- */

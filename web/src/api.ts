@@ -16,11 +16,26 @@ export async function getQuantSample(): Promise<QuantSample> {
 
 /** Top-n cosine neighbors of a token over the embedding matrix. A pure model
  *  read — gated client-side behind the geometry "meaning" read so it never
- *  fires on idle. */
-export async function getNeighbors(id: number, n = 12): Promise<Neighbor[]> {
-  const r = await fetch(`/api/v1/neighbors?id=${id}&n=${n}`);
-  if (!r.ok) throw new Error(`neighbors: ${r.status}`);
-  return r.json();
+ *  fires on idle. Neighbors are deterministic for a fixed model, so results are
+ *  cached per (id, n) and in-flight requests deduped: the band and the drawer
+ *  card asking for the same token share one network call. */
+const neighborCache = new Map<string, Promise<Neighbor[]>>();
+export function getNeighbors(id: number, n = 12): Promise<Neighbor[]> {
+  const key = `${id}:${n}`;
+  let p = neighborCache.get(key);
+  if (!p) {
+    p = fetch(`/api/v1/neighbors?id=${id}&n=${n}`)
+      .then((r) => {
+        if (!r.ok) throw new Error(`neighbors: ${r.status}`);
+        return r.json() as Promise<Neighbor[]>;
+      })
+      .catch((e) => {
+        neighborCache.delete(key); // let a failure be retried
+        throw e;
+      });
+    neighborCache.set(key, p);
+  }
+  return p;
 }
 
 function params(p: GenParams): URLSearchParams {

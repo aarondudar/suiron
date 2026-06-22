@@ -114,8 +114,8 @@ pub fn write_trace(
 ) -> String {
     let mut j = String::with_capacity(1 << 20);
     j.push_str(&format!(
-        "{{\"v\":1,\"model\":\"{}\",\"quant\":\"{}\",\"layers\":{},\"heads\":{},\"kv_heads\":{},\"n_prompt\":{},",
-        escape_json(model_name), quant, config.n_layers, config.n_heads, config.n_kv_heads, n_prompt
+        "{{\"v\":1,\"model\":\"{}\",\"quant\":\"{}\",\"layers\":{},\"heads\":{},\"kv_heads\":{},\"head_dim\":{},\"n_prompt\":{},",
+        escape_json(model_name), quant, config.n_layers, config.n_heads, config.n_kv_heads, config.head_dim, n_prompt
     ));
     if let Some(l) = live {
         let f = |t: Option<f64>| t.map_or("null".to_string(), |v| format!("{v:.2}"));

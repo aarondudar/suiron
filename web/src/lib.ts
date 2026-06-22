@@ -21,6 +21,22 @@ export function softmaxAt(logits: number[], t: number): number[] {
 /** token text in display quotes: q(" the") → “ the” */
 export const q = (t: string) => `“${esc(t)}”`
 
+/** Display a token for the geometry labels so whitespace / non-printing
+ *  "artifact" tokens stay legible instead of reading as render bugs. Maps the
+ *  invisible characters to visible glyphs, and flags only the genuine offenders
+ *  — pure whitespace, control/non-printing chars, and long single-symbol runs
+ *  (------, ____, ····) — as `literal` for a quiet underline. Ordinary
+ *  punctuation (. , ! ?) is NOT flagged: it reads fine and stays plain. */
+export function litToken(t: string): { text: string; literal: boolean } {
+  if (t === '') return { text: '∅', literal: true }
+  const text = t.replace(/ /g, '␣').replace(/\n/g, '↵').replace(/\t/g, '⇥')
+  const pureWhitespace = /^\s+$/.test(t)
+  // eslint-disable-next-line no-control-regex
+  const nonPrinting = /[\x00-\x1f\x7f-\x9f]/.test(t)
+  const repeatRun = /^(.)\1{3,}$/.test(t) // same char, 4+ times
+  return { text, literal: pureWhitespace || nonPrinting || repeatRun }
+}
+
 /** Deliberately n=1 (Aaron): the default experience showcases the TRACE of
  *  one deeply-inspectable token, not a stream of greedy text. Use the step
  *  button (or raise n) to continue generation. */

@@ -51,12 +51,8 @@ export function Selection({ sel, isPrompt }: { sel?: Sel; isPrompt: boolean }) {
   return (
     <section>
       <BandHeader
-        idx="04"
-        title={
-          <>
-            how this token was chosen <Explain of="draw" />
-          </>
-        }
+        idx="05"
+        title={<Explain of="draw">how this token was chosen</Explain>}
         sub={SUB.selection}
       />
       <div>{body}</div>

@@ -69,7 +69,7 @@ export function LayerStack({
     );
 
   const rows = [];
-  for (let l = trace.layers - 1; l >= 0; l--) {
+  for (let l = 0; l < trace.layers; l++) {
     const g = layerGlance(step, l, nPos);
     rows.push(
       <div
@@ -95,7 +95,7 @@ export function LayerStack({
             </>
           )}
         </span>
-        <span className="rn" title="how much information has built up by this layer (rms); it grows toward the top">
+        <span className="rn" title="how much information has built up by this layer (rms); it grows as the token moves down the stack">
           {step.rnorm[l]?.toFixed(1) ?? ""}
         </span>
       </div>,
@@ -107,15 +107,11 @@ export function LayerStack({
     <section>
       <BandHeader
         idx="02"
-        title={
-          <>
-            inside the {trace.layers} layers <Explain of="attention" />
-          </>
-        }
+        title={<Explain of="attention">inside the {trace.layers} layers</Explain>}
         sub={SUB.layers}
       >
-        <Explain of="embedding" />
-        <Explain of="residual" />
+        <Explain of="embedding" label="embedding" />
+        <Explain of="residual" label="residual" />
       </BandHeader>
       <div onMouseLeave={() => setHover({ kind: "none" })}>{rows}</div>
     </section>

@@ -7,24 +7,22 @@ import type { Backend, GenParams } from "../types";
 export function Controls({
   busy,
   hasTokens,
-  follow,
-  setFollow,
   prompt,
   setPrompt,
   params,
   setParams,
+  onGenerate,
   onStep,
   onWalk,
   canWalk,
 }: {
   busy: boolean;
   hasTokens: boolean;
-  follow: boolean;
-  setFollow: (v: boolean) => void;
   prompt: string;
   setPrompt: (p: string) => void;
   params: GenParams;
   setParams: (p: GenParams) => void;
+  onGenerate: () => void;
   onStep: () => void;
   onWalk: () => void;
   canWalk: boolean;
@@ -36,18 +34,17 @@ export function Controls({
 
   const go = () => {
     const text = prompt.trim();
-    if (text && !busy) void generate(text, p);
+    if (text && !busy) {
+      onGenerate();
+      void generate(text, p);
+    }
   };
 
   return (
     <section>
       <BandHeader
         idx="00"
-        title={
-          <>
-            prompt <Explain of="settings" />
-          </>
-        }
+        title={<Explain of="settings">prompt</Explain>}
         sub={SUB.prompt}
       />
       <div className="ctl-row">
@@ -94,25 +91,22 @@ export function Controls({
           n <input type="number" value={p.n} min={1} max={512} onChange={num("n")} />
         </label>
         <label data-explain-el="ctl-temp">
-          temp <input type="number" value={p.temp} step={0.1} min={0} max={2} onChange={num("temp")} />
-          <Explain of="temperature" />
+          <Explain of="temperature">temp</Explain>{" "}
+          <input type="number" value={p.temp} step={0.1} min={0} max={2} onChange={num("temp")} />
         </label>
         <label data-explain-el="ctl-topk">
-          top-k <input type="number" value={p.top_k} min={0} onChange={num("top_k")} />
-          <Explain of="topk" />
+          <Explain of="topk">top-k</Explain>{" "}
+          <input type="number" value={p.top_k} min={0} onChange={num("top_k")} />
         </label>
         <label data-explain-el="ctl-topp">
-          top-p <input type="number" value={p.top_p} step={0.05} min={0} max={1} onChange={num("top_p")} />
-          <Explain of="topp" />
+          <Explain of="topp">top-p</Explain>{" "}
+          <input type="number" value={p.top_p} step={0.05} min={0} max={1} onChange={num("top_p")} />
         </label>
         <label>
           seed <input type="number" value={p.seed} min={0} onChange={num("seed")} />
         </label>
         <label>
           <input type="checkbox" checked={p.chat} onChange={(e) => setParams({ ...p, chat: e.target.checked })} /> chat
-        </label>
-        <label>
-          <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> follow
         </label>
       </div>
     </section>
