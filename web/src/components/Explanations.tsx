@@ -23,6 +23,7 @@ export const SUB = {
   logits: "the model's ranked guesses for the next token.",
   selection: "how the model goes from ranked guesses to one actual token.",
   layers: "the token's vector flows through every layer in order; each one reads the earlier tokens. open a layer for its heads and math.",
+  geometry: "every token is a direction in space; the next token is whichever vocabulary vector that direction points at most.",
   quant: "the same model stored in fewer bytes, and the speed that buys.",
 };
 
@@ -278,6 +279,35 @@ export const CONCEPTS: Record<string, Concept> = {
           closer match means a higher score. Each raw score is a <b>logit</b>. <b>Softmax</b> then
           turns all 151,936 logits into probabilities that add up to 100%.{read} Click a bar to{" "}
           <b>force</b> that token instead and watch the model continue from that choice.
+        </>
+      );
+    },
+  },
+
+  geometry: {
+    id: "geometry",
+    title: "the geometry of one prediction",
+    highlight: () => ({ kind: "el", ref: "geo" }),
+    intro: (c) => {
+      const top = c.step.top ?? [];
+      const win = top[0];
+      return (
+        <>
+          Every token's <b>1,024</b> numbers are a direction in space, and directions that point a
+          similar way mean similar things. This view draws that directly. <b>What it means</b>{" "}
+          centers on the inspected token and places its closest vocabulary entries around it, with
+          distance set by real <b>cosine</b> similarity, so the nearest entries are the ones the
+          model treats as most alike. <b>What comes next</b> centers on the direction the token
+          produces after every layer and places the candidate next-tokens around it, with distance
+          set by their <b>logit</b> below the top guess
+          {win ? (
+            <>
+              ; here it points hardest at {q(win[1])}
+            </>
+          ) : null}
+          . The attention edges show the earlier tokens that built that direction. Distance is the
+          only spatial claim and it is always a real number; the angle around the center is just
+          spacing.
         </>
       );
     },
