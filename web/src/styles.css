@@ -420,6 +420,20 @@ button.busy { border-color: var(--red); color: var(--red); }
 .row:hover .lens-mark { color: var(--dim); }
 .row:hover .lens-mark.leads { color: var(--red); }
 
+/* curated moments: hairline labels pointing at the layer that mattered. the
+   output-character moment sits under the band header; per-layer moments annotate
+   their row. red only on the decision moment (where the winner takes the lead). */
+.moment-output {
+  color: var(--dim); font-size: var(--t-tiny); letter-spacing: 0.04em;
+  margin: -2px 0 var(--sp-3) 38px;
+}
+.moment-row {
+  color: var(--dim); font-size: var(--t-tiny); letter-spacing: 0.04em;
+  margin: 1px 0 2px 38px; padding-left: var(--sp-2);
+  border-left: 1px solid var(--hair);
+}
+.moment-row.decision { color: var(--red); border-left-color: var(--red); }
+
 .detail {
   border: 1px solid var(--hair); border-left: 2px solid var(--red);
   padding: var(--sp-4); margin: var(--sp-2) 0 var(--sp-3) 38px;

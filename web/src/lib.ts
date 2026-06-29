@@ -1,4 +1,4 @@
-import type { AttnEdge, GenParams, Step, Trace } from './types'
+import type { AttnEdge, GenParams, Lens, Step, Trace } from './types'
 
 /** display text for a token (empty renders as a middle dot) */
 export const esc = (t: string) => (t === '' ? '·' : t)
@@ -141,4 +141,83 @@ export function headGlance(edges: AttnEdge[]): { topPos: number; share: number }
     if (e[1] > top[1]) top = e
   }
   return sum > 0 ? { topPos: top[0], share: top[1] / sum } : null
+}
+
+/** A curated "moment" worth pointing at for this prompt. Every marker cites the
+ *  real number that earned it; one that no real value supports does not render. */
+export interface Marker {
+  kind: 'attention' | 'decision' | 'output'
+  /** the layer it points at, when it is a per-layer moment */
+  layer?: number
+  label: string
+}
+
+/** The teacher's finger: 1–3 real moments for the inspected token, derived
+ *  purely from the trace (and the lens, when the lens read is open). Pure and
+ *  deterministic.
+ *  - attention lock: the layer whose mean-head attention concentrates most on
+ *    one earlier token (absent on the first token).
+ *  - decision: the layer where the lens top-1 first becomes the final winner
+ *    (absent unless `lens` is provided).
+ *  - output: runaway vs near-tie at the end, from the real top-2 gap. */
+export function moments(trace: Trace, cur: number, lens?: Lens | null): Marker[] {
+  const step = trace.steps[cur]
+  if (!step) return []
+  const out: Marker[] = []
+  const nPos = cur + 1
+  const tok = (p: number) => esc(trace.tokens[p]?.t ?? '')
+
+  if (cur > 0) {
+    // the layer that concentrates the most attention onto one EARLIER token.
+    // Exclude self (the diagonal at `cur`) and the attention sink (pos 0, which
+    // means "found nothing") when a content token is available. Share is the
+    // real mean-head weight on that token over the row's total.
+    const lo = cur > 1 ? 1 : 0 // pos 0 only counts when it is the only earlier token
+    let best: { layer: number; pos: number; share: number } | null = null
+    for (let l = 0; l < trace.layers; l++) {
+      const w = meanHeadWeights(step, l, nPos)
+      const sum = w.reduce((a, b) => a + b, 0)
+      if (sum <= 0) continue
+      let p = -1
+      for (let qpos = lo; qpos < cur; qpos++) if (p < 0 || w[qpos] > w[p]) p = qpos
+      if (p < 0) continue
+      const share = w[p] / sum
+      if (best === null || share > best.share) best = { layer: l, pos: p, share }
+    }
+    if (best && best.share > 0) {
+      out.push({
+        kind: 'attention',
+        layer: best.layer,
+        label: `layer ${best.layer} · attention locks onto “${tok(best.pos)}” (${(best.share * 100).toFixed(0)}%)`,
+      })
+    }
+  }
+
+  if (lens && lens.layers.length) {
+    const finalWin = lens.layers[lens.layers.length - 1]?.top[0]?.[0]
+    const l = finalWin === undefined ? -1 : lens.layers.findIndex((L) => L.top[0]?.[0] === finalWin)
+    if (l >= 0) {
+      const w = lens.layers[lens.layers.length - 1].top[0]
+      out.push({ kind: 'decision', layer: l, label: `layer ${l} · “${esc(w[1])}” takes the lead` })
+    }
+  }
+
+  const top = step.top ?? []
+  if (top.length >= 2) {
+    const [, at, ap] = top[0]
+    const [, bt, bp] = top[1]
+    const gap = ap - bp
+    const pct = (p: number) => (p * 100).toFixed(0)
+    const label =
+      gap > 0.5
+        ? `output · “${esc(at)}” runs away (${pct(ap)}%)`
+        : gap < 0.08
+          ? `output · near-tie: “${esc(at)}” ${pct(ap)}% vs “${esc(bt)}” ${pct(bp)}%`
+          : `output · “${esc(at)}” leads (${pct(ap)}%)`
+    out.push({ kind: 'output', label })
+  } else if (top.length === 1) {
+    out.push({ kind: 'output', label: `output · “${esc(top[0][1])}” (${(top[0][2] * 100).toFixed(0)}%)` })
+  }
+
+  return out
 }

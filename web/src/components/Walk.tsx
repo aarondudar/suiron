@@ -13,6 +13,9 @@ export interface WalkStop {
   label: string;
   /** attention stop opens a layer's detail so its heads are visible */
   expandLayer?: boolean;
+  /** optional prompt-derived layer to expand instead of the default: the curated
+   *  moment of this kind decides which layer mattered for this prompt */
+  expandMoment?: "attention-lock";
 }
 
 export const WALK: WalkStop[] = [
@@ -20,10 +23,11 @@ export const WALK: WalkStop[] = [
   { concept: "settings", label: "the settings" },
   { concept: "tokenization", label: "tokens" },
   { concept: "embedding", label: "into the stack" },
-  { concept: "attention", label: "attention", expandLayer: true },
+  { concept: "attention", label: "attention", expandLayer: true, expandMoment: "attention-lock" },
   { concept: "feedforward", label: "feed-forward" },
   { concept: "logits", label: "the prediction" },
   { concept: "geometry", label: "what comes next" },
+  { concept: "lens", label: "the climb" },
   { concept: "draw", label: "the draw" },
   { concept: "loop", label: "and then repeat" },
 ];

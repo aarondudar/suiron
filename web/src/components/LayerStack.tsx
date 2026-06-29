@@ -1,4 +1,4 @@
-import { edgesToWeights, headGlance, layerGlance, litToken, meanHeadWeights, q } from "../lib";
+import { edgesToWeights, headGlance, layerGlance, litToken, meanHeadWeights, moments, q, type Marker } from "../lib";
 import type { FocusTarget, Step, Trace } from "../types";
 import { BandHeader } from "./BandHeader";
 import { DotStrip } from "./DotStrip";
@@ -46,6 +46,12 @@ export function LayerStack({
   const finalWin = lens?.layers[lens.layers.length - 1]?.top[0]?.[0];
   const firstLead =
     lens && finalWin !== undefined ? lens.layers.findIndex((L) => L.top[0]?.[0] === finalWin) : -1;
+
+  // curated moments for this token (decision only when the lens read is open)
+  const markers = moments(trace, nPos - 1, lens);
+  const byLayer = new Map<number, Marker>();
+  for (const m of markers) if (m.layer !== undefined) byLayer.set(m.layer, m);
+  const outputMarker = markers.find((m) => m.kind === "output");
 
   const detail = (l: number) =>
     step.attn[l] && (
@@ -124,6 +130,14 @@ export function LayerStack({
         </span>
       </div>,
     );
+    const mk = byLayer.get(l);
+    if (mk) {
+      rows.push(
+        <div className={"moment-row " + mk.kind} key={`m${l}`}>
+          {mk.label}
+        </div>,
+      );
+    }
     if (l === openLayer) rows.push(detail(l));
   }
 
@@ -137,6 +151,7 @@ export function LayerStack({
         <Explain of="embedding" label="embedding" />
         <Explain of="residual" label="residual" />
       </BandHeader>
+      {outputMarker && <div className="moment-output">{outputMarker.label}</div>}
       <div onMouseLeave={() => setHover({ kind: "none" })}>{rows}</div>
     </section>
   );

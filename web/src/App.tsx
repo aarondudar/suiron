@@ -11,7 +11,7 @@ import { Quantization } from "./components/Quantization";
 import { Selection } from "./components/Selection";
 import { TokenStrip } from "./components/TokenStrip";
 import { focusSelector, WALK, WalkBar } from "./components/Walk";
-import { DEFAULT_PARAMS } from "./lib";
+import { DEFAULT_PARAMS, moments } from "./lib";
 import type { FocusTarget, GenParams, Trace } from "./types";
 
 const NONE: FocusTarget = { kind: "none" };
@@ -159,9 +159,19 @@ export default function App() {
       return;
     }
     const stop = WALK[i];
-    if (stop.expandLayer) setOpenLayer(ctx.layer);
+    let tgt = CONCEPTS[stop.concept]?.highlight?.(ctx) ?? NONE;
+    if (stop.expandLayer) {
+      // point the attention stop at this prompt's attention-lock layer, and
+      // light / scroll to that same layer (not the stale default)
+      let layer = ctx.layer;
+      if (stop.expandMoment === "attention-lock") {
+        const m = moments(ctx.trace, ctx.cur).find((mk) => mk.kind === "attention");
+        if (m?.layer !== undefined) layer = m.layer;
+      }
+      setOpenLayer(layer);
+      if (stop.expandMoment) tgt = { kind: "layer", layer };
+    }
     setActive(stop.concept);
-    const tgt = CONCEPTS[stop.concept]?.highlight?.(ctx) ?? NONE;
     setProgFocus(tgt);
     setWalk(i);
     if (scroll) {
