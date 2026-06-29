@@ -99,6 +99,73 @@ fn model_loads_with_expected_architecture() {
 }
 
 #[test]
+fn worked_dot_matches_engine_score() {
+    // The worked-operation demo re-exposes the post-norm+RoPE query for one head
+    // and the source key for that head's KV group; their dot product scaled by
+    // 1/√head_dim must equal the score the engine already computed. This pins the
+    // indexing (head slice, GQA kv_head, source offset) the inspect endpoint and
+    // the web stepper both rely on.
+    if !std::path::Path::new(MODEL).exists() {
+        eprintln!("skipping: {MODEL} not present");
+        return;
+    }
+    let file = GgufFile::open(MODEL).expect("parse");
+    let model = Model::load(&file).expect("load");
+    let tok = Tokenizer::from_gguf(&file).expect("tokenizer");
+    let ids = tok.encode("The capital of France is");
+    assert!(ids.len() >= 2);
+
+    let cfg = &model.config;
+    let (hd, layer, head) = (cfg.head_dim, 5usize, 3usize);
+    let kv_dim = cfg.n_kv_heads * hd;
+    let kv_head = head / (cfg.n_heads / cfg.n_kv_heads);
+
+    // capture the target layer's recorded q vector and per-head scores at the
+    // final position (after prefilling the earlier tokens)
+    struct Cap {
+        layer: usize,
+        q: Vec<f32>,
+        scores: Vec<Vec<f32>>,
+    }
+    impl suiron_core::forward::Observer for Cap {
+        fn vector(&mut self, l: usize, name: &'static str, v: &[f32]) {
+            if l == self.layer && name == "q" {
+                self.q = v.to_vec();
+            }
+        }
+        fn scores(&mut self, l: usize, _head: usize, s: &[f32]) {
+            if l == self.layer {
+                self.scores.push(s.to_vec());
+            }
+        }
+    }
+
+    let mut cache = KvCache::new(&model);
+    for &t in &ids[..ids.len() - 1] {
+        forward(&model, &mut cache, t, Backend::F32, None);
+    }
+    let mut cap = Cap { layer, q: Vec::new(), scores: Vec::new() };
+    forward(&model, &mut cache, *ids.last().unwrap(), Backend::F32, Some(&mut cap));
+
+    let n_pos = ids.len();
+    assert_eq!(cap.scores.len(), cfg.n_heads, "one score row per head");
+    assert_eq!(cache.k[layer].len(), n_pos * kv_dim, "all positions cached");
+
+    let scale = 1.0 / (hd as f32).sqrt();
+    let q = &cap.q[head * hd..head * hd + hd];
+    for src in 0..n_pos {
+        let kstart = src * kv_dim + kv_head * hd;
+        let k = &cache.k[layer][kstart..kstart + hd];
+        let recomputed: f32 = q.iter().zip(k).map(|(a, b)| a * b).sum::<f32>() * scale;
+        let engine = cap.scores[head][src];
+        assert!(
+            (recomputed - engine).abs() < 1e-3,
+            "layer {layer} head {head} src {src}: worked {recomputed} vs engine {engine}"
+        );
+    }
+}
+
+#[test]
 fn matches_llama_cpp_reference_ids() {
     // Fixtures captured from `llama-tokenize` (llama.cpp, 2026-06-10) on this
     // exact model file. 13/13 parity inputs passed; these pin three of them.

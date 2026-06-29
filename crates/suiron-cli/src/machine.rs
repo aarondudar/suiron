@@ -3,7 +3,8 @@
 //! engine's own source code served for the code-level cards.
 
 use crate::trace::escape_json;
-use suiron_core::forward::Observer;
+use suiron_core::forward::{KvCache, Observer};
+use suiron_core::model::Config;
 
 const SRC_MATH: &str = include_str!("../../suiron-core/src/math.rs");
 const SRC_FORWARD: &str = include_str!("../../suiron-core/src/forward.rs");
@@ -58,9 +59,74 @@ fn vec_json(v: &[f32], head_n: usize) -> String {
     )
 }
 
+/// One (head, source) query·key slice for the worked-dot-product demo: the full
+/// `head_dim` query for `head` and the source position's key for that head's KV
+/// group — the two vectors whose dot product, scaled by 1/√head_dim, is the
+/// head's recorded score. Pure exposure of values `forward()` already produced;
+/// no new compute.
+pub struct WorkedDot {
+    pub head: usize,
+    pub src: usize,
+    pub q: Vec<f32>,
+    pub k: Vec<f32>,
+}
+
+/// Pull the (head, src) query/key slice out of one deep inspection. `q` is the
+/// post-norm+RoPE query recorded for this layer; `k` is the source key for this
+/// head's KV group, read from the cache after the forward pass. `src_req`
+/// defaults to the head's strongest attention edge. None if indices are out of
+/// range (then the inspect response simply omits the slice).
+pub fn worked_dot(
+    obs: &DeepObserver,
+    cache: &KvCache,
+    head: usize,
+    src_req: Option<usize>,
+    cfg: &Config,
+) -> Option<WorkedDot> {
+    let hd = cfg.head_dim;
+    let kv_dim = cfg.n_kv_heads * hd;
+    let group = cfg.n_heads / cfg.n_kv_heads;
+    if head >= cfg.n_heads {
+        return None;
+    }
+    // the full post-norm+RoPE query vector forward() recorded for this layer
+    let q = obs.vectors.iter().find(|kv| kv.0 == "q").map(|kv| &kv.1)?;
+    let weights = obs.weights.get(head)?;
+    if (head + 1) * hd > q.len() || weights.is_empty() {
+        return None;
+    }
+    // strongest source by this head's softmax weights, unless one is requested
+    let src = src_req.unwrap_or_else(|| {
+        let mut m = 0;
+        for i in 1..weights.len() {
+            if weights[i] > weights[m] {
+                m = i;
+            }
+        }
+        m
+    });
+    let layer_k = cache.k.get(obs.layer)?;
+    let start = src * kv_dim + (head / group) * hd;
+    if src >= weights.len() || start + hd > layer_k.len() {
+        return None;
+    }
+    Some(WorkedDot {
+        head,
+        src,
+        q: q[head * hd..head * hd + hd].to_vec(),
+        k: layer_k[start..start + hd].to_vec(),
+    })
+}
+
 /// Serialize one deep inspection. `token` is (id, text) of the inspected
-/// position.
-pub fn inspect_json(obs: &DeepObserver, pos: usize, token: (u32, &str)) -> String {
+/// position. `worked`, when present, adds the full q/k slice for one (head,
+/// src) so the web can step the real dot product.
+pub fn inspect_json(
+    obs: &DeepObserver,
+    pos: usize,
+    token: (u32, &str),
+    worked: Option<&WorkedDot>,
+) -> String {
     let mut j = String::with_capacity(1 << 16);
     j.push_str(&format!(
         "{{\"pos\":{pos},\"layer\":{},\"token\":{{\"id\":{},\"t\":\"{}\"}}",
@@ -80,7 +146,25 @@ pub fn inspect_json(obs: &DeepObserver, pos: usize, token: (u32, &str)) -> Strin
         let w: Vec<String> = weights.iter().map(|x| format!("{x:.4}")).collect();
         j.push_str(&format!("{{\"scores\":[{}],\"weights\":[{}]}}", s.join(","), w.join(",")));
     }
-    j.push_str("]}");
+    j.push(']');
+    if let Some(w) = worked {
+        j.push_str(&format!(",\"worked\":{{\"head\":{},\"src\":{},\"q\":[", w.head, w.src));
+        for (i, x) in w.q.iter().enumerate() {
+            if i > 0 {
+                j.push(',');
+            }
+            j.push_str(&format!("{x:.6}"));
+        }
+        j.push_str("],\"k\":[");
+        for (i, x) in w.k.iter().enumerate() {
+            if i > 0 {
+                j.push(',');
+            }
+            j.push_str(&format!("{x:.6}"));
+        }
+        j.push_str("]}");
+    }
+    j.push('}');
     j
 }
 

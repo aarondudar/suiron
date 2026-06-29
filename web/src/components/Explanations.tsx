@@ -9,6 +9,7 @@
 import type { ReactNode } from "react";
 import { confidence, layerGlance, q } from "../lib";
 import type { FocusTarget, GenParams, Sel, Step, Trace } from "../types";
+import { DotProduct } from "./DotProduct";
 import { EngineSource } from "./EngineSource";
 import { Term } from "./Explainer";
 import { GeometryCard, type Read } from "./Geometry";
@@ -178,7 +179,12 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "attention",
     title: "attention",
     highlight: (c) => ({ kind: "layer", layer: c.layer }),
-    interactive: (c) => <UnderHood ctx={c} stage="attention" />,
+    interactive: (c) => (
+      <>
+        <DotProduct ctx={c} />
+        <UnderHood ctx={c} stage="attention" />
+      </>
+    ),
     intro: (c) => {
       const g = c.cur > 0 ? layerGlance(c.step, c.layer, c.cur + 1) : null;
       return (

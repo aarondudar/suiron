@@ -590,6 +590,44 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   .uh-var, .uh-term { transition: none; }
 }
 
+/* ---------- worked dot product (one real attention score) ---------- */
+.dotprod { margin-top: var(--sp-3); border: 1px solid var(--hair); padding: var(--sp-3); }
+.dp-title {
+  color: var(--ink); font-size: var(--t-tiny); text-transform: lowercase;
+  letter-spacing: 0.08em; margin-bottom: var(--sp-2);
+}
+.dp-controls { display: flex; gap: var(--sp-3); margin-bottom: var(--sp-2); }
+.dp-sel { display: flex; align-items: center; gap: 6px; color: var(--dim); font-size: var(--t-tiny); }
+.dp-sel input {
+  width: 48px; background: var(--surface); border: 1px solid var(--hair);
+  color: var(--ink); font: inherit; padding: 1px 4px; text-align: right;
+}
+.dp-status { color: var(--faint); font-size: var(--t-tiny); }
+.dp-src { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--dim); font-size: var(--t-tiny); }
+.dp-src-opt {
+  border: 1px solid var(--hair); background: var(--surface); color: var(--dim);
+  font: inherit; font-size: var(--t-tiny); padding: 1px 6px; white-space: pre; cursor: pointer;
+}
+.dp-src-opt.on { border-color: var(--red); color: var(--ink); }
+.dp-src-opt:hover:not(.on) { color: var(--ink); }
+.dp-formula { color: var(--dim); font-size: var(--t-body); margin: var(--sp-2) 0; }
+.dp-step { color: var(--dim); font-size: var(--t-tiny); font-variant-numeric: tabular-nums; }
+.dp-step b { color: var(--ink); font-family: var(--dot); }
+.dp-term { margin-left: var(--sp-2); color: var(--red); }
+.dp-prod { color: var(--red); font-weight: 600; }
+.dp-runsum { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2) 0; }
+.dp-bar { flex: 1; height: 6px; background: #101010; min-width: 80px; }
+.dp-bar-fill { height: 100%; background: var(--ink); transition: width 0.12s linear; }
+.dp-runsum-val { color: var(--dim); font-size: var(--t-tiny); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dp-result { font-size: var(--t-tiny); color: var(--dim); font-variant-numeric: tabular-nums; }
+.dp-score { color: var(--red); font-weight: 600; }
+.dp-check { color: var(--faint); }
+.dp-buttons { display: flex; gap: var(--sp-1); margin-top: var(--sp-2); }
+.dp-buttons button { font-size: var(--t-tiny); padding: 2px 8px; }
+@media (prefers-reduced-motion: reduce) {
+  .dp-bar-fill { transition: none; }
+}
+
 /* ---------- backend segmented toggle ---------- */
 .seg { display: inline-flex; border: 1px solid var(--hair); }
 .seg-dim { opacity: 0.5; }

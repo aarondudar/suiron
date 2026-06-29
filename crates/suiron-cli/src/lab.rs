@@ -146,7 +146,7 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                 }
             }
             ("GET", "/api/v1/inspect") => {
-                let (pos, layer) = parse_inspect(&path);
+                let (pos, layer, head, src) = parse_inspect(&path);
                 let setup = {
                     let st = shared.lock().unwrap();
                     if st.busy {
@@ -168,8 +168,21 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                         // deep inspection always uses the f32 reference math
                         let mut deep = crate::machine::DeepObserver::new(layer);
                         forward(&model, &mut c, id, Backend::F32, Some(&mut deep));
+                        // optional worked q/k slice when a head is requested
+                        let worked = (head != usize::MAX)
+                            .then(|| {
+                                crate::machine::worked_dot(
+                                    &deep,
+                                    &c,
+                                    head,
+                                    (src != usize::MAX).then_some(src),
+                                    &model.config,
+                                )
+                            })
+                            .flatten();
                         let text = tok.decode(&[id]);
-                        let json = crate::machine::inspect_json(&deep, pos, (id, &text));
+                        let json =
+                            crate::machine::inspect_json(&deep, pos, (id, &text), worked.as_ref());
                         respond(&mut s, "200 OK", "application/json", json.as_bytes());
                     }
                 }
@@ -499,20 +512,24 @@ fn finish(shared: &Mutex<Shared>, cache: KvCache, logits: Vec<f32>) {
     st.seq += 1;
 }
 
-/// inspect params: ?pos=<position>&layer=<layer>
-fn parse_inspect(path: &str) -> (usize, usize) {
-    let (mut pos, mut layer) = (usize::MAX, usize::MAX);
+/// inspect params: ?pos=<position>&layer=<layer>[&head=<h>&src=<p>]
+/// head/src are optional; when head is present the response adds the worked q/k
+/// slice (src defaults to that head's strongest attention edge).
+fn parse_inspect(path: &str) -> (usize, usize, usize, usize) {
+    let (mut pos, mut layer, mut head, mut src) = (usize::MAX, usize::MAX, usize::MAX, usize::MAX);
     if let Some(q) = path.split_once('?').map(|(_, q)| q) {
         for kv in q.split('&') {
             let Some((k, v)) = kv.split_once('=') else { continue };
             match k {
                 "pos" => pos = v.parse().unwrap_or(usize::MAX),
                 "layer" => layer = v.parse().unwrap_or(usize::MAX),
+                "head" => head = v.parse().unwrap_or(usize::MAX),
+                "src" => src = v.parse().unwrap_or(usize::MAX),
                 _ => {}
             }
         }
     }
-    (pos, layer)
+    (pos, layer, head, src)
 }
 
 /// fork params: ?pos=<tokens to keep>&token=<forced id>

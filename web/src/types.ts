@@ -86,6 +86,17 @@ export interface Neighbor {
   cos: number;
 }
 
+/** The full head_dim-length query and key behind one attention score, returned
+ *  by /api/v1/inspect when a head (and optional src) is requested. The two real
+ *  vectors the worked dot-product demo steps through; their dot product scaled
+ *  by 1/√head_dim equals heads[head].scores[src]. */
+export interface WorkedDot {
+  head: number;
+  src: number;
+  q: number[];
+  k: number[];
+}
+
 /** one real Q8_0 block from the model, for the quantization explainer */
 export interface QuantSample {
   tensor: string;
