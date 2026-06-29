@@ -166,6 +166,61 @@ fn worked_dot_matches_engine_score() {
 }
 
 #[test]
+fn lens_final_layer_equals_logits() {
+    // The logit lens at the final layer must reproduce the real next-token
+    // logits exactly: it applies the same final RMSNorm + tied unembed to the
+    // last layer's residual that the forward pass applies at the end. This pins
+    // the lens invariant the endpoint and the UI rely on.
+    if !std::path::Path::new(MODEL).exists() {
+        eprintln!("skipping: {MODEL} not present");
+        return;
+    }
+    let file = GgufFile::open(MODEL).expect("parse");
+    let model = Model::load(&file).expect("load");
+    let tok = Tokenizer::from_gguf(&file).expect("tokenizer");
+    let ids = tok.encode("The capital of France is");
+
+    // capture every layer's residual (x_out) on the final token
+    struct Caps {
+        res: Vec<Vec<f32>>,
+    }
+    impl suiron_core::forward::Observer for Caps {
+        fn vector(&mut self, _l: usize, name: &'static str, v: &[f32]) {
+            if name == "x_out" {
+                self.res.push(v.to_vec());
+            }
+        }
+    }
+
+    let mut cache = KvCache::new(&model);
+    for &t in &ids[..ids.len() - 1] {
+        forward(&model, &mut cache, t, Backend::F32, None);
+    }
+    let mut caps = Caps { res: Vec::new() };
+    let logits = forward(&model, &mut cache, *ids.last().unwrap(), Backend::F32, Some(&mut caps));
+
+    assert_eq!(caps.res.len(), model.config.n_layers, "one residual per layer");
+
+    let real_top = suiron_core::sampling::argmax(&logits);
+    let probs = suiron_core::math::softmax(&logits);
+    let lens_last = model.lens_topk(caps.res.last().unwrap(), 5);
+
+    // final-layer lens top-1 id and probability equal the real logits'
+    assert_eq!(
+        lens_last[0].0, real_top,
+        "final-layer lens top-1 {} != real argmax {real_top}",
+        lens_last[0].0
+    );
+    assert!(
+        (lens_last[0].1 - probs[real_top as usize]).abs() < 1e-4,
+        "final-layer lens prob {} != real {}",
+        lens_last[0].1,
+        probs[real_top as usize]
+    );
+    eprintln!("lens final-layer top-1 id={real_top} p={:.4}", lens_last[0].1);
+}
+
+#[test]
 fn matches_llama_cpp_reference_ids() {
     // Fixtures captured from `llama-tokenize` (llama.cpp, 2026-06-10) on this
     // exact model file. 13/13 parity inputs passed; these pin three of them.

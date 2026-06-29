@@ -8,7 +8,7 @@
 
 use suiron_gguf::{GgmlType, GgufFile};
 
-use crate::math::{matmul, matvec_q8_0};
+use crate::math::{matmul, matvec_q8_0, rmsnorm, softmax};
 
 /// Which arithmetic a weight·vector product uses. Same result (within
 /// quantization tolerance), different memory traffic and speed. f32 is the
@@ -232,5 +232,22 @@ impl Model {
     /// The first result is the token itself (cosine 1.0).
     pub fn neighbors_of(&self, token: u32, n: usize) -> Vec<(u32, f32)> {
         self.neighbors(self.embedding(token), n)
+    }
+
+    /// The logit lens for one residual vector: what the model would predict if it
+    /// stopped here. Applies the final RMSNorm and the same unembed the forward
+    /// pass uses at the end (the tied embedding matrix, or `output` if untied),
+    /// then softmax, returning the top-`k` `(id, prob)`. Always f32 so the lens
+    /// is backend-independent. Applied to the final layer's residual it
+    /// reproduces the real logits exactly. Pure over the resident weights.
+    pub fn lens_topk(&self, residual: &[f32], k: usize) -> Vec<(u32, f32)> {
+        let xn = rmsnorm(residual, &self.output_norm.data, self.config.rms_eps);
+        let w_out = self.output.as_ref().unwrap_or(&self.token_embd);
+        let logits = w_out.matvec(&xn, Backend::F32);
+        let probs = softmax(&logits);
+        let mut idx: Vec<u32> = (0..probs.len() as u32).collect();
+        idx.sort_unstable_by(|&a, &b| probs[b as usize].total_cmp(&probs[a as usize]));
+        idx.truncate(k);
+        idx.into_iter().map(|i| (i, probs[i as usize])).collect()
     }
 }

@@ -135,6 +135,40 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                     respond(&mut s, "200 OK", "application/json", j.as_bytes());
                 }
             }
+            ("GET", "/api/v1/lens") => {
+                // logit lens: per-layer top-k for one position. Lazy, one forward
+                // over a cloned cache; reads residuals, does not touch inference.
+                let (pos, k) = parse_lens(&path);
+                let setup = {
+                    let st = shared.lock().unwrap();
+                    if st.busy {
+                        Err("busy")
+                    } else if pos >= st.tokens.len() {
+                        Err("bad pos")
+                    } else if let Some(cache) = &st.cache {
+                        let mut c = cache.clone();
+                        c.truncate(pos);
+                        Ok((c, st.tokens[pos].0))
+                    } else {
+                        Err("nothing to inspect — generate first")
+                    }
+                };
+                match setup {
+                    Err(e) => respond(&mut s, "409 Conflict", "text/plain", e.as_bytes()),
+                    Ok((mut c, id)) => {
+                        let mut obs = crate::machine::LensObserver::default();
+                        forward(&model, &mut c, id, Backend::F32, Some(&mut obs));
+                        let json = crate::machine::lens_json(
+                            &model,
+                            &obs.residuals,
+                            pos,
+                            k.clamp(1, 20),
+                            |i| tok.decode(&[i]),
+                        );
+                        respond(&mut s, "200 OK", "application/json", json.as_bytes());
+                    }
+                }
+            }
             ("GET", "/api/v1/source") => {
                 let name = path
                     .split_once("fn=")
@@ -510,6 +544,22 @@ fn finish(shared: &Mutex<Shared>, cache: KvCache, logits: Vec<f32>) {
     st.last_logits = logits;
     st.busy = false;
     st.seq += 1;
+}
+
+/// lens params: ?pos=<position>&k=<top-k> (k defaults to 5)
+fn parse_lens(path: &str) -> (usize, usize) {
+    let (mut pos, mut k) = (usize::MAX, 5usize);
+    if let Some(q) = path.split_once('?').map(|(_, q)| q) {
+        for kv in q.split('&') {
+            let Some((key, v)) = kv.split_once('=') else { continue };
+            match key {
+                "pos" => pos = v.parse().unwrap_or(usize::MAX),
+                "k" => k = v.parse().unwrap_or(5),
+                _ => {}
+            }
+        }
+    }
+    (pos, k)
 }
 
 /// inspect params: ?pos=<position>&layer=<layer>[&head=<h>&src=<p>]

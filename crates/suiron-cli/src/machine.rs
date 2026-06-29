@@ -5,6 +5,7 @@
 use crate::trace::escape_json;
 use suiron_core::forward::{KvCache, Observer};
 use suiron_core::model::Config;
+use suiron_core::Model;
 
 const SRC_MATH: &str = include_str!("../../suiron-core/src/math.rs");
 const SRC_FORWARD: &str = include_str!("../../suiron-core/src/forward.rs");
@@ -116,6 +117,48 @@ pub fn worked_dot(
         q: q[head * hd..head * hd + hd].to_vec(),
         k: layer_k[start..start + hd].to_vec(),
     })
+}
+
+/// Captures the residual stream after every layer (`x_out`) for the logit lens.
+#[derive(Default)]
+pub struct LensObserver {
+    pub residuals: Vec<Vec<f32>>,
+}
+
+impl Observer for LensObserver {
+    fn vector(&mut self, _layer: usize, name: &'static str, v: &[f32]) {
+        if name == "x_out" {
+            self.residuals.push(v.to_vec());
+        }
+    }
+}
+
+/// Serialize the per-layer logit lens for one position: for each layer's
+/// residual, the top-`k` tokens the model would predict if it stopped there.
+/// `residuals` is one vector per layer in order (the LensObserver output).
+pub fn lens_json(
+    model: &Model,
+    residuals: &[Vec<f32>],
+    pos: usize,
+    k: usize,
+    decode: impl Fn(u32) -> String,
+) -> String {
+    let mut j = format!("{{\"pos\":{pos},\"layers\":[");
+    for (l, res) in residuals.iter().enumerate() {
+        if l > 0 {
+            j.push(',');
+        }
+        j.push_str(&format!("{{\"layer\":{l},\"top\":["));
+        for (i, (id, p)) in model.lens_topk(res, k).iter().enumerate() {
+            if i > 0 {
+                j.push(',');
+            }
+            j.push_str(&format!("[{id},\"{}\",{p:.4}]", escape_json(&decode(*id))));
+        }
+        j.push_str("]}");
+    }
+    j.push_str("]}");
+    j
 }
 
 /// Serialize one deep inspection. `token` is (id, text) of the inspected
