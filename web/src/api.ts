@@ -1,4 +1,4 @@
-import type { GenParams, Neighbor, QuantSample, Trace } from "./types";
+import type { GenParams, Lens, Neighbor, QuantSample, Trace } from "./types";
 
 // Relative paths: proxied by vite in dev, served by suiron itself in prod.
 
@@ -34,6 +34,28 @@ export function getNeighbors(id: number, n = 12): Promise<Neighbor[]> {
         throw e;
       });
     neighborCache.set(key, p);
+  }
+  return p;
+}
+
+/** Per-layer logit lens for one position. Deterministic for a fixed model, so
+ *  results are cached per (pos, k) and in-flight requests deduped. Gated
+ *  client-side behind opening the lens read/concept — never fires on idle. */
+const lensCache = new Map<string, Promise<Lens>>();
+export function getLens(pos: number, k = 5): Promise<Lens> {
+  const key = `${pos}:${k}`;
+  let p = lensCache.get(key);
+  if (!p) {
+    p = fetch(`/api/v1/lens?pos=${pos}&k=${k}`)
+      .then((r) => {
+        if (!r.ok) throw new Error(`lens: ${r.status}`);
+        return r.json() as Promise<Lens>;
+      })
+      .catch((e) => {
+        lensCache.delete(key); // let a failure be retried
+        throw e;
+      });
+    lensCache.set(key, p);
   }
   return p;
 }

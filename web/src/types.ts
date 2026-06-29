@@ -97,6 +97,18 @@ export interface WorkedDot {
   k: number[];
 }
 
+/** Per-layer logit lens for one position (from /api/v1/lens): what the model
+ *  would predict if it stopped at each layer. `top` mirrors Step.top —
+ *  [id, token, prob]. The final layer equals the real next-token logits. */
+export interface LensLayer {
+  layer: number;
+  top: [number, string, number][];
+}
+export interface Lens {
+  pos: number;
+  layers: LensLayer[];
+}
+
 /** one real Q8_0 block from the model, for the quantization explainer */
 export interface QuantSample {
   tensor: string;

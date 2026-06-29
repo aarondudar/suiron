@@ -1,9 +1,10 @@
-import { edgesToWeights, headGlance, layerGlance, meanHeadWeights, q } from "../lib";
+import { edgesToWeights, headGlance, layerGlance, litToken, meanHeadWeights, q } from "../lib";
 import type { FocusTarget, Step, Trace } from "../types";
 import { BandHeader } from "./BandHeader";
 import { DotStrip } from "./DotStrip";
 import { Explain } from "./Explainer";
 import { SUB } from "./Explanations";
+import { useLens } from "./Geometry";
 
 const TAG_HELP: Record<string, string> = {
   local: "looking at nearby tokens, the grammar of the sentence",
@@ -20,6 +21,7 @@ export function LayerStack({
   setOpenLayer,
   setHover,
   focus,
+  lensActive,
 }: {
   trace: Trace;
   step: Step;
@@ -30,10 +32,20 @@ export function LayerStack({
   /** the effective focus, so an explained layer (attention/residual) lights its
    *  own row here, not only the arcs in band 01 */
   focus: FocusTarget;
+  /** when the lens concept is open: show the per-layer top guess in the spine */
+  lensActive: boolean;
 }) {
   const litLayer = focus.kind === "layer" ? focus.layer : null;
   const group = trace.heads / trace.kv_heads;
   const tokAt = (p: number) => q(trace.tokens[p]?.t ?? "");
+
+  // the logit lens for this position, gated on the lens concept being open
+  // (cached, so it shares the band's one fetch). Per layer: the top guess so
+  // far; the layer where the final winner first leads is marked.
+  const lens = useLens(nPos - 1, lensActive);
+  const finalWin = lens?.layers[lens.layers.length - 1]?.top[0]?.[0];
+  const firstLead =
+    lens && finalWin !== undefined ? lens.layers.findIndex((L) => L.top[0]?.[0] === finalWin) : -1;
 
   const detail = (l: number) =>
     step.attn[l] && (
@@ -95,6 +107,18 @@ export function LayerStack({
             </>
           )}
         </span>
+        {lens && lens.layers[l]?.top[0] && (
+          <span
+            className={"lens-mark" + (l === firstLead ? " leads" : "")}
+            title={
+              l === firstLead
+                ? "the layer where the final winning token first leads"
+                : `top guess if the model stopped at layer ${l}`
+            }
+          >
+            {litToken(lens.layers[l].top[0][1]).text}
+          </span>
+        )}
         <span className="rn" title="how much information has built up by this layer (rms); it grows as the token moves down the stack">
           {step.rnorm[l]?.toFixed(1) ?? ""}
         </span>

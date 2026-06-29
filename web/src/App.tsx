@@ -309,6 +309,7 @@ export default function App() {
             setOpenLayer={setOpenLayer}
             setHover={setHoverFocus}
             focus={focus}
+            lensActive={active === "lens"}
           />
           <Logits step={step} cur={safeCur} busy={!!trace.busy} setHover={setHoverFocus} />
           <Geometry trace={trace} step={step} cur={safeCur} active={active} setHover={setHoverFocus} />

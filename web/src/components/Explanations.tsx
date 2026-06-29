@@ -11,7 +11,7 @@ import { confidence, layerGlance, q } from "../lib";
 import type { FocusTarget, GenParams, Sel, Step, Trace } from "../types";
 import { DotProduct } from "./DotProduct";
 import { EngineSource } from "./EngineSource";
-import { Term } from "./Explainer";
+import { Explain, Term } from "./Explainer";
 import { GeometryCard, type Read } from "./Geometry";
 import { ModelOverview } from "./ModelOverview";
 import { RnormSparkline } from "./RnormSparkline";
@@ -242,7 +242,9 @@ export const CONCEPTS: Record<string, Concept> = {
           <b>residual stream</b>. The number at the right of each layer row is the size of that
           running total, its rms (root mean square, one number summarizing the magnitude of the 1,024
           values). It climbs from <b>{r[0]?.toFixed(1)}</b> at layer 0 to{" "}
-          <b>{r[last]?.toFixed(1)}</b> at the final layer as information accumulates.
+          <b>{r[last]?.toFixed(1)}</b> at the final layer as information accumulates. The magnitude
+          grows, but the prediction itself is a direction:{" "}
+          <Explain of="lens" label="watch it resolve layer by layer" />.
         </>
       );
     },
@@ -289,7 +291,8 @@ export const CONCEPTS: Record<string, Concept> = {
           <b>embedding table</b>, the same table that turned token IDs into vectors at the start: a
           closer match means a higher score. Each raw score is a <b>logit</b>. <b>Softmax</b> then
           turns all 151,936 logits into probabilities that add up to 100%.{read} Click a bar to{" "}
-          <b>force</b> that token instead and watch the model continue from that choice.
+          <b>force</b> that token instead and watch the model continue from that choice. These
+          rankings build up gradually: <Explain of="lens" label="watch this prediction form across the layers" />.
         </>
       );
     },
@@ -318,6 +321,32 @@ export const CONCEPTS: Record<string, Concept> = {
           ) : null}
           . The attention edges show the earlier tokens that built that direction. Distance is the
           only thing the position encodes; the angle around the center is just spacing.
+        </>
+      );
+    },
+  },
+
+  lens: {
+    id: "lens",
+    title: "the prediction, forming",
+    highlight: () => ({ kind: "el", ref: "geo" }),
+    interactive: (c) => <GeometryCard ctx={c} read="lens" />,
+    intro: (c) => {
+      const win = c.step.top?.[0];
+      return (
+        <>
+          The residual stream is not only growing in size; it is a prediction resolving. The{" "}
+          <b>logit lens</b> asks, at each layer, what the model would predict if it stopped there:
+          it applies the final normalization and the same unembedding the output uses, and reads the
+          top token.{" "}
+          {win ? (
+            <>
+              By the last layer the top guess is {q(win[1])} at <b>{(win[2] * 100).toFixed(0)}%</b>.{" "}
+            </>
+          ) : null}
+          Drag the layer slider to watch it climb: early layers guess something unrelated, and the
+          winner moves to the center as the layers resolve. The layer stack marks where it first
+          takes the lead, and the final layer matches the ranked guesses exactly.
         </>
       );
     },

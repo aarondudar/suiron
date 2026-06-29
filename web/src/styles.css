@@ -410,6 +410,16 @@ button.busy { border-color: var(--red); color: var(--red); }
 .hl-target { color: var(--faint); font-family: var(--mono); font-weight: normal; }
 .hl-target.strong { color: var(--dim); }
 
+/* per-layer top guess (logit lens), shown in the spine when the lens is open.
+   the layer where the final winner first leads is red. */
+.lens-mark {
+  flex-shrink: 0; min-width: 7ch; text-align: right; color: var(--faint);
+  font-size: var(--t-tiny); white-space: pre; overflow: hidden;
+}
+.lens-mark.leads { color: var(--red); }
+.row:hover .lens-mark { color: var(--dim); }
+.row:hover .lens-mark.leads { color: var(--red); }
+
 .detail {
   border: 1px solid var(--hair); border-left: 2px solid var(--red);
   padding: var(--sp-4); margin: var(--sp-2) 0 var(--sp-3) 38px;
@@ -821,6 +831,14 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .geo-card { margin-top: var(--sp-3); }
 .geo-card .geo-svg { max-width: 360px; margin: 0 auto; }
 .geo-card-note { color: var(--faint); font-size: var(--t-tiny); line-height: 1.6; margin-top: var(--sp-2); }
+
+/* the climb (logit lens): layer slider above the radial frame */
+.geo-lens-bar { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-2); }
+.geo-lens-bar input[type="range"] {
+  flex: 1; accent-color: var(--red); height: 4px; cursor: pointer; min-width: 80px;
+}
+.geo-lens-where { color: var(--dim); font-size: var(--t-tiny); white-space: nowrap; }
+.geo-lens-where b { color: var(--ink); font-family: var(--dot); }
 
 /* motion: the radius settle is the only animation; off under reduced-motion */
 .geo-svg.still .geo-node circle { transition: none; }
