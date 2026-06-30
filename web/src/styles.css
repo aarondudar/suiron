@@ -726,6 +726,12 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .lnum, .glance, .rn { flex-shrink: 0; }
 .tbl-scroll { overflow-x: auto; }
 
+/* hide the horizontal scrollbar chrome in the layer band (band 02) without
+   removing the scroll: the dot rows and head strips still pan via trackpad /
+   shift-wheel / touch, they just don't show a bar. */
+.row-dots, .head { scrollbar-width: none; }
+.row-dots::-webkit-scrollbar, .head::-webkit-scrollbar { display: none; }
+
 /* ---------- mobile / narrow viewport ---------- */
 @media (max-width: 640px) {
   #root { padding: var(--sp-4) var(--sp-3) var(--sp-3); }
@@ -929,6 +935,127 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .spark-cur { fill: var(--red); }
 .spark-cap { color: var(--faint); font-size: var(--t-tiny); margin-top: var(--sp-1); }
 .spark-cap b { color: var(--ink); }
+
+/* ---------- the welcome (first-visit front door) ---------- */
+.welcome-scrim {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.62); z-index: 60;
+  display: flex; align-items: center; justify-content: center; padding: var(--sp-4);
+  animation: scrim-in 0.16s ease;
+}
+.welcome {
+  position: relative; z-index: 61; width: min(480px, 100%);
+  background: var(--surface); border: 1px solid var(--hair); border-top: 2px solid var(--red);
+  padding: var(--sp-5); animation: welcome-in 0.18s ease;
+}
+@keyframes welcome-in { from { transform: translateY(8px); opacity: 0; } }
+.welcome-brand { font-size: var(--t-display); color: var(--ink); letter-spacing: 0.02em; }
+.welcome-brand .jp { color: var(--dim); font-size: var(--t-md); margin-left: 10px; letter-spacing: 0.3em; }
+.welcome-lead { color: var(--ink); font-size: var(--t-base); line-height: 1.6; margin: var(--sp-4) 0 var(--sp-3); }
+.welcome-body { color: var(--dim); font-size: var(--t-body); line-height: 1.7; margin: 0 0 var(--sp-3); }
+.welcome-body b { color: var(--ink); }
+.welcome-orient { color: var(--faint); font-size: var(--t-body); line-height: 1.6; margin: 0 0 var(--sp-5); }
+.welcome-enter {
+  background: var(--red); color: #fff; border: none; cursor: pointer;
+  font-family: var(--mono); font-size: var(--t-base); padding: var(--sp-2) var(--sp-4);
+  letter-spacing: 0.04em;
+}
+.welcome-enter:hover { filter: brightness(1.12); }
+@media (prefers-reduced-motion: reduce) {
+  .welcome-scrim, .welcome { animation: none; }
+}
+
+/* the persistent reopen affordance next to the model spec */
+.about-link {
+  background: none; border: none; color: var(--faint); cursor: pointer;
+  font-family: var(--mono); font-size: var(--t-tiny); margin-left: var(--sp-2);
+  text-decoration: underline; text-underline-offset: 2px; padding: 0;
+}
+.about-link:hover { color: var(--ink); }
+
+/* ---------- the epilogue: framing behind the verified/described boundary ---------- */
+.epilogue { margin-top: var(--sp-6); }
+.epi-boundary {
+  display: flex; flex-direction: column; gap: 2px;
+  border-top: 2px solid var(--red); padding-top: var(--sp-2); margin-bottom: var(--sp-5);
+}
+.epi-boundary-up { color: var(--faint); font-size: var(--t-tiny); letter-spacing: 0.06em; }
+.epi-boundary-down { color: var(--red); font-size: var(--t-tiny); letter-spacing: 0.06em; }
+.epi-half { margin-bottom: var(--sp-5); }
+.epi-h { font-size: var(--t-base); color: var(--ink); font-weight: normal; margin: 0 0 var(--sp-2); }
+.epi-sub, .epi-body { color: var(--dim); font-size: var(--t-body); line-height: 1.7; margin: 0 0 var(--sp-3); }
+.epi-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.epi-list li {
+  color: var(--dim); font-size: var(--t-body); line-height: 1.7;
+  border-left: 1px solid var(--hair); padding-left: var(--sp-3);
+}
+.epi-list li b { color: var(--ink); }
+/* Half 1 glossary: collapsible term entries (term visible, detail hidden) */
+.epi-term {
+  background: none; border: none; cursor: pointer; padding: 0; text-align: left;
+  font-family: var(--mono); font-size: var(--t-body); color: var(--ink); letter-spacing: 0.02em;
+  display: inline-flex; align-items: baseline; gap: 6px;
+}
+.epi-term:hover { color: var(--red); }
+.epi-term-mark { color: var(--faint); }
+.epi-term.open, .epi-term.open .epi-term-mark { color: var(--red); }
+.epi-entry-detail {
+  color: var(--dim); font-size: var(--t-body); line-height: 1.7; margin-top: var(--sp-2);
+}
+.epi-entry-detail b { color: var(--ink); }
+.epi-list code, .epi-body code, .epi-punch code {
+  font-family: var(--mono); font-size: var(--t-tiny); color: var(--ink);
+  background: var(--bg); border: 1px solid var(--hair); padding: 0 4px;
+}
+.epi-tag {
+  display: inline-block; font-size: var(--t-micro); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--red); border: 1px solid var(--red); padding: 0 4px; margin-left: 4px; white-space: nowrap;
+}
+.epi-punch { color: var(--ink); font-size: var(--t-body); line-height: 1.7; margin: var(--sp-3) 0 0; }
+.epi-punch b { color: var(--red); }
+
+/* the in-lab chat: real generation (q8 + chat template) through the resident
+   model. The input reuses the prompt band's .ctl-row, so the field and buttons
+   are identical to the prompt's — only the transcript above and the placeholder
+   / send button differ. */
+.chat-open {
+  display: block; width: 100%; text-align: left; margin-top: var(--sp-4); cursor: pointer;
+  background: none; border: 1px solid var(--hair); border-left: 2px solid var(--red);
+  color: var(--ink); font-family: var(--mono); font-size: var(--t-body); padding: var(--sp-2) var(--sp-3);
+}
+.chat-open:hover { border-color: var(--hair-lit); border-left-color: var(--red); color: var(--red); }
+.chat-hint { color: var(--faint); font-size: var(--t-tiny); text-align: center; margin-bottom: var(--sp-2); }
+/* the transcript: a quiet bounded region above the (identical) input row */
+.chat-body {
+  display: flex; flex-direction: column; gap: var(--sp-3);
+  background: var(--surface); border: 1px solid var(--hair);
+  padding: var(--sp-3); margin-bottom: 10px; max-height: 300px; overflow-y: auto;
+}
+.chat-empty { color: var(--faint); font-size: var(--t-body); line-height: 1.6; }
+.chat-msg { display: flex; flex-direction: column; gap: 2px; }
+.chat-role { font-size: var(--t-micro); text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); }
+.chat-you .chat-role { color: var(--red); }
+.chat-text { font-size: var(--t-body); line-height: 1.6; }
+.chat-you .chat-text { color: var(--ink); }
+.chat-model .chat-text { color: var(--dim); white-space: pre-wrap; }
+.chat-think {
+  color: var(--faint); font-size: var(--t-tiny); line-height: 1.5; white-space: pre-wrap;
+  border-left: 1px solid var(--hair); padding-left: var(--sp-2); margin-bottom: 2px;
+}
+.chat-think-label { text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); margin-right: 4px; }
+.chat-dots { color: var(--faint); }
+
+/* the chat dropdown toggle in the prompt band's settings row */
+.chat-toggle {
+  background: none; border: 1px solid var(--hair); color: var(--ink); cursor: pointer;
+  font-family: var(--mono); font-size: var(--t-tiny); padding: 2px var(--sp-2); letter-spacing: 0.04em;
+}
+.chat-toggle:hover { border-color: var(--hair-lit); color: var(--red); }
+.chat-toggle.on { border-color: var(--red); color: var(--red); }
+/* the locked seed readout shown in place of the seed input while chatting */
+.ctl-seed-auto { color: var(--faint); font-size: var(--t-tiny); }
+
+/* note shown under the prompt band while the settings are locked for chat */
+.ctl-locked { color: var(--faint); font-size: var(--t-tiny); margin-top: var(--sp-2); }
 
 /* ---------- scrollbar ---------- */
 ::-webkit-scrollbar { width: 8px; height: 8px; }

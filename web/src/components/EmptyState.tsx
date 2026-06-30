@@ -1,6 +1,5 @@
 import { generate } from '../api'
-import { ModelOverview } from './ModelOverview'
-import type { GenParams, Trace } from '../types'
+import type { GenParams } from '../types'
 
 const SUGGESTIONS = [
   'The cat sat on the',
@@ -10,12 +9,10 @@ const SUGGESTIONS = [
 ]
 
 export function EmptyState({
-  trace,
   onPick,
   params,
   onGenerate,
 }: {
-  trace: Trace
   onPick: (p: string) => void
   params: GenParams
   onGenerate: () => void
@@ -56,11 +53,6 @@ export function EmptyState({
         </div>
         <span className="empty-hint">or type your own prompt above.</span>
       </div>
-
-      {/* beat 2 — the optional second layer: what a model is, what this one is */}
-      <p className="empty-more">
-        <ModelOverview trace={trace} />
-      </p>
     </section>
   )
 }

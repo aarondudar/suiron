@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getTrace } from "./api";
+import { getTrace, stop } from "./api";
 import { Controls } from "./components/Controls";
 import { EmptyState } from "./components/EmptyState";
+import { Epilogue } from "./components/Epilogue";
 import { Explain, Explainer, ExplainerProvider } from "./components/Explainer";
 import { CONCEPTS, type ExplainCtx } from "./components/Explanations";
 import { Geometry } from "./components/Geometry";
@@ -10,6 +11,7 @@ import { Logits } from "./components/Logits";
 import { Quantization } from "./components/Quantization";
 import { Selection } from "./components/Selection";
 import { TokenStrip } from "./components/TokenStrip";
+import { Welcome, WELCOME_SEEN_KEY } from "./components/Welcome";
 import { focusSelector, WALK, WalkBar } from "./components/Walk";
 import { DEFAULT_PARAMS, moments } from "./lib";
 import type { FocusTarget, GenParams, Trace } from "./types";
@@ -40,6 +42,35 @@ export default function App() {
   const [pendingTour, setPendingTour] = useState(false);
   /** the one-time "take the guided tour" nudge after a plain run */
   const [hintDone, setHintDone] = useState(() => localStorage.getItem("suiron-tour-hint") === "1");
+  /** the first-visit welcome overlay; remembered so returning visitors are not
+   *  re-prompted, reopenable from the header "about" affordance */
+  const [welcomeOpen, setWelcomeOpen] = useState(
+    () => localStorage.getItem(WELCOME_SEEN_KEY) !== "1",
+  );
+  const closeWelcome = useCallback(() => {
+    setWelcomeOpen(false);
+    try {
+      localStorage.setItem(WELCOME_SEEN_KEY, "1");
+    } catch {
+      /* private mode — fine, just won't persist */
+    }
+  }, []);
+  /** the epilogue chat dropdown. While open it owns the single resident model:
+   *  opening halts any running lab generation and locks the main controls. */
+  const [chatOpen, setChatOpen] = useState(false);
+  const toggleChat = useCallback((v: boolean) => {
+    setChatOpen(v);
+    if (v) void stop(); // chat takes over the resident model
+  }, []);
+  // open chat from the epilogue and bring the (now chat) prompt box into view
+  const onTryChat = useCallback(() => {
+    toggleChat(true);
+    requestAnimationFrame(() =>
+      document
+        .querySelector('[data-explain-el="ctl-params"]')
+        ?.scrollIntoView({ block: "center", behavior: REDUCED ? "auto" : "smooth" }),
+    );
+  }, [toggleChat]);
 
   const lastSeq = useRef(-1);
   const curRef = useRef(cur);
@@ -257,6 +288,9 @@ export default function App() {
               {trace.kv_heads}kv · {trace.n_prompt} prompt +{" "}
               {Math.max(0, trace.tokens.length - trace.n_prompt)} generated
             </Explain>
+            <button className="about-link" onClick={() => setWelcomeOpen(true)}>
+              about
+            </button>
           </div>
         </div>
         <div className="head-right">
@@ -274,6 +308,8 @@ export default function App() {
 
       <Controls
         busy={!!trace.busy}
+        chatOpen={chatOpen}
+        onChatToggle={toggleChat}
         hasTokens={hasTokens}
         prompt={prompt}
         setPrompt={setPrompt}
@@ -291,7 +327,6 @@ export default function App() {
 
       {!hasTokens && (
         <EmptyState
-          trace={trace}
           onPick={setPrompt}
           params={params}
           onGenerate={() => {
@@ -360,6 +395,7 @@ export default function App() {
           )}
           <div className="aside-divider">the same model, faster · an aside, not a step</div>
           <Quantization trace={trace} params={params} setParams={setParams} busy={!!trace.busy} />
+          <Epilogue onTryChat={onTryChat} />
         </>
       )}
 
@@ -386,6 +422,7 @@ export default function App() {
         />
       )}
       <Explainer ctx={ctx} />
+      <Welcome open={welcomeOpen} onClose={closeWelcome} />
     </ExplainerProvider>
   );
 }

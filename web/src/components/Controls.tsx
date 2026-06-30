@@ -1,11 +1,15 @@
 import { generate, step, stop } from "../api";
+import { CHAT_PARAMS } from "../lib";
 import { BandHeader } from "./BandHeader";
+import { ChatPanel } from "./ChatPanel";
 import { Explain } from "./Explainer";
 import { SUB } from "./Explanations";
 import type { Backend, GenParams } from "../types";
 
 export function Controls({
   busy,
+  chatOpen,
+  onChatToggle,
   hasTokens,
   prompt,
   setPrompt,
@@ -17,6 +21,10 @@ export function Controls({
   canWalk,
 }: {
   busy: boolean;
+  /** the chat dropdown is open: the prompt is replaced by the chat panel and the
+   *  settings are locked to the chat-optimal values */
+  chatOpen: boolean;
+  onChatToggle: (v: boolean) => void;
   hasTokens: boolean;
   prompt: string;
   setPrompt: (p: string) => void;
@@ -40,75 +48,124 @@ export function Controls({
     }
   };
 
+  // in chat mode the params are still shown, but locked to the chat settings
+  const view = chatOpen ? CHAT_PARAMS : p;
+
   return (
     <section>
       <BandHeader
         idx="00"
-        title={<Explain of="settings">prompt</Explain>}
-        sub={SUB.prompt}
+        title={<Explain of="settings">{chatOpen ? "chat" : "prompt"}</Explain>}
+        sub={chatOpen ? SUB.chat : SUB.prompt}
       />
-      <div className="ctl-row">
-        <input
-          type="text"
-          value={prompt}
-          placeholder="the cat sat on the"
-          spellCheck={false}
-          onChange={(e) => setPrompt(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && go()}
-        />
-        <button className={busy ? "busy" : ""} disabled={busy} onClick={go}>
-          generate
-        </button>
-        <button
-          disabled={busy || !hasTokens}
-          title="advance the model exactly one token from where it stands"
-          onClick={() => {
-            onStep();
-            void step(1, p);
-          }}
-        >
-          step +1
-        </button>
-        <button disabled={!busy} onClick={() => void stop()}>
-          stop
-        </button>
-        <button
-          className="walk-go"
-          disabled={!canWalk || busy}
-          title="take the guided tour of how this token was produced, top to bottom"
-          onClick={onWalk}
-        >
-          ▶ guided tour
-        </button>
-      </div>
+
+      {chatOpen ? (
+        <ChatPanel />
+      ) : (
+        <div className="ctl-row">
+          <input
+            type="text"
+            value={prompt}
+            placeholder="the cat sat on the"
+            spellCheck={false}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && go()}
+          />
+          <button className={busy ? "busy" : ""} disabled={busy} onClick={go}>
+            generate
+          </button>
+          <button
+            disabled={busy || !hasTokens}
+            title="advance the model exactly one token from where it stands"
+            onClick={() => {
+              onStep();
+              void step(1, p);
+            }}
+          >
+            step +1
+          </button>
+          <button disabled={!busy} onClick={() => void stop()}>
+            stop
+          </button>
+          <button
+            className="walk-go"
+            disabled={!canWalk || busy}
+            title="take the guided tour of how this token was produced, top to bottom"
+            onClick={onWalk}
+          >
+            ▶ guided tour
+          </button>
+        </div>
+      )}
+
       <div className="ctl-row ctl-params" data-explain-el="ctl-params">
         <BackendToggle
-          backend={p.backend}
-          disabled={busy}
+          backend={view.backend}
+          disabled={busy || chatOpen}
           onChange={(b) => setParams({ ...p, backend: b })}
         />
         <label>
-          n <input type="number" value={p.n} min={1} max={512} onChange={num("n")} />
+          n{" "}
+          <input
+            type="number"
+            value={view.n}
+            min={1}
+            max={512}
+            disabled={chatOpen}
+            onChange={num("n")}
+          />
         </label>
         <label data-explain-el="ctl-temp">
           <Explain of="temperature">temp</Explain>{" "}
-          <input type="number" value={p.temp} step={0.1} min={0} max={2} onChange={num("temp")} />
+          <input
+            type="number"
+            value={view.temp}
+            step={0.1}
+            min={0}
+            max={2}
+            disabled={chatOpen}
+            onChange={num("temp")}
+          />
         </label>
         <label data-explain-el="ctl-topk">
           <Explain of="topk">top-k</Explain>{" "}
-          <input type="number" value={p.top_k} min={0} onChange={num("top_k")} />
+          <input type="number" value={view.top_k} min={0} disabled={chatOpen} onChange={num("top_k")} />
         </label>
         <label data-explain-el="ctl-topp">
           <Explain of="topp">top-p</Explain>{" "}
-          <input type="number" value={p.top_p} step={0.05} min={0} max={1} onChange={num("top_p")} />
+          <input
+            type="number"
+            value={view.top_p}
+            step={0.05}
+            min={0}
+            max={1}
+            disabled={chatOpen}
+            onChange={num("top_p")}
+          />
         </label>
-        <label>
-          seed <input type="number" value={p.seed} min={0} onChange={num("seed")} />
-        </label>
-        <label>
-          <input type="checkbox" checked={p.chat} onChange={(e) => setParams({ ...p, chat: e.target.checked })} /> chat
-        </label>
+        {chatOpen ? (
+          <span className="ctl-seed-auto" title="randomized per message for variety">
+            seed random
+          </span>
+        ) : (
+          <label>
+            seed <input type="number" value={p.seed} min={0} onChange={num("seed")} />
+          </label>
+        )}
+        <button
+          className={"chat-toggle" + (chatOpen ? " on" : "")}
+          aria-expanded={chatOpen}
+          title="chat with the resident model (q8, chat template)"
+          onClick={() => onChatToggle(!chatOpen)}
+        >
+          chat {chatOpen ? "▴" : "▾"}
+        </button>
       </div>
+      {chatOpen && (
+        <div className="ctl-locked">
+          settings locked for chat. close chat to edit them and use the prompt.
+        </div>
+      )}
     </section>
   );
 }

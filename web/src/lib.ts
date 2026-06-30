@@ -50,6 +50,19 @@ export const DEFAULT_PARAMS: GenParams = {
   backend: 'f32',
 }
 
+/** The settings the in-lab chat locks to: the q8 backend, the chat template on,
+ *  and conversational sampling. Seed is randomized per message for variety, so
+ *  the UI shows it as "random" rather than a fixed number. */
+export const CHAT_PARAMS: GenParams = {
+  n: 128,
+  temp: 0.7,
+  top_k: 40,
+  top_p: 0.9,
+  seed: 7,
+  chat: true,
+  backend: 'q8',
+}
+
 /** Model's softmax probability for generated token i (from the previous
  *  step's top-10), or null for prompt tokens / unknown. */
 export function confidence(trace: Trace, i: number): number | null {

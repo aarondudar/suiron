@@ -25,6 +25,7 @@ import { UnderHood } from "./UnderHood";
    not explanation — the Explainer is the on-demand depth. */
 export const SUB = {
   prompt: "type some text and choose how the model continues it.",
+  chat: "talk to the resident model: the same loop, run live with the chat template and the q8 backend.",
   tokens: "the input text, split into the pieces the model reads. click one to inspect it.",
   logits: "the model's ranked guesses for this token; the one it picked is highlighted in the strip above.",
   selection: "how the model goes from ranked guesses to one actual token.",
@@ -504,6 +505,47 @@ export const CONCEPTS: Record<string, Concept> = {
         </>
       );
     },
+  },
+
+  // ---- the epilogue: framing OUTSIDE the verified instrument ----
+  // Everything above was computed and verified in this lab. These two concepts
+  // describe how the same operations scale and how an agent wraps this loop;
+  // none of it is implemented in suiron, and the band says so at its boundary.
+  scaling: {
+    id: "scaling",
+    title: "how this scales",
+    highlight: () => ({ kind: "el", ref: "epilogue" }),
+    intro: () => (
+      <>
+        Everything in the lab so far is the engine running one sequence on one machine, the simplest
+        correct version of each operation. Production inference keeps these exact operations and
+        changes only how they are scheduled and stored, to serve many requests quickly. The notes
+        below name, for each surface you used, the single change that happens at scale. None of it is
+        implemented in suiron: this is where the verified instrument ends and a description of the
+        wider system begins.
+      </>
+    ),
+  },
+
+  agents: {
+    id: "agents",
+    title: "from this loop to an agent",
+    highlight: () => ({ kind: "el", ref: "epilogue" }),
+    intro: () => (
+      <>
+        A coding agent, including the assistant that may have helped build this, runs the same loop
+        you just watched: score the vocabulary, draw one token, append it, and repeat. What makes it
+        feel like more is a wrapper around that loop, all of it outside the model. A <b>chat
+        template</b> formats the conversation into tokens with role markers; the control tokens it
+        inserts, such as <code>{"<|im_start|>"}</code> and <code>{"<|im_end|>"}</code>, are ordinary
+        vocabulary entries with their own token IDs, drawn by the same sampling step as any word. A{" "}
+        <b>harness</b>, which is plain code around the model, watches the token stream, and when the
+        model predicts a token it recognizes as a tool call it pauses generation, runs the tool
+        itself, writes the result back into the context as more tokens, and resumes. The model never
+        runs a tool. It predicts a token; external code reads that token and acts. Using a tool is
+        next-token prediction plus a wrapper.
+      </>
+    ),
   },
 
   quantization: {
