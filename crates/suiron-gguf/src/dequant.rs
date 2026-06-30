@@ -42,6 +42,48 @@ pub fn dequantize_q8_0(raw: &[u8], out: &mut Vec<f32>) {
     }
 }
 
+/// The 6-bit sub-block scale and min for sub-block `j` of a Q4_K super-block,
+/// unpacked from the 12 `scales` bytes. Matches ggml's `get_scale_min_k4`.
+fn q4_k_scale_min(j: usize, q: &[u8]) -> (u8, u8) {
+    if j < 4 {
+        (q[j] & 63, q[j + 4] & 63)
+    } else {
+        (
+            (q[j + 4] & 0x0F) | ((q[j - 4] >> 6) << 4),
+            (q[j + 4] >> 4) | ((q[j] >> 6) << 4),
+        )
+    }
+}
+
+/// Q4_K_M super-block (256 values, 144 bytes): f16 super-scale `d`, f16
+/// super-min `dmin`, 12 bytes of 6-bit packed sub-block scales/mins, then 128
+/// bytes of 4-bit quants. Value = d·scale·q − dmin·min. Mirrors ggml's
+/// `dequantize_row_q4_K` exactly (eight 32-value sub-blocks, low then high
+/// nibble, two scale/min pairs per 64).
+pub fn dequantize_q4_k(raw: &[u8], out: &mut Vec<f32>) {
+    debug_assert!(raw.len().is_multiple_of(144));
+    for block in raw.chunks_exact(144) {
+        let d = f16_to_f32(u16::from_le_bytes([block[0], block[1]]));
+        let dmin = f16_to_f32(u16::from_le_bytes([block[2], block[3]]));
+        let scales = &block[4..16];
+        let qs = &block[16..144];
+        for j in 0..4 {
+            let is = j * 2;
+            let (sc1, m1) = q4_k_scale_min(is, scales);
+            let (sc2, m2) = q4_k_scale_min(is + 1, scales);
+            let (d1, m1) = (d * sc1 as f32, dmin * m1 as f32);
+            let (d2, m2) = (d * sc2 as f32, dmin * m2 as f32);
+            let q = &qs[j * 32..j * 32 + 32];
+            for &b in q {
+                out.push(d1 * (b & 0x0F) as f32 - m1);
+            }
+            for &b in q {
+                out.push(d2 * (b >> 4) as f32 - m2);
+            }
+        }
+    }
+}
+
 /// Dequantize a whole tensor. Returns `None` for dtypes without a conversion
 /// implemented yet.
 pub fn dequantize(dtype: GgmlType, raw: &[u8]) -> Option<Vec<f32>> {
@@ -63,6 +105,7 @@ pub fn dequantize(dtype: GgmlType, raw: &[u8]) -> Option<Vec<f32>> {
             );
         }
         GgmlType::Q8_0 => dequantize_q8_0(raw, &mut out),
+        GgmlType::Q4K => dequantize_q4_k(raw, &mut out),
         _ => return None,
     }
     Some(out)
@@ -105,5 +148,43 @@ mod tests {
         assert_eq!(out[0], -1.5);
         assert_eq!(out[1], 3.5);
         assert!(out[2..].iter().all(|&v| v == 0.0));
+    }
+
+    #[test]
+    fn q4_k_scale_min_packing() {
+        // j < 4: scale = scales[j] & 63, min = scales[j+4] & 63
+        let s = [42u8, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0];
+        assert_eq!(q4_k_scale_min(0, &s), (42 & 63, 17 & 63));
+        // j >= 4 (the packed branch): high 2 bits of earlier bytes extend the
+        // 6-bit value. scales[0]=0b1100_0000 → top bits 3; scales[8] low nibble 5.
+        let mut s2 = [0u8; 12];
+        s2[0] = 0b1100_0000; // q[j-4] for j=4 → (3 << 4) into the scale
+        s2[8] = 0x05; // q[j+4] for j=4 → low nibble 5 into the scale
+        let (d, _m) = q4_k_scale_min(4, &s2);
+        assert_eq!(d, 5 | (3 << 4)); // 53
+    }
+
+    #[test]
+    fn q4_k_dequant_known_block() {
+        // 144-byte super-block: d = 1.0, dmin = 0.0, sub-block 0 scale = 2,
+        // sub-block 1 scale = 3, qs[0] = 0x35 (low nibble 5, high nibble 3).
+        let mut block = vec![0u8; 144];
+        block[0] = 0x00;
+        block[1] = 0x3c; // d = 1.0 (f16)
+        block[2] = 0x00;
+        block[3] = 0x00; // dmin = 0.0
+        block[4] = 2; // scales[0] → sub-block 0 scale
+        block[5] = 3; // scales[1] → sub-block 1 scale
+        block[16] = 0x35; // qs[0]: low nibble 5 (value 0), high nibble 3 (value 32)
+
+        let mut out = Vec::new();
+        dequantize_q4_k(&block, &mut out);
+        assert_eq!(out.len(), 256);
+        // value 0  = d·scale0·(low nibble) − 0 = 1·2·5 = 10
+        assert!((out[0] - 10.0).abs() < 1e-4, "out[0] = {}", out[0]);
+        // value 32 = d·scale1·(high nibble) − 0 = 1·3·3 = 9
+        assert!((out[32] - 9.0).abs() < 1e-4, "out[32] = {}", out[32]);
+        assert_eq!(out[1], 0.0); // qs[1] = 0
+        assert_eq!(out[33], 0.0);
     }
 }

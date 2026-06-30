@@ -5,6 +5,7 @@ use suiron_core::{forward, Backend, KvCache, Model, Tokenizer};
 use suiron_gguf::GgufFile;
 
 const MODEL: &str = "../../models/Qwen3-0.6B-Q8_0.gguf";
+const MODEL_Q4: &str = "../../models/Qwen3-0.6B-Q4_K_M.gguf";
 
 fn tokenizer() -> Option<Tokenizer> {
     if !std::path::Path::new(MODEL).exists() {
@@ -218,6 +219,32 @@ fn lens_final_layer_equals_logits() {
         probs[real_top as usize]
     );
     eprintln!("lens final-layer top-1 id={real_top} p={:.4}", lens_last[0].1);
+}
+
+#[test]
+fn q4_k_model_loads_and_predicts_the_known_answer() {
+    // Exercises Q4_K_M dequant on the real weights: the model must load (no
+    // UnsupportedDtype) and greedily continue "The capital of France is" with
+    // " Paris" — the same answer Q8 and llama.cpp give. Self-skips until the
+    // real Q4 file is downloaded (the repo ships a 15-byte stub).
+    let real_q4 = std::fs::metadata(MODEL_Q4).map(|m| m.len() > 1_000_000).unwrap_or(false);
+    if !real_q4 {
+        eprintln!("skipping: {MODEL_Q4} not present (or a stub)");
+        return;
+    }
+    let file = GgufFile::open(MODEL_Q4).expect("Q4 parses");
+    let model = Model::load(&file).expect("Q4 loads via Q4_K dequant");
+    let tok = Tokenizer::from_gguf(&file).expect("tokenizer");
+
+    let ids = tok.encode("The capital of France is");
+    let mut cache = KvCache::new(&model);
+    let mut logits = Vec::new();
+    for &t in &ids {
+        logits = forward(&model, &mut cache, t, Backend::F32, None);
+    }
+    assert!(logits.iter().all(|v| v.is_finite()), "Q4 produced non-finite logits");
+    let next = tok.decode(&[suiron_core::sampling::argmax(&logits)]);
+    assert_eq!(next, " Paris", "Q4 greedy next token was {next:?}, expected \" Paris\"");
 }
 
 #[test]
