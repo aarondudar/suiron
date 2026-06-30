@@ -5,7 +5,57 @@
 use crate::trace::escape_json;
 use suiron_core::forward::{KvCache, Observer};
 use suiron_core::model::Config;
+use suiron_core::tokenizer::PreMerges;
 use suiron_core::Model;
+
+/// Serialize the BPE merge trace for one input (per pre-token): the byte-level
+/// start, the ordered merges with their real ranks, and the final token ids.
+pub fn merges_json(pms: &[PreMerges]) -> String {
+    let arr = |out: &mut String, items: &[String]| {
+        out.push('[');
+        for (i, s) in items.iter().enumerate() {
+            if i > 0 {
+                out.push(',');
+            }
+            out.push('"');
+            out.push_str(&escape_json(s));
+            out.push('"');
+        }
+        out.push(']');
+    };
+    let mut j = String::from("{\"pretokens\":[");
+    for (pi, pm) in pms.iter().enumerate() {
+        if pi > 0 {
+            j.push(',');
+        }
+        j.push_str("{\"start\":");
+        arr(&mut j, &pm.start);
+        j.push_str(",\"steps\":[");
+        for (si, s) in pm.steps.iter().enumerate() {
+            if si > 0 {
+                j.push(',');
+            }
+            j.push_str(&format!(
+                "{{\"left\":\"{}\",\"right\":\"{}\",\"rank\":{},\"result\":",
+                escape_json(&s.left),
+                escape_json(&s.right),
+                s.rank
+            ));
+            arr(&mut j, &s.result);
+            j.push('}');
+        }
+        j.push_str("],\"tokens\":[");
+        for (i, id) in pm.ids.iter().enumerate() {
+            if i > 0 {
+                j.push(',');
+            }
+            j.push_str(&id.to_string());
+        }
+        j.push_str("]}");
+    }
+    j.push_str("]}");
+    j
+}
 
 const SRC_MATH: &str = include_str!("../../suiron-core/src/math.rs");
 const SRC_FORWARD: &str = include_str!("../../suiron-core/src/forward.rs");

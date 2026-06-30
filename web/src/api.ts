@@ -1,4 +1,4 @@
-import type { GenParams, Lens, Neighbor, QuantSample, Trace } from "./types";
+import type { GenParams, Lens, Merges, Neighbor, QuantSample, Trace } from "./types";
 
 // Relative paths: proxied by vite in dev, served by suiron itself in prod.
 
@@ -58,6 +58,15 @@ export function getLens(pos: number, k = 5): Promise<Lens> {
     lensCache.set(key, p);
   }
   return p;
+}
+
+/** The BPE merge trace for the resident prompt. Pure tokenizer work; gated
+ *  behind opening the tokenization concept, so it never fires on idle. Not
+ *  cached — it follows whatever prompt is currently resident. */
+export async function getMerges(): Promise<Merges> {
+  const r = await fetch("/api/v1/merges");
+  if (!r.ok) throw new Error(`merges: ${r.status}`);
+  return r.json();
 }
 
 function params(p: GenParams): URLSearchParams {

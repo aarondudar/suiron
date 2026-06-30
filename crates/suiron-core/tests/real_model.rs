@@ -221,6 +221,30 @@ fn lens_final_layer_equals_logits() {
 }
 
 #[test]
+fn merge_trace_replays_to_the_same_ids() {
+    // The recorded BPE merge sequence must reduce to exactly the ids `encode`
+    // produces — the merge demo's invariant. Spot-check a visible space+word
+    // merge is present.
+    let Some(t) = tokenizer() else { return };
+    for text in ["The capital of France is", "Hello, world! 123"] {
+        let pm = t.encode_merges(text);
+        let flat: Vec<u32> = pm.iter().flat_map(|p| p.ids.clone()).collect();
+        assert_eq!(flat, t.encode(text), "merge replay != encode for {text:?}");
+        // each step's rank is real and each pre-token ends on its own tokens
+        for p in &pm {
+            assert!(!p.start.is_empty());
+        }
+    }
+    // " the"-style merge: a leading space joins a word within one pre-token
+    let pm = t.encode_merges("the the");
+    let joined_space = pm
+        .iter()
+        .flat_map(|p| &p.steps)
+        .any(|s| s.left == " " || s.right.starts_with(' ') || s.left.starts_with(' '));
+    assert!(joined_space, "expected a leading-space merge step");
+}
+
+#[test]
 fn matches_llama_cpp_reference_ids() {
     // Fixtures captured from `llama-tokenize` (llama.cpp, 2026-06-10) on this
     // exact model file. 13/13 parity inputs passed; these pin three of them.

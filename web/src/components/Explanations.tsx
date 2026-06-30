@@ -120,7 +120,9 @@ export const CONCEPTS: Record<string, Concept> = {
           text into them. A <b>token</b> is a common chunk of text: frequent words are usually a
           single token, rarer words split into a few. The text became {c.trace.tokens.length} of
           them. The token under inspection, number {c.cur}, is {q(t?.t ?? "")}; its{" "}
-          <b>token ID</b> is <b>{t?.id}</b>, its index into the vocabulary of 151,936 tokens.
+          <b>token ID</b> is <b>{t?.id}</b>, its index into the vocabulary of 151,936 tokens. Step
+          through the merges below to watch the text collapse, byte pair by byte pair, into exactly
+          these tokens.
         </>
       );
     },

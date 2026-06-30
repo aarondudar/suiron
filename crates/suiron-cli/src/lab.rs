@@ -135,6 +135,27 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                     respond(&mut s, "200 OK", "application/json", j.as_bytes());
                 }
             }
+            ("GET", "/api/v1/merges") => {
+                // BPE merge trace for the prompt that was tokenized. Reconstruct
+                // the prompt text from its resident tokens, then record the
+                // merges. Lazy, pure tokenizer work — does not touch the model.
+                let text = {
+                    let st = shared.lock().unwrap();
+                    if st.busy {
+                        None
+                    } else {
+                        let ids: Vec<u32> = st.tokens[..st.n_prompt].iter().map(|(id, _)| *id).collect();
+                        Some(tok.decode(&ids))
+                    }
+                };
+                match text {
+                    None => respond(&mut s, "409 Conflict", "text/plain", b"busy"),
+                    Some(text) => {
+                        let json = crate::machine::merges_json(&tok.encode_merges(&text));
+                        respond(&mut s, "200 OK", "application/json", json.as_bytes());
+                    }
+                }
+            }
             ("GET", "/api/v1/lens") => {
                 // logit lens: per-layer top-k for one position. Lazy, one forward
                 // over a cloned cache; reads residuals, does not touch inference.

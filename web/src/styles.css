@@ -886,19 +886,28 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   letter-spacing: 0.08em; margin: var(--sp-2) 0 var(--sp-4);
 }
 
-/* ---------- tokenization demo (the BPE aha) ---------- */
-.tok-demo { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
-.tok-chip {
-  display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
-  border: 1px solid var(--hair); padding: 3px 6px; background: var(--surface);
+/* ---------- tokenization demo (BPE merges, stepped) ---------- */
+.tok-demo { margin-top: var(--sp-3); }
+.tok-status { color: var(--faint); font-size: var(--t-tiny); margin-top: var(--sp-3); }
+.tok-rows { display: flex; flex-direction: column; gap: 4px; }
+.tok-row { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.tok-piece {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 1px;
+  border: 1px solid var(--hair); padding: 2px 5px; background: var(--surface);
+  color: var(--ink); font-size: var(--t-body); white-space: pre;
 }
-.tok-chip.cur { border-color: var(--red); }
-.tok-chip-text { color: var(--ink); font-size: var(--t-body); white-space: pre; }
-.tok-chip.cur .tok-chip-text { color: var(--red); }
-.tok-chip-id {
+.tok-piece.just { border-color: var(--red); color: var(--red); }
+.tok-id {
   color: var(--faint); font-family: var(--dot); font-size: var(--t-micro);
   font-variant-numeric: tabular-nums;
 }
+.tok-label { color: var(--dim); font-size: var(--t-tiny); margin: var(--sp-2) 0; min-height: 1.4em; }
+.tok-pair { color: var(--ink); }
+.tok-merged { color: var(--red); }
+.tok-ctl { display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; }
+.tok-where { color: var(--dim); font-size: var(--t-tiny); margin-right: var(--sp-1); }
+.tok-where b { color: var(--ink); font-family: var(--dot); }
+.tok-ctl button { font-size: var(--t-tiny); padding: 2px 8px; }
 
 /* ---------- residual rms sparkline ---------- */
 .spark-wrap { margin-top: var(--sp-3); }

@@ -5,6 +5,23 @@
 use std::collections::HashMap;
 use suiron_gguf::{GgufFile, MetadataValue};
 
+/// One applied byte-pair merge, in display form, plus the resulting piece list.
+pub struct MergeStep {
+    pub left: String,
+    pub right: String,
+    pub rank: u32,
+    /// the piece list after this merge (display form)
+    pub result: Vec<String>,
+}
+
+/// The merge trace for one pre-token: the byte-level start, the merges applied
+/// in order, and the final token ids it reduces to.
+pub struct PreMerges {
+    pub start: Vec<String>,
+    pub steps: Vec<MergeStep>,
+    pub ids: Vec<u32>,
+}
+
 pub struct Tokenizer {
     /// vocab string (byte-mapped form) → token id
     id_of: HashMap<String, u32>,
@@ -139,6 +156,75 @@ impl Tokenizer {
             let right = parts.remove(w + 1);
             parts[w].push_str(&right);
         }
+    }
+
+    /// Display text for one byte-mapped piece: stand-in chars → bytes → UTF-8.
+    /// Mirrors `decode` for a single raw piece (lossy across a partial multibyte
+    /// sequence, which only happens mid-merge inside a multibyte character).
+    fn piece_text(&self, mapped: &str) -> String {
+        let mut bytes = Vec::new();
+        for c in mapped.chars() {
+            match self.char_byte.get(&c) {
+                Some(&b) => bytes.push(b),
+                None => bytes.extend(c.to_string().as_bytes()),
+            }
+        }
+        String::from_utf8_lossy(&bytes).into_owned()
+    }
+
+    /// Opt-in observation alongside `encode`: the byte-pair merges this input
+    /// goes through, one entry per pre-token. Same algorithm as `bpe`/`encode`,
+    /// recording each merge (and its rank) plus the piece list after it. The
+    /// flattened `ids` equal `encode(text)` exactly. Off the hot path.
+    pub fn encode_merges(&self, text: &str) -> Vec<PreMerges> {
+        let chars: Vec<char> = text.chars().collect();
+        let mut out = Vec::new();
+        let mut i = 0;
+        while i < chars.len() {
+            let end = pretoken_end(&chars, i);
+            let pre: String = chars[i..end].iter().collect();
+            i = end;
+
+            let mapped: String = pre.bytes().map(|b| self.byte_char[b as usize]).collect();
+            let mut parts: Vec<String> = mapped.chars().map(String::from).collect();
+            let start: Vec<String> = parts.iter().map(|p| self.piece_text(p)).collect();
+            let mut steps = Vec::new();
+            loop {
+                let mut best: Option<(u32, usize)> = None;
+                for w in 0..parts.len().saturating_sub(1) {
+                    let key = format!("{} {}", parts[w], parts[w + 1]);
+                    if let Some(&rank) = self.merge_rank.get(&key) {
+                        if best.is_none_or(|(r, _)| rank < r) {
+                            best = Some((rank, w));
+                        }
+                    }
+                }
+                let Some((rank, w)) = best else { break };
+                let left = self.piece_text(&parts[w]);
+                let right = self.piece_text(&parts[w + 1]);
+                let merged = parts.remove(w + 1);
+                parts[w].push_str(&merged);
+                let result: Vec<String> = parts.iter().map(|p| self.piece_text(p)).collect();
+                steps.push(MergeStep { left, right, rank, result });
+            }
+
+            // final ids, with the same single-byte fallback as `encode`
+            let mut ids = Vec::new();
+            for part in &parts {
+                match self.id_of.get(part) {
+                    Some(&id) => ids.push(id),
+                    None => {
+                        for c in part.chars() {
+                            if let Some(&id) = self.id_of.get(c.to_string().as_str()) {
+                                ids.push(id);
+                            }
+                        }
+                    }
+                }
+            }
+            out.push(PreMerges { start, steps, ids });
+        }
+        out
     }
 }
 
@@ -330,5 +416,18 @@ mod tests {
         assert_eq!(t.bpe("acb"), vec!["a", "c", "b"]); // no rule applies
         assert_eq!(t.encode("abc"), vec![4]);
         assert_eq!(t.decode(&[4]), "abc");
+
+        // the merge trace records both merges in rank order and reduces to the
+        // same id `encode` produces
+        let pm = t.encode_merges("abc");
+        assert_eq!(pm.len(), 1);
+        assert_eq!(pm[0].start, vec!["a", "b", "c"]);
+        assert_eq!(pm[0].steps.len(), 2);
+        assert_eq!((pm[0].steps[0].left.as_str(), pm[0].steps[0].right.as_str(), pm[0].steps[0].rank), ("a", "b", 0));
+        assert_eq!(pm[0].steps[0].result, vec!["ab", "c"]);
+        assert_eq!((pm[0].steps[1].left.as_str(), pm[0].steps[1].right.as_str(), pm[0].steps[1].rank), ("ab", "c", 1));
+        assert_eq!(pm[0].steps[1].result, vec!["abc"]);
+        let flat: Vec<u32> = pm.iter().flat_map(|p| p.ids.clone()).collect();
+        assert_eq!(flat, t.encode("abc"));
     }
 }

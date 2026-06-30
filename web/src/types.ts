@@ -109,6 +109,25 @@ export interface Lens {
   layers: LensLayer[];
 }
 
+/** The BPE merge trace for one input (from /api/v1/merges), per pre-token: the
+ *  byte-level start, the merges applied in rank order (each with the resulting
+ *  piece list), and the final token ids. The flattened ids equal the trace's
+ *  prompt tokens. */
+export interface MergeStep {
+  left: string;
+  right: string;
+  rank: number;
+  result: string[];
+}
+export interface Pretoken {
+  start: string[];
+  steps: MergeStep[];
+  tokens: number[];
+}
+export interface Merges {
+  pretokens: Pretoken[];
+}
+
 /** one real Q8_0 block from the model, for the quantization explainer */
 export interface QuantSample {
   tensor: string;
