@@ -40,8 +40,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --workspace -- -D warnings
 
-  tsc:
-    name: web typecheck
+  web:
+    name: web (typecheck + test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,4 +53,6 @@ jobs:
       - run: npm ci
         working-directory: web
       - run: npm run typecheck
+        working-directory: web
+      - run: npm test
         working-directory: web
