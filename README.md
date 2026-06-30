@@ -1,18 +1,26 @@
 # suiron
 
-An LLM inference engine for Apple Silicon, written from scratch in Rust. Features a GGUF parser, byte-level BPE tokenizer, attention, RoPE, and Metal kernels with no ML dependencies. Paired with a browser microscope that traces a real
-forward pass, token by token.
+**Watch a real language model predict the next token, one step at a time** — every
+number on screen is computed live by a from-scratch engine and verified
+token-for-token against `llama.cpp`.
 
-<!-- DEMO GIF — record from `make lab`: type a prompt, step through a few
-     tokens, hover a layer so the attention arcs light up, expand a "math" card.
-     Save as docs/demo.gif and uncomment:
-![suiron inference microscope](docs/demo.gif)
--->
+![the suiron microscope: the logit lens, a prediction forming layer by layer](docs/demo.gif)
 
-Everything from the file format up to the GPU is implemented here and verified
-token-for-token against `llama.cpp`. `suiron` began as the
-on-device engine for [Kana Master](https://github.com/aarondudar/Kana-Master-Mobile),
-a mobile app I developed for learning Japanese.
+suiron is an LLM inference engine for Apple Silicon, written from scratch in Rust —
+a GGUF parser, a byte-level BPE tokenizer, attention, RoPE, SwiGLU, and hand-rolled
+Metal kernels, with **no ML dependencies** — paired with a browser "microscope" that
+traces an actual forward pass.
+
+- **Curious how text prediction actually works?** Open the microscope, type a
+  prompt, and watch it happen: attention reaching back over the words, the logit
+  lens showing the winning token climb the layers, one real attention score
+  stepped out component by component.
+- **Building inference, or want to read one end to end?** It is a complete,
+  dependency-free implementation from the binary file format up to the GPU,
+  checked against llama.cpp at every layer — not just the final output.
+
+It began as the on-device engine for [Kana Master](https://github.com/aarondudar/Kana-Master-Mobile),
+a mobile app I built for learning Japanese.
 
 ## Quick start
 
@@ -31,13 +39,19 @@ cargo run --release -p suiron-cli -- run models/Qwen3-0.6B-Q8_0.gguf -p "The cap
 ## The microscope
 
 `suiron lab` keeps the model resident and serves a single-page instrument over a
-JSON API. You step through generation one token at a time and read, in real
-numbers, how each one was produced: attention per layer (with arcs back over the
-prompt), the residual stream, the ranked next-token logits, and the sampling
-decision that picked the winner. Click a candidate to force it instead and watch
-the model continue from the altered history. An "explain" toggle narrates each
-panel; a "machine" view shows the engine's own source beside the math for every
-stage. Built on `web/` (React + TypeScript) — see [`docs/microscope.md`](docs/microscope.md).
+JSON API. Type a prompt and step through generation one token at a time, reading —
+in real numbers — how each one was produced.
+
+The headline is the **logit lens**: drag a slider down the 28 layers and watch the
+winning token climb the rankings, the prediction resolving out of the residual
+stream layer by layer; the instrument marks the exact layer where it takes the
+lead. Around it: a **worked dot product** that steps one real attention score out
+of two 128-number vectors; per-layer attention with arcs back over the prompt; the
+residual stream; and the ranked next-token logits with the sampling decision that
+picked the winner. Click a candidate to force it and watch the model continue from
+the altered history. Every concept has an on-demand explainer that, for the compute
+stages, weaves the engine's own Rust source together with this token's real values.
+Built on `web/` (React + TypeScript) — see [`docs/microscope.md`](docs/microscope.md).
 
 ## Roadmap
 
