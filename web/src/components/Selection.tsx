@@ -2,7 +2,8 @@ import { esc, q } from "../lib";
 import { BandHeader } from "./BandHeader";
 import { Explain } from "./Explainer";
 import { SUB } from "./Explanations";
-import type { Sel } from "../types";
+import { RoleTag } from "./RoleTag";
+import type { Sel, Trace } from "../types";
 
 function DrawBar({ sel }: { sel: Sel & { r: number } }) {
   const survivors = sel.cand.filter((c) => !c.cut && c.pf > 0);
@@ -37,7 +38,17 @@ function DrawBar({ sel }: { sel: Sel & { r: number } }) {
   );
 }
 
-export function Selection({ sel, isPrompt }: { sel?: Sel; isPrompt: boolean }) {
+export function Selection({
+  trace,
+  cur,
+  sel,
+  isPrompt,
+}: {
+  trace: Trace;
+  cur: number;
+  sel?: Sel;
+  isPrompt: boolean;
+}) {
   const body = !sel ? (
     <div className="sel-math">
       {isPrompt
@@ -54,7 +65,9 @@ export function Selection({ sel, isPrompt }: { sel?: Sel; isPrompt: boolean }) {
         idx="05"
         title={<Explain of="draw">how this token was chosen</Explain>}
         sub={SUB.selection}
-      />
+      >
+        <RoleTag trace={trace} pos={cur} kind="cur" />
+      </BandHeader>
       <div>{body}</div>
     </section>
   );

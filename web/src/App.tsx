@@ -296,7 +296,13 @@ export default function App() {
         <div className="head-right">
           <div className="pos">
             <span className={"be-tag be-" + activeBackend}>{activeBackend}</span>
-            token <b>{hasTokens ? safeCur : 0}</b> / {Math.max(0, trace.tokens.length - 1)}
+            {!hasTokens ? (
+              <>token <b>0</b></>
+            ) : prod >= 0 ? (
+              <>token <b>{safeCur}</b> · from <b>{prod}</b></>
+            ) : (
+              <>token <b>0</b> · start</>
+            )}
             <span
               className={
                 "dot-live" + (trace.busy ? " on" : "") + (activeBackend === "q8" ? " fast" : "")
@@ -352,14 +358,15 @@ export default function App() {
         <>
           {prodStep && (
             <div className="lifecycle-lead">
-              how this token was produced, top to bottom: the earlier tokens it read → the
-              prediction → the draw that picked it
+              how this token was produced — the forward pass at the read head, the token before it,
+              top to bottom: what it read → the prediction → the draw that picked it
             </div>
           )}
           <TokenStrip
             trace={trace}
             step={prodStep ?? step}
             cur={safeCur}
+            prod={prod}
             setCur={setCur}
             focus={focus}
           />
@@ -375,7 +382,7 @@ export default function App() {
                 focus={focus}
                 lensActive={active === "lens"}
               />
-              <Logits step={prodStep} cur={safeCur} busy={!!trace.busy} setHover={setHoverFocus} />
+              <Logits trace={trace} step={prodStep} cur={safeCur} busy={!!trace.busy} setHover={setHoverFocus} />
               <Geometry
                 trace={trace}
                 step={prodStep}
@@ -384,7 +391,7 @@ export default function App() {
                 active={active}
                 setHover={setHoverFocus}
               />
-              <Selection sel={step.sel} isPrompt={safeCur < trace.n_prompt} />
+              <Selection trace={trace} cur={safeCur} sel={step.sel} isPrompt={safeCur < trace.n_prompt} />
             </>
           ) : (
             <div className="seed-note">

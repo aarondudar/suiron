@@ -67,7 +67,7 @@ export function DotProduct({ ctx, layer, head }: { ctx: ExplainCtx; layer: numbe
       <div className="dp-title">one real attention score, component by component</div>
 
       {!data ? (
-        <div className="dp-status">loading this token's vectors…</div>
+        <div className="dp-status">loading the producing pass…</div>
       ) : !w ? (
         <div className="dp-status">no earlier token to read from at this position.</div>
       ) : (

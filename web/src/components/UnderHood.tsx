@@ -241,7 +241,7 @@ export function UnderHood({
             />
           </label>
         )}
-        {!data && <span className="uh-loading">loading this token's numbers…</span>}
+        {!data && <span className="uh-loading">loading the producing pass…</span>}
       </div>
 
       <pre className="code uh-code">
@@ -258,7 +258,7 @@ export function UnderHood({
             <span className="uh-val">{data ? active.value(data, head, ctx.trace) : "…"}</span>
           </>
         ) : (
-          <span className="uh-readout-idle">hover a highlighted name to see its value for this token</span>
+          <span className="uh-readout-idle">hover a highlighted name to see its value for the producing pass</span>
         )}
       </div>
     </div>

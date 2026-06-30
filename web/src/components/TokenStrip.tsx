@@ -11,12 +11,16 @@ export function TokenStrip({
   trace,
   step,
   cur,
+  prod,
   setCur,
   focus,
 }: {
   trace: Trace;
   step: Step;
   cur: number;
+  /** the producing position (cur-1): the read-head whose forward pass produced
+   *  `cur`. -1 at the seed (the first token, which nothing produced). */
+  prod: number;
   setCur: (i: number) => void;
   /** the one thing the lab is lighting up (hover, the open Explainer, or a
    *  programmatic writer); this band reacts to the foci that touch tokens. */
@@ -58,7 +62,7 @@ export function TokenStrip({
   useLayoutEffect(() => {
     // arcs are a desktop affordance; on narrow screens the inline source tint
     // replaces them (Bezier fans across wrapped lines read as noise on a phone)
-    drawArcs(canvasRef.current, stripRef.current, step, cur, arcs && !narrow, focusLayer);
+    drawArcs(canvasRef.current, stripRef.current, step, cur, prod, arcs && !narrow, !narrow, focusLayer);
   });
 
   return (
@@ -85,6 +89,7 @@ export function TokenStrip({
         {trace.tokens.map((tok, i) => {
           const conf = confidence(trace, i);
           const isCur = i === cur;
+          const isProd = i === prod && prod >= 0;
           const forced = trace.steps[i]?.sel?.forced;
           return (
             <span
@@ -95,17 +100,20 @@ export function TokenStrip({
                 (i >= trace.n_prompt || forced ? " gen" : "") +
                 (forced ? " forced" : "") +
                 (isCur ? " cur" : "") +
+                (isProd ? " prod" : "") +
                 (srcSet.has(i) ? (i === topSrc ? " src-top" : " src") : "") +
                 (candId !== null && tok.id === candId ? " cand-match" : "")
               }
               style={!isCur && conf !== null ? { color: confColor(conf) } : undefined}
               title={
                 `id ${tok.id} · pos ${i}` +
+                (isProd ? " · read head (produced the inspected token)" : "") +
                 (conf !== null ? ` · p ${(conf * 100).toFixed(1)}%` : " · prompt")
               }
               onClick={() => setCur(i)}
               onMouseEnter={() => setHoverTok(i)}
             >
+              {isProd && <i className="tok-readhead">read head</i>}
               {esc(tok.t)}
               {conf !== null && (
                 <i className="conf-bar" style={{ width: `${confBar(conf) * 100}%` }} />
@@ -118,15 +126,19 @@ export function TokenStrip({
   );
 }
 
-/** Bezier arcs from the current token to its strongest attention targets,
- *  aggregated over all layers and heads — or just one layer when a stack
- *  row is hovered. Strongest arc is red. */
+/** The producing edge: a short dim connector from the read-head (prod) to the
+ *  token it produced (cur), plus Bezier arcs from the read-head back to the
+ *  earlier tokens it attended to (aggregated over all layers and heads, or one
+ *  layer when a stack row is hovered). Strongest arc is red. The connector is
+ *  drawn whenever there is room (desktop), independent of the arcs toggle. */
 function drawArcs(
   canvas: HTMLCanvasElement | null,
   strip: HTMLDivElement | null,
   step: Step,
   cur: number,
+  prod: number,
   enabled: boolean,
+  showConnector: boolean,
   focusLayer: number | null,
 ) {
   if (!canvas || !strip) return;
@@ -141,34 +153,64 @@ function drawArcs(
   if (!g) return;
   g.scale(dpr, dpr);
   g.clearRect(0, 0, w, h);
-  if (!enabled || cur === 0 || !step.attn.length) return;
-
-  // aggregate attention mass — all layers, or just the hovered one
-  const layers =
-    focusLayer !== null && step.attn[focusLayer] ? [step.attn[focusLayer]] : step.attn;
-  const weight = new Map<number, number>();
-  for (const layer of layers)
-    for (const head of layer)
-      for (const [p, v] of head) {
-        if (p < cur) weight.set(p, (weight.get(p) ?? 0) + v);
-      }
-  if (!weight.size) return;
-
-  // the attention sink (token 0) dominates any aggregate — show it as a
-  // dashed ghost so the red arc can point at the strongest REAL target
-  const sink = cur > 3 ? (weight.get(0) ?? 0) : 0;
-  if (cur > 3) weight.delete(0);
-  let top = [...weight.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
-  if (!top.length && sink > 0) top = [[0, sink]]; // nothing but the sink
-  if (!top.length) return;
-  const max = top[0][1];
 
   const cells = strip.querySelectorAll<HTMLSpanElement>(".tok");
   const anchor = (i: number) => {
     const c = cells[i];
     return c ? { x: c.offsetLeft + c.offsetWidth / 2, y: c.offsetTop + 1 } : null;
   };
-  const from = anchor(cur);
+
+  // the producing edge: read-head (prod) → produced token (cur). Dim, with a
+  // small arrowhead at cur. Shown on desktop regardless of the arcs toggle.
+  if (showConnector && prod >= 0 && prod !== cur) {
+    const a = anchor(prod);
+    const b = anchor(cur);
+    if (a && b) {
+      const midY = Math.min(a.y, b.y) - 10;
+      g.strokeStyle = "#6a6a6a";
+      g.fillStyle = "#6a6a6a";
+      g.globalAlpha = 0.75;
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(a.x, a.y);
+      g.quadraticCurveTo((a.x + b.x) / 2, midY, b.x, b.y);
+      g.stroke();
+      // arrowhead pointing into cur
+      g.beginPath();
+      g.moveTo(b.x, b.y);
+      g.lineTo(b.x - 4, b.y - 5);
+      g.lineTo(b.x + 4, b.y - 5);
+      g.closePath();
+      g.fill();
+      g.globalAlpha = 1;
+    }
+  }
+
+  // arcs need a producing pass (none at the seed) and the arcs affordance on
+  if (!enabled || prod < 0 || !step.attn.length) return;
+
+  // aggregate attention mass at the read-head (prod) — all layers, or just the
+  // hovered one. Exclude prod itself (the self/diagonal).
+  const layers =
+    focusLayer !== null && step.attn[focusLayer] ? [step.attn[focusLayer]] : step.attn;
+  const weight = new Map<number, number>();
+  for (const layer of layers)
+    for (const head of layer)
+      for (const [p, v] of head) {
+        if (p <= prod && p !== prod) weight.set(p, (weight.get(p) ?? 0) + v);
+      }
+  if (!weight.size) return;
+
+  // the attention sink (token 0) dominates any aggregate — show it as a
+  // dashed ghost so the red arc can point at the strongest REAL target
+  const sink = prod > 3 ? (weight.get(0) ?? 0) : 0;
+  if (prod > 3) weight.delete(0);
+  let top = [...weight.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (!top.length && sink > 0) top = [[0, sink]]; // nothing but the sink
+  if (!top.length) return;
+  const max = top[0][1];
+
+  const from = anchor(prod);
   if (!from) return;
 
   const arc = (to: { x: number; y: number }, lift: number) => {

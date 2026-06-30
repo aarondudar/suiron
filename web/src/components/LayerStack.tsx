@@ -4,6 +4,7 @@ import { BandHeader } from "./BandHeader";
 import { DotStrip } from "./DotStrip";
 import { Explain } from "./Explainer";
 import { SUB } from "./Explanations";
+import { RoleTag } from "./RoleTag";
 import { useLens } from "./Geometry";
 
 const TAG_HELP: Record<string, string> = {
@@ -150,6 +151,7 @@ export function LayerStack({
       >
         <Explain of="embedding" label="embedding" />
         <Explain of="residual" label="residual" />
+        <RoleTag trace={trace} pos={nPos - 1} kind="prod" />
       </BandHeader>
       {outputMarker && <div className="moment-output">{outputMarker.label}</div>}
       <div onMouseLeave={() => setHover({ kind: "none" })}>{rows}</div>

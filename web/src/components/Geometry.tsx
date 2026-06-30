@@ -5,6 +5,7 @@ import { attnSources, litToken } from "../lib";
 import { BandHeader } from "./BandHeader";
 import { Explain, useExplainer } from "./Explainer";
 import { SUB, type ExplainCtx } from "./Explanations";
+import { RoleTag } from "./RoleTag";
 import type { FocusTarget, Lens, Neighbor, Step, Trace } from "../types";
 
 /* The geometry view — meaning, traversal, prediction, and the climb in one
@@ -332,6 +333,11 @@ export function Geometry({
         title={<Explain of="geometry">the geometry of one prediction</Explain>}
         sub={SUB.geometry}
       >
+        <RoleTag
+          trace={trace}
+          pos={read === "meaning" ? cur : prod}
+          kind={read === "meaning" ? "cur" : "prod"}
+        />
         <div className="seg geo-toggle">
           {TOGGLE.map((t) => (
             <button

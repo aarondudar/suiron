@@ -372,6 +372,13 @@ button.busy { border-color: var(--red); color: var(--red); }
 }
 .tok.gen { border-color: #454545; }
 .tok.cur { border-color: var(--red); color: var(--red); background: rgba(215, 25, 33, 0.08); }
+/* the producing edge: prod is the read-head whose forward pass produced cur.
+   Non-red (red is reserved for cur / strongest): a dashed dim outline + a label. */
+.tok.prod { border-color: var(--dim); border-style: dashed; }
+.tok-readhead {
+  position: absolute; left: 0; top: -16px; font-size: var(--t-micro);
+  letter-spacing: 0.06em; color: var(--dim); white-space: nowrap; pointer-events: none;
+}
 .tok:hover { border-color: var(--dim); }
 /* confidence under-bar — only on generated tokens; width ∝ how sure the model
    was. its presence (vs none on a prompt token) is itself the gen marker. */
@@ -383,6 +390,14 @@ button.busy { border-color: var(--red); color: var(--red); }
 .tok.src { background: rgba(232, 232, 232, 0.07); border-color: var(--dim); }
 .tok.src-top { background: rgba(215, 25, 33, 0.16); border-color: var(--red); }
 .tok.cand-match { background: rgba(215, 25, 33, 0.16); border-color: var(--red); }
+/* a read-head cell that is also the strongest hover source still reads red */
+.tok.prod.src-top { border-color: var(--red); border-style: solid; }
+
+/* band-header role tags: which token a band is anchored to (prod = dim, the
+   producing pass; cur = red, the inspected token) */
+.role-tag { font-size: var(--t-micro); letter-spacing: 0.04em; white-space: nowrap; }
+.role-tag.role-prod { color: var(--dim); }
+.role-tag.role-cur { color: var(--red); }
 
 /* ---------- layer stack ---------- */
 .row {
@@ -744,8 +759,9 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 
   .ctl-row { flex-wrap: wrap; }
 
-  /* no arcs on a phone — reclaim the space the arc canvas reserved */
-  .strip { padding-top: 0; }
+  /* no arcs on a phone — reclaim most of the space the arc canvas reserved,
+     but keep room for the read-head label above the strip */
+  .strip { padding-top: 18px; }
 
   /* layer rows reflow to two lines: lnum + glance + rnorm, then the dot strip
      on its own scrollable track (so long sequences scroll, not overflow). */

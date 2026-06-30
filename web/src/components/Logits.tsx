@@ -3,14 +3,17 @@ import { DEFAULT_PARAMS, esc } from "../lib";
 import { BandHeader } from "./BandHeader";
 import { Explain } from "./Explainer";
 import { SUB } from "./Explanations";
-import type { FocusTarget, Step } from "../types";
+import { RoleTag } from "./RoleTag";
+import type { FocusTarget, Step, Trace } from "../types";
 
 export function Logits({
+  trace,
   step,
   cur,
   busy,
   setHover,
 }: {
+  trace: Trace;
   step: Step;
   cur: number;
   busy: boolean;
@@ -31,7 +34,9 @@ export function Logits({
         idx="03"
         title={<Explain of="logits">what the model predicted here</Explain>}
         sub={SUB.logits}
-      />
+      >
+        <RoleTag trace={trace} pos={cur - 1} kind="prod" />
+      </BandHeader>
       <div>
         {top.map(([id, text, p], i) => (
           <div
