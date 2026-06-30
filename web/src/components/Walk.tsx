@@ -18,13 +18,17 @@ export interface WalkStop {
   expandMoment?: "attention-lock";
 }
 
+// one token's whole life, in order: born from the text, turned into a vector,
+// placed, processed layer by layer, accumulated, scored, resolved, chosen.
 export const WALK: WalkStop[] = [
   { concept: "model", label: "what this is" },
   { concept: "settings", label: "the settings" },
   { concept: "tokenization", label: "tokens" },
-  { concept: "embedding", label: "into the stack" },
+  { concept: "embedding", label: "the vector" },
+  { concept: "position", label: "where it sits" },
   { concept: "attention", label: "attention", expandLayer: true, expandMoment: "attention-lock" },
   { concept: "feedforward", label: "feed-forward" },
+  { concept: "residual", label: "the running total" },
   { concept: "logits", label: "the prediction" },
   { concept: "geometry", label: "what comes next" },
   { concept: "lens", label: "the climb" },

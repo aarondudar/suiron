@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getLens, getNeighbors } from "../api";
+import { useAutoplay } from "../autoplay";
 import { attnSources, litToken } from "../lib";
 import { BandHeader } from "./BandHeader";
 import { Explain, useExplainer } from "./Explainer";
@@ -118,13 +119,15 @@ export function GeometryView({
   trace,
   step,
   cur,
+  prod,
   read,
   compact = false,
   onHover,
 }: {
   trace: Trace;
-  step: Step;
-  cur: number;
+  step: Step; // the producing step (steps[prod]) — backs the prediction read
+  cur: number; // the inspected token — backs the meaning read (its own vector)
+  prod: number; // the producing position — backs the lens (its layer-by-layer climb)
   read: Read;
   compact?: boolean;
   onHover?: (f: FocusTarget) => void;
@@ -133,9 +136,15 @@ export function GeometryView({
   const lastLayer = trace.layers - 1;
   const tokenId = trace.tokens[cur]?.id ?? -1;
   const nbrs = useNeighbors(tokenId, read === "meaning");
-  const lens = useLens(cur, read === "lens");
-  const [selLayer, setSelLayer] = useState(lastLayer);
-  const layerSel = Math.min(selLayer, lastLayer);
+  const lens = useLens(prod, read === "lens");
+  // the climb autoplays layer 0 → last in a loop (pausable; static at the final
+  // layer under reduced-motion). Only active in the lens read.
+  const {
+    i: layerSel,
+    playing: lensPlaying,
+    setI: setSelLayer,
+    toggle: toggleLens,
+  } = useAutoplay(read === "lens" ? lastLayer : 0, { stepMs: 360 });
   const cap = compact ? (read === "meaning" ? 8 : 6) : read === "meaning" ? 12 : 10;
 
   let nodes: Node[] = [];
@@ -183,6 +192,9 @@ export function GeometryView({
     <div className={"geo-view" + (compact ? " compact" : "")}>
       {read === "lens" && (
         <div className="geo-lens-bar">
+          <button className="geo-lens-play" onClick={toggleLens} aria-label={lensPlaying ? "pause" : "play"}>
+            {lensPlaying ? "❚❚" : "▶"}
+          </button>
           <input
             type="range"
             min={0}
@@ -292,12 +304,14 @@ export function Geometry({
   trace,
   step,
   cur,
+  prod,
   active,
   setHover,
 }: {
   trace: Trace;
   step: Step;
   cur: number;
+  prod: number;
   active: string | null;
   setHover: (f: FocusTarget) => void;
 }) {
@@ -333,7 +347,7 @@ export function Geometry({
       </BandHeader>
 
       <div className="geo-wrap">
-        <GeometryView trace={trace} step={step} cur={cur} read={read} onHover={setHover} />
+        <GeometryView trace={trace} step={step} cur={cur} prod={prod} read={read} onHover={setHover} />
         <p className="geo-honest">
           Closer to the center means the model scores it higher in <b>what comes next</b>, or sits
           at a higher cosine similarity to this token in <b>what it means</b>. <b>The climb</b> shows
@@ -359,7 +373,7 @@ export function GeometryCard({ ctx, read }: { ctx: ExplainCtx; read: Read }) {
   const onHover = docked ? undefined : setProgramFocus;
   return (
     <div className="geo-card">
-      <GeometryView trace={ctx.trace} step={ctx.step} cur={ctx.cur} read={read} compact onHover={onHover} />
+      <GeometryView trace={ctx.trace} step={ctx.step} cur={ctx.cur} prod={ctx.prod} read={read} compact onHover={onHover} />
       <p className="geo-card-note">{CARD_NOTE[read]}</p>
     </div>
   );

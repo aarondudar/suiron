@@ -113,6 +113,13 @@ export default function App() {
 
   const safeCur = trace ? Math.min(cur, trace.tokens.length - 1) : 0;
   const step = trace && trace.tokens.length ? trace.steps[safeCur] : undefined;
+  // Inspecting a token is a read of HOW IT WAS PRODUCED. The forward pass that
+  // produced `cur` ran at the previous position, so the production bands
+  // (attention, the prediction, the lens) read `prodStep = steps[cur-1]`. The
+  // draw that picked `cur` stays at `steps[cur].sel`. `cur` is the seed (the
+  // first token) when there is no producing step.
+  const prod = safeCur - 1;
+  const prodStep = trace && prod >= 0 ? trace.steps[prod] : undefined;
 
   // one context, built per render from trace + viewing state; nothing here
   // triggers an engine call.
@@ -121,8 +128,9 @@ export default function App() {
       ? {
           trace,
           cur: safeCur,
-          step,
-          sel: step.sel,
+          prod,
+          step: prodStep ?? step, // the producing step (falls back to cur's own at the seed)
+          sel: step.sel, // the draw that picked `cur`
           params,
           layer: openLayer >= 0 ? openLayer : Math.floor(trace.layers / 2),
         }
@@ -165,7 +173,7 @@ export default function App() {
       // light / scroll to that same layer (not the stale default)
       let layer = ctx.layer;
       if (stop.expandMoment === "attention-lock") {
-        const m = moments(ctx.trace, ctx.cur).find((mk) => mk.kind === "attention");
+        const m = moments(ctx.trace, ctx.prod).find((mk) => mk.kind === "attention");
         if (m?.layer !== undefined) layer = m.layer;
       }
       setOpenLayer(layer);
@@ -307,23 +315,49 @@ export default function App() {
 
       {hasTokens && step && (
         <>
-          <div className="lifecycle-lead">
-            one token's life, top to bottom: input → prediction → the next token
-          </div>
-          <TokenStrip trace={trace} step={step} cur={safeCur} setCur={setCur} focus={focus} />
-          <LayerStack
+          {prodStep && (
+            <div className="lifecycle-lead">
+              how this token was produced, top to bottom: the earlier tokens it read → the
+              prediction → the draw that picked it
+            </div>
+          )}
+          <TokenStrip
             trace={trace}
-            step={step}
-            nPos={safeCur + 1}
-            openLayer={openLayer}
-            setOpenLayer={setOpenLayer}
-            setHover={setHoverFocus}
+            step={prodStep ?? step}
+            cur={safeCur}
+            setCur={setCur}
             focus={focus}
-            lensActive={active === "lens"}
           />
-          <Logits step={step} cur={safeCur} busy={!!trace.busy} setHover={setHoverFocus} />
-          <Geometry trace={trace} step={step} cur={safeCur} active={active} setHover={setHoverFocus} />
-          <Selection sel={step.sel} isPrompt={safeCur < trace.n_prompt} />
+          {prodStep ? (
+            <>
+              <LayerStack
+                trace={trace}
+                step={prodStep}
+                nPos={safeCur}
+                openLayer={openLayer}
+                setOpenLayer={setOpenLayer}
+                setHover={setHoverFocus}
+                focus={focus}
+                lensActive={active === "lens"}
+              />
+              <Logits step={prodStep} cur={safeCur} busy={!!trace.busy} setHover={setHoverFocus} />
+              <Geometry
+                trace={trace}
+                step={prodStep}
+                cur={safeCur}
+                prod={prod}
+                active={active}
+                setHover={setHoverFocus}
+              />
+              <Selection sel={step.sel} isPrompt={safeCur < trace.n_prompt} />
+            </>
+          ) : (
+            <div className="seed-note">
+              This is the first token in the sequence. The model did not predict it — generation
+              starts from the tokens you provide. Move right (→) to a token the model produced to
+              see how it was made.
+            </div>
+          )}
           <div className="aside-divider">the same model, faster · an aside, not a step</div>
           <Quantization trace={trace} params={params} setParams={setParams} busy={!!trace.busy} />
         </>

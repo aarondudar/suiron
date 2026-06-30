@@ -41,7 +41,7 @@ export function Selection({ sel, isPrompt }: { sel?: Sel; isPrompt: boolean }) {
   const body = !sel ? (
     <div className="sel-math">
       {isPrompt
-        ? "prompt token. you typed this one, the model did not choose it. the model only predicts the tokens that come after it (see the band above)."
+        ? "prompt token. you typed this one, the model did not choose it. the band above shows what the model would have predicted for this position, but you supplied the actual token."
         : "no selection recorded for this position."}
     </div>
   ) : (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getMerges } from "../api";
+import { useAutoplay } from "../autoplay";
 import { litToken } from "../lib";
 import type { ExplainCtx } from "./Explanations";
 import type { Merges } from "../types";
@@ -9,11 +10,9 @@ import type { Merges } from "../types";
    tokens the model reads. Each step names the pair and its real rank; the merged
    piece is marked. Pure render over the merge trace from /api/v1/merges (fetched
    only when this interactive is open). The end state is exactly the trace's
-   tokens. prefers-reduced-motion shows the finished split. */
+   tokens. Autoplays in a loop by default (pausable; static under reduced-motion). */
 
-const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-const totalOf = (m: Merges) => m.pretokens.reduce((a, p) => a + p.steps.length, 0);
+const totalOf = (m: Merges | null) => (m ? m.pretokens.reduce((a, p) => a + p.steps.length, 0) : 0);
 
 export function TokenizeDemo({ ctx }: { ctx: ExplainCtx }) {
   // signature of the resident prompt; refetch when it changes
@@ -22,28 +21,25 @@ export function TokenizeDemo({ ctx }: { ctx: ExplainCtx }) {
     .map((t) => t.id)
     .join(",");
   const [m, setM] = useState<Merges | null>(null);
-  const [step, setStep] = useState(0);
 
   useEffect(() => {
     let dead = false;
     setM(null);
     getMerges()
-      .then((d) => {
-        if (dead) return;
-        setM(d);
-        setStep(REDUCED ? totalOf(d) : 0);
-      })
+      .then((d) => !dead && setM(d))
       .catch(() => !dead && setM(null));
     return () => {
       dead = true;
     };
   }, [promptSig]);
 
+  // autoplay the merges; resets when a new prompt's merge count arrives
+  const total = totalOf(m);
+  const { i: k, playing, setI, toggle } = useAutoplay(total, { stepMs: 380 });
+
   if (!m) return <div className="tok-status">loading the merges…</div>;
 
   const pts = m.pretokens;
-  const total = totalOf(m);
-  const k = Math.min(step, total);
   const done = k >= total;
 
   // resolve each pre-token's piece list at global step k (pre-tokens merge left
@@ -119,19 +115,17 @@ export function TokenizeDemo({ ctx }: { ctx: ExplainCtx }) {
         <span className="tok-where">
           step <b>{k}</b> / {total}
         </span>
-        <button onClick={() => setStep(Math.max(0, k - 1))} disabled={k <= 0}>
+        <button onClick={toggle}>{playing ? "❚❚ pause" : "▶ play"}</button>
+        <button onClick={() => setI(Math.max(0, k - 1))} disabled={k <= 0}>
           ◀
         </button>
-        <button onClick={() => setStep(Math.min(total, k + 1))} disabled={done}>
+        <button onClick={() => setI(Math.min(total, k + 1))} disabled={done}>
           ▶ merge
         </button>
-        <button onClick={() => setStep(Math.min(total, k + 5))} disabled={done}>
-          +5
-        </button>
-        <button onClick={() => setStep(total)} disabled={done}>
+        <button onClick={() => setI(total)} disabled={done}>
           to tokens
         </button>
-        <button onClick={() => setStep(0)} disabled={k === 0}>
+        <button onClick={() => setI(0)} disabled={k === 0}>
           reset
         </button>
       </div>

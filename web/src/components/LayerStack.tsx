@@ -61,8 +61,8 @@ export function LayerStack({
           = head ÷ {group})
         </div>
         <div className="stage-crumb">
-          this layer's math: normalize → <Explain of="attention" label="attention" /> →{" "}
-          <Explain of="feedforward" label="feed-forward" />
+          this layer's math: <Explain of="norm" label="normalize" /> →{" "}
+          <Explain of="attention" label="attention" /> → <Explain of="feedforward" label="feed-forward" />
         </div>
         <div className="heads">
           {step.attn[l].map((edges, h) => {

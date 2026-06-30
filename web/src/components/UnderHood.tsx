@@ -125,13 +125,28 @@ function buildRe(vars: string[]): RegExp {
   );
 }
 
-export function UnderHood({ ctx, stage }: { ctx: ExplainCtx; stage: Stage }) {
+export function UnderHood({
+  ctx,
+  stage,
+  layer: cLayer,
+  head: cHead,
+}: {
+  ctx: ExplainCtx;
+  stage: Stage;
+  /** when given (the attention concept), layer/head are controlled by the
+   *  shared attention controls so this view and the worked dot product agree */
+  layer?: number;
+  head?: number;
+}) {
   const anno = STAGE_ANNO[stage];
   const { hot, setHot } = useHotVar();
-  // embedding is the layer-0 table lookup; attention/feed-forward run per layer
-  const [layer, setLayer] = useState(stage === "embedding" ? 0 : ctx.layer);
-  const [head, setHead] = useState(3);
-  const eff = stage === "embedding" ? 0 : layer;
+  const controlled = cLayer !== undefined;
+  // embedding is the layer-0 table lookup; feed-forward picks its own layer
+  const [iLayer, setILayer] = useState(stage === "embedding" ? 0 : ctx.layer);
+  const [iHead, setIHead] = useState(3);
+  const layer = stage === "embedding" ? 0 : (cLayer ?? iLayer);
+  const head = cHead ?? iHead;
+  const eff = layer;
 
   const [data, setData] = useState<Inspect | null>(null);
   const [src, setSrc] = useState<string | null>(null);
@@ -139,14 +154,16 @@ export function UnderHood({ ctx, stage }: { ctx: ExplainCtx; stage: Stage }) {
   useEffect(() => {
     let dead = false;
     setData(null);
-    fetch(`/api/v1/inspect?pos=${ctx.cur}&layer=${eff}`)
+    if (ctx.prod < 0) return; // the seed token had no forward pass to inspect
+    // the compute stages that produced `cur` ran at the previous position
+    fetch(`/api/v1/inspect?pos=${ctx.prod}&layer=${eff}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => !dead && setData(d))
       .catch(() => !dead && setData(null));
     return () => {
       dead = true;
     };
-  }, [ctx.cur, eff]);
+  }, [ctx.prod, eff]);
 
   useEffect(() => {
     let dead = false;
@@ -200,7 +217,7 @@ export function UnderHood({ ctx, stage }: { ctx: ExplainCtx; stage: Stage }) {
   return (
     <div className="under-hood">
       <div className="uh-controls">
-        {stage !== "embedding" && (
+        {stage !== "embedding" && !controlled && (
           <label className="uh-sel">
             layer{" "}
             <input
@@ -208,11 +225,11 @@ export function UnderHood({ ctx, stage }: { ctx: ExplainCtx; stage: Stage }) {
               min={0}
               max={ctx.trace.layers - 1}
               value={layer}
-              onChange={(e) => setLayer(Math.min(ctx.trace.layers - 1, Math.max(0, +e.target.value)))}
+              onChange={(e) => setILayer(Math.min(ctx.trace.layers - 1, Math.max(0, +e.target.value)))}
             />
           </label>
         )}
-        {stage === "attention" && (
+        {stage === "attention" && !controlled && (
           <label className="uh-sel">
             head{" "}
             <input
@@ -220,7 +237,7 @@ export function UnderHood({ ctx, stage }: { ctx: ExplainCtx; stage: Stage }) {
               min={0}
               max={ctx.trace.heads - 1}
               value={head}
-              onChange={(e) => setHead(Math.min(ctx.trace.heads - 1, Math.max(0, +e.target.value)))}
+              onChange={(e) => setIHead(Math.min(ctx.trace.heads - 1, Math.max(0, +e.target.value)))}
             />
           </label>
         )}

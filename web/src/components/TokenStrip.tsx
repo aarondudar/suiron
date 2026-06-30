@@ -47,8 +47,11 @@ export function TokenStrip({
 
   // which token's attention sources to highlight inline: the hovered one, or —
   // on a phone, where arcs are off and there's no hover — the current token.
+  // A token was PRODUCED by the forward pass at the previous position, so its
+  // sources come from steps[pos-1] (the pass that read the earlier tokens).
   const srcPos = hoverTok ?? focusTok ?? (narrow ? cur : null);
-  const sources = srcPos != null && srcPos > 0 ? attnSources(trace.steps[srcPos], srcPos) : [];
+  const sources =
+    srcPos != null && srcPos > 0 ? attnSources(trace.steps[srcPos - 1], srcPos) : [];
   const srcSet = new Set(sources.map((s) => s.pos));
   const topSrc = sources[0]?.pos;
 

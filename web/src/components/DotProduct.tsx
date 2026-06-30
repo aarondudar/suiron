@@ -1,18 +1,17 @@
 import { useEffect, useState } from "react";
+import { useAutoplay } from "../autoplay";
 import { litToken } from "../lib";
 import type { ExplainCtx } from "./Explanations";
 import type { WorkedDot } from "../types";
 
 /* The worked operation: one real attention score, built component by component.
-   This token's query vector q and one earlier token's key vector k (one head),
-   each head_dim long, paired and multiplied into a running sum, then scaled by
-   1/√head_dim — equal to that head's pre-softmax score, which the engine already
-   reports. Pure render over real numbers from /api/v1/inspect (fetched only when
-   this interactive is open). Red marks the current component and the final
-   score; everything else is monochrome. prefers-reduced-motion shows the
-   completed computation. (Reusable later for feed-forward's gate·up.) */
-
-const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+   This token's query q and one earlier token's key k (one head), each head_dim
+   long, paired and multiplied into a running sum, then scaled by 1/√head_dim —
+   equal to the head's pre-softmax score the engine reports. Pure render over
+   /api/v1/inspect (fetched only when this interactive is open). Autoplays the
+   accumulation in a loop by default (pausable; off under reduced-motion). Red
+   marks the current component and the final score. layer/head are controlled by
+   the shared attention controls. (Reusable later for feed-forward's gate·up.) */
 
 interface Resp {
   heads: { scores: number[]; weights: number[] }[];
@@ -21,30 +20,27 @@ interface Resp {
 
 const f = (x: number) => x.toFixed(3);
 
-export function DotProduct({ ctx }: { ctx: ExplainCtx }) {
-  const { layers: nLayers, heads: nHeads, head_dim: hd } = ctx.trace;
-  const [layer, setLayer] = useState(Math.min(ctx.layer, nLayers - 1));
-  const [head, setHead] = useState(Math.min(3, nHeads - 1));
+export function DotProduct({ ctx, layer, head }: { ctx: ExplainCtx; layer: number; head: number }) {
+  const hd = ctx.trace.head_dim;
   const [src, setSrc] = useState<number | null>(null); // null = engine's strongest edge
   const [data, setData] = useState<Resp | null>(null);
-  const [i, setI] = useState(0); // components accumulated so far
+  // autoplay the accumulation: ~4 components per tick so a full pass is a few seconds
+  const { i, playing, setI, toggle } = useAutoplay(hd, { chunk: 4, stepMs: 130 });
 
   useEffect(() => {
     let dead = false;
     setData(null);
+    if (ctx.prod < 0) return; // the seed token had no forward pass to inspect
     const sp = src == null ? "" : `&src=${src}`;
-    fetch(`/api/v1/inspect?pos=${ctx.cur}&layer=${layer}&head=${head}${sp}`)
+    // the attention that produced `cur` ran at the previous position
+    fetch(`/api/v1/inspect?pos=${ctx.prod}&layer=${layer}&head=${head}${sp}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: Resp | null) => {
-        if (dead) return;
-        setData(d);
-        setI(REDUCED ? hd : 0); // reduced motion: start completed
-      })
+      .then((d: Resp | null) => !dead && setData(d))
       .catch(() => !dead && setData(null));
     return () => {
       dead = true;
     };
-  }, [ctx.cur, layer, head, src, hd]);
+  }, [ctx.prod, layer, head, src]);
 
   const w = data?.worked;
   const scale = 1 / Math.sqrt(hd);
@@ -60,29 +56,15 @@ export function DotProduct({ ctx }: { ctx: ExplainCtx }) {
   const done = i >= hd;
   const agrees = engineScore !== undefined && Math.abs(score - engineScore) < 5e-3;
 
-  // top earlier tokens by this head's attention weight, to pick the source from
   const srcOptions = (data?.heads[head]?.weights ?? [])
     .map((wt, p) => [p, wt] as [number, number])
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6);
-
-  const num = (set: (n: number) => void, max: number) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    set(Math.min(max, Math.max(0, +e.target.value)));
-
   const srcText = (p: number) => litToken(ctx.trace.tokens[p]?.t ?? "").text;
 
   return (
     <div className="dotprod">
       <div className="dp-title">one real attention score, component by component</div>
-
-      <div className="dp-controls">
-        <label className="dp-sel">
-          layer <input type="number" min={0} max={nLayers - 1} value={layer} onChange={num(setLayer, nLayers - 1)} />
-        </label>
-        <label className="dp-sel">
-          head <input type="number" min={0} max={nHeads - 1} value={head} onChange={num(setHead, nHeads - 1)} />
-        </label>
-      </div>
 
       {!data ? (
         <div className="dp-status">loading this token's vectors…</div>
@@ -108,7 +90,6 @@ export function DotProduct({ ctx }: { ctx: ExplainCtx }) {
             score = ( q · k<sub>{srcText(w.src)}</sub> ) / √{hd}
           </div>
 
-          {/* the current component being added (red), then the running sum */}
           <div className="dp-step">
             component <b>{Math.min(i, hd)}</b> / {hd}
             {i > 0 && (
@@ -142,14 +123,12 @@ export function DotProduct({ ctx }: { ctx: ExplainCtx }) {
           )}
 
           <div className="dp-buttons">
+            <button onClick={toggle}>{playing ? "❚❚ pause" : "▶ play"}</button>
             <button onClick={() => setI(Math.max(0, i - 1))} disabled={i <= 0}>
               ◀
             </button>
             <button onClick={() => setI(Math.min(hd, i + 1))} disabled={done}>
               ▶ step
-            </button>
-            <button onClick={() => setI(Math.min(hd, i + 8))} disabled={done}>
-              +8
             </button>
             <button onClick={() => setI(hd)} disabled={done}>
               to end

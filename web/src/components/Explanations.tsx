@@ -9,7 +9,7 @@
 import type { ReactNode } from "react";
 import { confidence, layerGlance, q } from "../lib";
 import type { FocusTarget, GenParams, Sel, Step, Trace } from "../types";
-import { DotProduct } from "./DotProduct";
+import { AttentionInteractive } from "./AttentionInteractive";
 import { EngineSource } from "./EngineSource";
 import { Explain, Term } from "./Explainer";
 import { GeometryCard, type Read } from "./Geometry";
@@ -26,7 +26,7 @@ import { UnderHood } from "./UnderHood";
 export const SUB = {
   prompt: "type some text and choose how the model continues it.",
   tokens: "the input text, split into the pieces the model reads. click one to inspect it.",
-  logits: "the model's ranked guesses for the next token.",
+  logits: "the model's ranked guesses for this token; the one it picked is highlighted in the strip above.",
   selection: "how the model goes from ranked guesses to one actual token.",
   layers: "the token's vector flows through every layer in order; each one reads the earlier tokens. open a layer for its heads and math.",
   geometry: "every token is a direction in space; the next token is whichever vocabulary vector that direction points at most.",
@@ -49,9 +49,10 @@ export const SUB = {
 
 export interface ExplainCtx {
   trace: Trace;
-  cur: number; // inspected token position
-  step: Step; // trace.steps[cur]
-  sel?: Sel; // step.sel (undefined for a prompt token)
+  cur: number; // inspected token position (its identity, and the draw that picked it)
+  prod: number; // the position whose forward pass produced `cur` (cur-1; -1 at the seed)
+  step: Step; // the PRODUCING step, trace.steps[prod] — how `cur` was produced
+  sel?: Sel; // trace.steps[cur].sel — the draw that picked `cur` (undefined for a prompt token)
   params: GenParams; // live generation settings
   layer: number; // focused layer (openLayer, else a sensible default)
 }
@@ -177,18 +178,48 @@ export const CONCEPTS: Record<string, Concept> = {
     ),
   },
 
+  position: {
+    id: "position",
+    title: "where the token sits",
+    highlight: (c) => ({ kind: "token", pos: c.cur }),
+    rungs: [code("rope")],
+    intro: (c) => (
+      <>
+        A transformer reads every token at once, so order is not built in; it has to be added.
+        Before attention can compare two tokens, each one's query and key are rotated by an angle set
+        by its position in the sequence (rotary position embedding, or <b>RoPE</b>). This token sits
+        at position <b>{c.cur}</b>. The same word rotated for an early position points differently
+        from the same word later on, so {q(c.trace.tokens[c.cur]?.t ?? "")} here is not identical to
+        the same token elsewhere. The query and key stepped through in the worked dot product already
+        carry this rotation.
+      </>
+    ),
+  },
+
+  norm: {
+    id: "norm",
+    title: "keeping the size stable",
+    highlight: (c) => ({ kind: "layer", layer: c.layer }),
+    rungs: [code("rmsnorm")],
+    intro: (c) => (
+      <>
+        Before each step inside a layer, first attention and then feed-forward, the token's vector is
+        rescaled to a stable overall size without changing the direction it points (<b>RMSNorm</b>:
+        divide by the root mean square of its 1,024 numbers, then scale by a learned weight). Across
+        the <b>{c.trace.layers}</b> stacked layers this keeps the numbers from growing without bound
+        or collapsing toward zero. It is the one operation here that changes a vector's length but not
+        its meaning.
+      </>
+    ),
+  },
+
   attention: {
     id: "attention",
     title: "attention",
     highlight: (c) => ({ kind: "layer", layer: c.layer }),
-    interactive: (c) => (
-      <>
-        <DotProduct ctx={c} />
-        <UnderHood ctx={c} stage="attention" />
-      </>
-    ),
+    interactive: (c) => <AttentionInteractive ctx={c} />,
     intro: (c) => {
-      const g = c.cur > 0 ? layerGlance(c.step, c.layer, c.cur + 1) : null;
+      const g = c.cur > 0 ? layerGlance(c.step, c.layer, c.cur) : null;
       return (
         <>
           Predicting the next token requires context, the tokens that came before. <b>Attention</b>{" "}
@@ -254,7 +285,7 @@ export const CONCEPTS: Record<string, Concept> = {
 
   logits: {
     id: "logits",
-    title: "what the model expects next",
+    title: "what the model predicted here",
     highlight: () => ({ kind: "el", ref: "logit-0" }),
     interactive: (c) => <GeometryCard ctx={c} read="prediction" />,
     rungs: [code("matmul")],
@@ -288,13 +319,15 @@ export const CONCEPTS: Record<string, Concept> = {
       }
       return (
         <>
-          Once the token has passed through every layer, the model holds one final 1,024-number
-          vector. To score the next token it compares that vector against every row of the{" "}
-          <b>embedding table</b>, the same table that turned token IDs into vectors at the start: a
-          closer match means a higher score. Each raw score is a <b>logit</b>. <b>Softmax</b> then
-          turns all 151,936 logits into probabilities that add up to 100%.{read} Click a bar to{" "}
-          <b>force</b> that token instead and watch the model continue from that choice. These
-          rankings build up gradually: <Explain of="lens" label="watch this prediction form across the layers" />.
+          This is the prediction that produced the token under inspection. After the previous token
+          passed through every layer, the model held one final 1,024-number vector and scored the
+          next token by comparing that vector against every row of the <b>embedding table</b>, the
+          same table that turned token IDs into vectors at the start: a closer match means a higher
+          score. Each raw score is a <b>logit</b>. <b>Softmax</b> then turns all 151,936 logits into
+          probabilities that add up to 100%, and the token at the top is the one that became{" "}
+          {tok(c, c.cur)}.{read} Click a bar to <b>force</b> a different token here instead and watch
+          the model continue from that choice. These rankings build up gradually:{" "}
+          <Explain of="lens" label="watch this prediction form across the layers" />.
         </>
       );
     },
@@ -313,12 +346,12 @@ export const CONCEPTS: Record<string, Concept> = {
           similar way mean similar things. This view draws that directly. <b>What it means</b>{" "}
           centers on the inspected token and places its closest vocabulary entries around it, with
           distance set by <b>cosine</b> similarity, so the nearest entries are the ones the
-          model treats as most alike. <b>What comes next</b> centers on the direction the token
-          produces after every layer and arranges the candidate next-tokens around it by how high
-          the model scores each, so the strongest sits closest to the center
+          model treats as most alike. <b>What comes next</b> centers on the output direction that
+          produced this token and arranges the candidate tokens around it by how high the model
+          scored each, so the strongest sits closest to the center
           {win ? (
             <>
-              ; here it points hardest at {q(win[1])}
+              ; here it pointed hardest at {q(win[1])}
             </>
           ) : null}
           . The attention edges show the earlier tokens that built that direction. Distance is the
@@ -337,10 +370,10 @@ export const CONCEPTS: Record<string, Concept> = {
       const win = c.step.top?.[0];
       return (
         <>
-          The residual stream is not only growing in size; it is a prediction resolving. The{" "}
-          <b>logit lens</b> asks, at each layer, what the model would predict if it stopped there:
-          it applies the final normalization and the same unembedding the output uses, and reads the
-          top token.{" "}
+          The residual stream is not only growing in size; it is this token's prediction resolving.
+          The <b>logit lens</b> asks, at each layer of the pass that produced this token, what the
+          model would predict if it stopped there: it applies the final normalization and the same
+          unembedding the output uses, and reads the top token.{" "}
           {win ? (
             <>
               By the last layer the top guess is {q(win[1])} at <b>{(win[2] * 100).toFixed(0)}%</b>.{" "}

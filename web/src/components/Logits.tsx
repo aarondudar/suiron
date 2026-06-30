@@ -19,16 +19,17 @@ export function Logits({
   const top = step.top ?? [];
   const pmax = top.length ? top[0][2] : 1;
 
-  // forking from position cur forces the candidate as token cur+1
+  // this band shows the prediction that produced token `cur`, so forking forces
+  // a different candidate AT position cur (replacing the inspected token)
   const doFork = (id: number) => {
-    if (!busy) void fork(cur + 1, id, DEFAULT_PARAMS);
+    if (!busy) void fork(cur, id, DEFAULT_PARAMS);
   };
 
   return (
     <section>
       <BandHeader
         idx="03"
-        title={<Explain of="logits">what the model expects next</Explain>}
+        title={<Explain of="logits">what the model predicted here</Explain>}
         sub={SUB.logits}
       />
       <div>
@@ -40,7 +41,7 @@ export function Logits({
             title={
               busy
                 ? "wait for generation to finish"
-                : `fork: force "${esc(text)}" as the next token`
+                : `fork: force "${esc(text)}" as this token instead`
             }
             onClick={() => doFork(id)}
             onMouseEnter={() => setHover({ kind: "candidate", id })}
