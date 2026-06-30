@@ -84,6 +84,39 @@ pub fn dequantize_q4_k(raw: &[u8], out: &mut Vec<f32>) {
     }
 }
 
+/// Q6_K super-block (256 values, 210 bytes): 128 bytes of low 4-bit quants
+/// `ql`, 64 bytes of high 2-bit quants `qh`, 16 signed 8-bit sub-scales, then
+/// the f16 super-scale `d`. Value = d·scale·(q − 32). Mirrors ggml's
+/// `dequantize_row_q6_K` (two halves of 128; four quants packed per position).
+pub fn dequantize_q6_k(raw: &[u8], out: &mut Vec<f32>) {
+    debug_assert!(raw.len().is_multiple_of(210));
+    for block in raw.chunks_exact(210) {
+        let ql = &block[0..128];
+        let qh = &block[128..192];
+        let sc = &block[192..208]; // i8 scales
+        let d = f16_to_f32(u16::from_le_bytes([block[208], block[209]]));
+        let mut y = [0f32; 256];
+        for half in 0..2 {
+            let base = half * 128;
+            let ql = &ql[half * 64..half * 64 + 64];
+            let qh = &qh[half * 32..half * 32 + 32];
+            let sc = &sc[half * 8..half * 8 + 8];
+            for l in 0..32 {
+                let is = l / 16;
+                let q1 = ((ql[l] & 0x0F) | ((qh[l] & 3) << 4)) as i32 - 32;
+                let q2 = ((ql[l + 32] & 0x0F) | (((qh[l] >> 2) & 3) << 4)) as i32 - 32;
+                let q3 = ((ql[l] >> 4) | (((qh[l] >> 4) & 3) << 4)) as i32 - 32;
+                let q4 = ((ql[l + 32] >> 4) | (((qh[l] >> 6) & 3) << 4)) as i32 - 32;
+                y[base + l] = d * (sc[is] as i8 as f32) * q1 as f32;
+                y[base + l + 32] = d * (sc[is + 2] as i8 as f32) * q2 as f32;
+                y[base + l + 64] = d * (sc[is + 4] as i8 as f32) * q3 as f32;
+                y[base + l + 96] = d * (sc[is + 6] as i8 as f32) * q4 as f32;
+            }
+        }
+        out.extend_from_slice(&y);
+    }
+}
+
 /// Dequantize a whole tensor. Returns `None` for dtypes without a conversion
 /// implemented yet.
 pub fn dequantize(dtype: GgmlType, raw: &[u8]) -> Option<Vec<f32>> {
@@ -106,6 +139,7 @@ pub fn dequantize(dtype: GgmlType, raw: &[u8]) -> Option<Vec<f32>> {
         }
         GgmlType::Q8_0 => dequantize_q8_0(raw, &mut out),
         GgmlType::Q4K => dequantize_q4_k(raw, &mut out),
+        GgmlType::Q6K => dequantize_q6_k(raw, &mut out),
         _ => return None,
     }
     Some(out)
@@ -186,5 +220,28 @@ mod tests {
         assert!((out[32] - 9.0).abs() < 1e-4, "out[32] = {}", out[32]);
         assert_eq!(out[1], 0.0); // qs[1] = 0
         assert_eq!(out[33], 0.0);
+    }
+
+    #[test]
+    fn q6_k_dequant_known_block() {
+        // 210-byte super-block: d = 1.0, sc[0] = 1 (rest 0), ql[0] = 0x05,
+        // everything else 0. Value = d·scale·(q − 32).
+        let mut block = vec![0u8; 210];
+        block[0] = 0x05; // ql[0]: low nibble 5
+        block[192] = 1; // sc[0] = 1
+        block[208] = 0x00;
+        block[209] = 0x3c; // d = 1.0 (f16)
+
+        let mut out = Vec::new();
+        dequantize_q6_k(&block, &mut out);
+        assert_eq!(out.len(), 256);
+        // l=0, is=0, sc[0]=1, q1 = (5 | 0) − 32 = −27 → 1·1·(−27)
+        assert!((out[0] - (-27.0)).abs() < 1e-4, "out[0] = {}", out[0]);
+        // l=1, is=0, sc[0]=1, q1 = (0) − 32 = −32 → −32
+        assert!((out[1] - (-32.0)).abs() < 1e-4, "out[1] = {}", out[1]);
+        // l=16 → is=1, sc[1]=0 → 0
+        assert_eq!(out[16], 0.0);
+        // the +32 group uses sc[2]=0 → 0
+        assert_eq!(out[32], 0.0);
     }
 }
