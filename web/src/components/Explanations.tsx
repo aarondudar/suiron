@@ -251,9 +251,11 @@ export const CONCEPTS: Record<string, Concept> = {
       <>
         After attention has mixed in context, each token is processed on its own. Its <b>1,024</b>{" "}
         numbers are expanded to <b>3,072</b> by two projections, a <Term name="gate">gate</Term> and
-        an <Term name="up">up</Term>, then a function called <Term name="silu">silu</Term> decides
-        how much of each to keep before they are compressed back to 1,024. No other tokens are
-        involved. This feed-forward step is where most of the model's learned facts are stored.
+        an <Term name="up">up</Term>, then <Term name="silu">silu</Term> uses the gate to decide how
+        much of each up value to keep, before they are compressed back to 1,024. Unlike the attention
+        step just above it, this one moves no information between tokens; it only reshapes this
+        token's own vector. The gate and up activations below are the real values these two
+        projections produce for this token.
       </>
     ),
   },
