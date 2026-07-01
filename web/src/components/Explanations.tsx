@@ -185,8 +185,8 @@ export const CONCEPTS: Record<string, Concept> = {
           enters the stack of layers. For the current token, {q(t?.t ?? "")}, its row is <b>row{" "}
           {t?.id}</b> of that table, shown below as real numbers, and that row is exactly the vector
           entering layer 0. The same table reappears at the final stage, where its rows are reused
-          to convert the output vector into a score for every token in the vocabulary — the model
-          reads the same table both to start and to finish.
+          to convert the output vector into a score for every token in the vocabulary: the model
+          reads the same table to start and to finish.
         </>
       );
     },
@@ -205,8 +205,8 @@ export const CONCEPTS: Record<string, Concept> = {
         by its position in the sequence (rotary position embedding, or <b>RoPE</b>). This token sits
         at position <b>{c.cur}</b>. The same word rotated for an early position points differently
         from the same word later on, so {q(c.trace.tokens[c.cur]?.t ?? "")} here is not identical to
-        the same token elsewhere. The query and key stepped through in the worked dot product already
-        carry this rotation.
+        the same token elsewhere. The plot below runs that rotation on this token's real query, pair
+        by pair; the rotated values are exactly what attention then compares.
       </>
     ),
   },

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { getInspect } from "../api";
 import { useAutoplay } from "../autoplay";
-import { litToken, softmaxAt } from "../lib";
+import { litToken, settledSeq, softmaxAt } from "../lib";
 import { Stepper } from "./Stepper";
 import type { ExplainCtx } from "./Explanations";
 import type { WorkedDot } from "../types";
@@ -28,20 +29,19 @@ export function DotProduct({ ctx, layer, head }: { ctx: ExplainCtx; layer: numbe
   // autoplay the accumulation: ~4 components per tick so a full pass is a few seconds
   const { i, playing, setI, toggle } = useAutoplay(hd, { chunk: 4, stepMs: 130 });
 
+  const seq = settledSeq(ctx.trace);
   useEffect(() => {
     let dead = false;
     setData(null);
-    if (ctx.prod < 0) return; // the seed token had no forward pass to inspect
-    const sp = src == null ? "" : `&src=${src}`;
+    if (ctx.prod < 0 || seq < 0) return; // no producing pass yet / still generating
     // the attention that produced `cur` ran at the previous position
-    fetch(`/api/v1/inspect?pos=${ctx.prod}&layer=${layer}&head=${head}${sp}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: Resp | null) => !dead && setData(d))
+    getInspect<Resp>(ctx.prod, layer, head, src)
+      .then((d) => !dead && setData(d))
       .catch(() => !dead && setData(null));
     return () => {
       dead = true;
     };
-  }, [ctx.prod, layer, head, src]);
+  }, [ctx.prod, layer, head, src, seq]);
 
   const w = data?.worked;
   const scale = 1 / Math.sqrt(hd);
@@ -181,7 +181,7 @@ function Blend({
   return (
     <div className="dp-blend">
       <div className="dp-blend-title">
-        then the blend — softmax turns the scores into weights, and the head reads each token's value
+        then the blend: softmax turns the scores into weights, and the head reads each token's value
         by its weight.
       </div>
       <div className="dp-softmax">

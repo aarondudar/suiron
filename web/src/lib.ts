@@ -3,6 +3,12 @@ import type { AttnEdge, GenParams, Lens, Step, Trace } from './types'
 /** display text for a token (empty renders as a middle dot) */
 export const esc = (t: string) => (t === '' ? '·' : t)
 
+/** The resident trace's sequence number once generation has settled (-1 while
+ *  busy). Deep-inspection effects depend on this so an open drawer refetches
+ *  exactly once after a generate/step/fork lands, instead of showing the pass
+ *  from before the resident state changed. */
+export const settledSeq = (t: Trace): number => (t.busy ? -1 : t.seq ?? 0)
+
 /** Softmax over logits at temperature t. t<=0 is the limit: all mass on the
  *  argmax (one-hot). Shared by the temperature / top-k / top-p demos, which all
  *  recompute from this token's real logits client-side (no engine call). */

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { litToken } from "../lib";
+import { getInspect } from "../api";
+import { litToken, settledSeq } from "../lib";
 import type { ExplainCtx } from "./Explanations";
 
 /* Embedding as a real table-row lookup. x_in at layer 0 IS the raw embedding
@@ -25,19 +26,20 @@ const f = (x: number) => x.toFixed(4);
 export function EmbeddingRow({ ctx }: { ctx: ExplainCtx }) {
   const [data, setData] = useState<Resp | null>(null);
 
+  const seq = settledSeq(ctx.trace);
   useEffect(() => {
     let dead = false;
     setData(null);
+    if (seq < 0) return; // still generating
     // identity read: the token's own row, independent of any forward pass —
     // valid even at the seed (cur = 0)
-    fetch(`/api/v1/inspect?pos=${ctx.cur}&layer=0`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: Resp | null) => !dead && setData(d))
+    getInspect<Resp>(ctx.cur, 0)
+      .then((d) => !dead && setData(d))
       .catch(() => !dead && setData(null));
     return () => {
       dead = true;
     };
-  }, [ctx.cur]);
+  }, [ctx.cur, seq]);
 
   if (!data || !data.x_in) return <div className="emb-row emb-status">loading the table row…</div>;
 
@@ -49,7 +51,7 @@ export function EmbeddingRow({ ctx }: { ctx: ExplainCtx }) {
     <div className="emb-row">
       <div className="emb-title">
         row <b>{data.token.id}</b> of the <b>{VOCAB.toLocaleString()}</b> × <b>{row.len}</b> embedding
-        table — the token {t}'s starting vector
+        table: the starting vector for “{t}”
       </div>
       <div className="emb-cells">
         {shown.map((x, i) => (

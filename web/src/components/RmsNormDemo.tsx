@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { getInspect } from "../api";
+import { settledSeq } from "../lib";
 import type { ExplainCtx } from "./Explanations";
 import type { WorkedNorm } from "../types";
 
@@ -19,18 +21,18 @@ const f = (x: number) => x.toFixed(3);
 export function RmsNormDemo({ ctx }: { ctx: ExplainCtx }) {
   const [data, setData] = useState<Resp | null>(null);
 
+  const seq = settledSeq(ctx.trace);
   useEffect(() => {
     let dead = false;
     setData(null);
-    if (ctx.prod < 0) return; // the first token has no producing pass
-    fetch(`/api/v1/inspect?pos=${ctx.prod}&layer=${ctx.layer}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: Resp | null) => !dead && setData(d))
+    if (ctx.prod < 0 || seq < 0) return; // no producing pass yet / still generating
+    getInspect<Resp>(ctx.prod, ctx.layer)
+      .then((d) => !dead && setData(d))
       .catch(() => !dead && setData(null));
     return () => {
       dead = true;
     };
-  }, [ctx.prod, ctx.layer]);
+  }, [ctx.prod, ctx.layer, seq]);
 
   if (ctx.prod < 0) {
     return (

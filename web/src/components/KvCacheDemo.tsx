@@ -88,8 +88,8 @@ export function KvCacheDemo({ ctx }: { ctx: ExplainCtx }) {
       <div className="kv-note">
         each filled cell is one earlier token's key and value, already sitting in the cache for this
         layer; brightness is how much this pass actually read from it (the same attention weights
-        drawn as arcs above). Without the cache, producing this one token would repeat the key/value
-        projections for every earlier token, at every layer, again.
+        drawn as arcs above). without the cache, producing this one token would recompute every
+        earlier token's keys and values at every layer.
       </div>
     </div>
   );

@@ -129,7 +129,7 @@ export function Explainer({ ctx }: { ctx: ExplainCtx | null }) {
         </div>
         <div className="explainer-body">
           {!concept || !ctx ? (
-            <div className="explainer-intro">nothing to explain yet — run a prompt first.</div>
+            <div className="explainer-intro">nothing to explain yet: run a prompt first.</div>
           ) : (
             // keyed by concept so hotVar (the woven linked-highlight) resets on switch
             <ExplainerBody key={active} concept={concept} ctx={ctx} />

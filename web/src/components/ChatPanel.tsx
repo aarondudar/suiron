@@ -133,7 +133,9 @@ function ModelText({ text }: { text: string }) {
           <span className="chat-think-label">reasoning</span> {think}
         </span>
       )}
-      <span className="chat-text">{answer || '(reasoning only — no final answer in budget)'}</span>
+      <span className="chat-text">
+        {answer || '(reasoning only: it ran out of tokens before the answer)'}
+      </span>
     </>
   )
 }

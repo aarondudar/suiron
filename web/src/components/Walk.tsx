@@ -27,6 +27,7 @@ export const WALK: WalkStop[] = [
   { concept: "embedding", label: "the vector" },
   { concept: "position", label: "where it sits" },
   { concept: "attention", label: "attention", expandLayer: true, expandMoment: "attention-lock" },
+  { concept: "kvcache", label: "what it remembers" },
   { concept: "feedforward", label: "feed-forward" },
   { concept: "residual", label: "the running total" },
   { concept: "logits", label: "the prediction" },

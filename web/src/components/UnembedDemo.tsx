@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { getInspect } from "../api";
 import { useAutoplay } from "../autoplay";
-import { litToken } from "../lib";
+import { litToken, settledSeq } from "../lib";
 import { Stepper } from "./Stepper";
 import type { ExplainCtx } from "./Explanations";
 import type { WorkedUnembed } from "../types";
@@ -24,20 +25,20 @@ export function UnembedDemo({ ctx }: { ctx: ExplainCtx }) {
   const [data, setData] = useState<Resp | null>(null);
   const [pick, setPick] = useState(0);
 
+  const seq = settledSeq(ctx.trace);
   useEffect(() => {
     let dead = false;
     setData(null);
     setPick(0);
-    if (ctx.prod < 0) return; // the seed token had no producing pass
+    if (ctx.prod < 0 || seq < 0) return; // no producing pass yet / still generating
     // the final stage: post output_norm, pre-unembed (layer index == n_layers)
-    fetch(`/api/v1/inspect?pos=${ctx.prod}&layer=${ctx.trace.layers}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: Resp | null) => !dead && setData(d))
+    getInspect<Resp>(ctx.prod, ctx.trace.layers)
+      .then((d) => !dead && setData(d))
       .catch(() => !dead && setData(null));
     return () => {
       dead = true;
     };
-  }, [ctx.prod, ctx.trace.layers]);
+  }, [ctx.prod, ctx.trace.layers, seq]);
 
   const u = data?.unembed;
   const len = u?.len ?? 0;
@@ -69,7 +70,7 @@ export function UnembedDemo({ ctx }: { ctx: ExplainCtx }) {
 
   return (
     <div className="unembed-demo">
-      <div className="dp-title">the score for one next-token: the final vector · that token's row</div>
+      <div className="dp-title">one candidate's score: the final vector · that token's row</div>
 
       <div className="dp-src">
         candidate:
@@ -117,7 +118,7 @@ export function UnembedDemo({ ctx }: { ctx: ExplainCtx }) {
       <div className="unembed-note">
         row(<b>{text(cand.id)}</b>) is the same row the embedding step looked up at the start (tied
         embeddings). the model scores each token by how closely the final vector matches that token's
-        own vector — the closer the match, the higher the logit.
+        own vector; the closer the match, the higher the logit.
       </div>
     </div>
   );

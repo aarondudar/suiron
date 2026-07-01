@@ -39,7 +39,7 @@ export function Epilogue({ onTryChat }: { onTryChat: () => void }) {
       <div className="epi-boundary" role="separator">
         <span className="epi-boundary-up">↑ computed and verified in this lab</span>
         <span className="epi-boundary-down">
-          ↓ how this scales — described here, not implemented
+          ↓ how this scales · described here, not implemented
         </span>
       </div>
 

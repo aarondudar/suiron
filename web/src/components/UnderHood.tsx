@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { getInspect } from "../api";
+import { settledSeq } from "../lib";
 import { useHotVar } from "./Explainer";
 import type { ExplainCtx } from "./Explanations";
 import type { Trace } from "../types";
@@ -157,18 +159,18 @@ export function UnderHood({
   // and fetches the pass that produced `cur`, at `prod` (absent at the seed).
   const readPos = stage === "embedding" ? ctx.cur : ctx.prod;
 
+  const seq = settledSeq(ctx.trace);
   useEffect(() => {
     let dead = false;
     setData(null);
-    if (readPos < 0) return; // the seed token had no forward pass to inspect
-    fetch(`/api/v1/inspect?pos=${readPos}&layer=${eff}`)
-      .then((r) => (r.ok ? r.json() : null))
+    if (readPos < 0 || seq < 0) return; // no pass to inspect yet / still generating
+    getInspect<Inspect>(readPos, eff)
       .then((d) => !dead && setData(d))
       .catch(() => !dead && setData(null));
     return () => {
       dead = true;
     };
-  }, [readPos, eff]);
+  }, [readPos, eff, seq]);
 
   useEffect(() => {
     let dead = false;

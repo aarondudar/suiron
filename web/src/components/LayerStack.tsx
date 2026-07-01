@@ -1,4 +1,4 @@
-import { edgesToWeights, headGlance, layerGlance, litToken, meanHeadWeights, moments, q, type Marker } from "../lib";
+import { edgesToWeights, headGlance, layerGlance, litToken, meanHeadWeights, moments, q, settledSeq, type Marker } from "../lib";
 import type { FocusTarget, Step, Trace } from "../types";
 import { BandHeader } from "./BandHeader";
 import { DotStrip } from "./DotStrip";
@@ -43,7 +43,7 @@ export function LayerStack({
   // the logit lens for this position, gated on the lens concept being open
   // (cached, so it shares the band's one fetch). Per layer: the top guess so
   // far; the layer where the final winner first leads is marked.
-  const lens = useLens(nPos - 1, lensActive);
+  const lens = useLens(nPos - 1, lensActive, settledSeq(trace));
   const finalWin = lens?.layers[lens.layers.length - 1]?.top[0]?.[0];
   const firstLead =
     lens && finalWin !== undefined ? lens.layers.findIndex((L) => L.top[0]?.[0] === finalWin) : -1;

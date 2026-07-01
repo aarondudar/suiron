@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { getInspect } from "../api";
 import { useAutoplay } from "../autoplay";
+import { settledSeq } from "../lib";
 import { Stepper } from "./Stepper";
 import type { ExplainCtx } from "./Explanations";
 import type { WorkedDot } from "../types";
@@ -8,10 +10,11 @@ import type { WorkedDot } from "../types";
    are rotated by an angle set by its position. This steps that rotation on real
    numbers: a component pair (x_i, x_{i+d/2}) is a point; RoPE spins it by the
    pair's angle (pos · base^(-2i/d)), sweeping from the pre-RoPE value to the
-   post-RoPE value the score then uses. Lower pairs spin fast with position;
-   higher pairs barely move — that spread is how position is encoded. Pure render
-   over the inspect worked slice (q_pre, q, angles), fetched at the producing
-   position (same q the worked dot product multiplies). */
+   post-RoPE value attention then uses. Lower pairs spin fast with position;
+   higher pairs barely move — that spread is how position is encoded. An IDENTITY
+   read: fetched at `cur`, the inspected token's own position, so the angles
+   match the intro's "this token sits at position N" (at position 0 every angle
+   is zero — the first token is the unrotated reference). */
 
 interface Resp {
   worked?: WorkedDot;
@@ -27,31 +30,23 @@ export function RopeDemo({ ctx }: { ctx: ExplainCtx }) {
   const [data, setData] = useState<Resp | null>(null);
   const { i: t, playing, setI, toggle } = useAutoplay(STEPS, { stepMs: 90 });
 
+  const seq = settledSeq(ctx.trace);
   useEffect(() => {
     let dead = false;
     setData(null);
-    if (ctx.prod < 0) return; // the first token has no producing pass
-    // head 0 at the producing position — RoPE's angles are the same for every
-    // head; this is the query the score uses
-    fetch(`/api/v1/inspect?pos=${ctx.prod}&layer=0&head=0`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: Resp | null) => !dead && setData(d))
+    if (seq < 0) return; // still generating
+    // head 0 at this token's own position (RoPE's angles are the same for
+    // every head); the rotated result is the query attention uses here
+    getInspect<Resp>(ctx.cur, 0, 0)
+      .then((d) => !dead && setData(d))
       .catch(() => !dead && setData(null));
     return () => {
       dead = true;
     };
-  }, [ctx.prod]);
+  }, [ctx.cur, seq]);
 
-  if (ctx.prod < 0) {
-    return (
-      <div className="rope-demo rope-status">
-        The first token has no earlier position to be produced from. Select a later token to watch
-        its query rotate.
-      </div>
-    );
-  }
   const w = data?.worked;
-  if (!data) return <div className="rope-demo rope-status">loading the producing pass…</div>;
+  if (!data) return <div className="rope-demo rope-status">loading this token's pass…</div>;
   if (!w || !w.q_pre || !w.angles) return <div className="rope-demo rope-status">no rotation to show here.</div>;
 
   const half = w.angles.length;
@@ -103,15 +98,24 @@ export function RopeDemo({ ctx }: { ctx: ExplainCtx }) {
       </div>
 
       <div className="rope-note">
-        each pair rotates by its own angle (position × frequency): pair 0 spins fast with position,
-        pair {half - 1} barely moves. rotation changes direction, never length.
+        {ctx.cur === 0 ? (
+          <>
+            at position 0 every angle is zero: the first token is the unrotated reference. select a
+            later token to see its pairs spin.
+          </>
+        ) : (
+          <>
+            each pair rotates by its own angle (position × frequency): pair 0 spins fast with
+            position, pair {half - 1} barely moves. rotation changes direction, never length.
+          </>
+        )}
       </div>
 
       <Stepper i={t} max={STEPS} playing={playing} setI={setI} toggle={toggle} unit="rotate" />
 
       {t >= STEPS && (
         <div className="rope-check">
-          rotated query = the q the score multiplies{" "}
+          rotated query = the q attention uses at this position{" "}
           <span className="dp-check">{maxErr < 5e-3 ? "· matches the engine" : `· differs (${maxErr.toFixed(4)})`}</span>
         </div>
       )}

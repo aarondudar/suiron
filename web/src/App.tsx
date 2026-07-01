@@ -358,8 +358,8 @@ export default function App() {
         <>
           {prodStep && (
             <div className="lifecycle-lead">
-              how this token was produced — the forward pass at the read head, the token before it,
-              top to bottom: what it read → the prediction → the draw that picked it
+              how this token was produced, top to bottom: the read head (the token before it) reads
+              the context → the prediction forms → the draw picks it
             </div>
           )}
           <TokenStrip
@@ -395,7 +395,7 @@ export default function App() {
             </>
           ) : (
             <div className="seed-note">
-              This is the first token in the sequence. The model did not predict it — generation
+              This is the first token in the sequence. The model did not predict it; generation
               starts from the tokens you provide. Move right (→) to a token the model produced to
               see how it was made.
             </div>

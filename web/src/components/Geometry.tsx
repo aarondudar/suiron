@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getLens, getNeighbors } from "../api";
 import { useAutoplay } from "../autoplay";
-import { attnSources, litToken } from "../lib";
+import { attnSources, litToken, settledSeq } from "../lib";
 import { BandHeader } from "./BandHeader";
 import { Explain, useExplainer } from "./Explainer";
 import { SUB, type ExplainCtx } from "./Explanations";
@@ -100,10 +100,12 @@ function useNeighbors(tokenId: number, enabled: boolean): Neighbor[] | null {
   return nbrs;
 }
 
-export function useLens(pos: number, enabled: boolean): Lens | null {
+/** `seq` is the settled trace sequence (settledSeq): the lens depends on the
+ *  resident tokens, so a fork/regenerate at the same position must refetch. */
+export function useLens(pos: number, enabled: boolean, seq: number): Lens | null {
   const [lens, setLens] = useState<Lens | null>(null);
   useEffect(() => {
-    if (!enabled || pos < 0) return;
+    if (!enabled || pos < 0 || seq < 0) return;
     let dead = false;
     setLens(null);
     getLens(pos, 5)
@@ -112,7 +114,7 @@ export function useLens(pos: number, enabled: boolean): Lens | null {
     return () => {
       dead = true;
     };
-  }, [enabled, pos]);
+  }, [enabled, pos, seq]);
   return lens;
 }
 
@@ -138,7 +140,7 @@ export function GeometryView({
   const lastLayer = trace.layers - 1;
   const tokenId = trace.tokens[cur]?.id ?? -1;
   const nbrs = useNeighbors(tokenId, read === "meaning");
-  const lens = useLens(prod, read === "lens");
+  const lens = useLens(prod, read === "lens", settledSeq(trace));
   // the climb autoplays layer 0 → last in a loop (pausable; static at the final
   // layer under reduced-motion). Only active in the lens read.
   const {
