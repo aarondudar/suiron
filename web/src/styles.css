@@ -668,6 +668,11 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .dp-blend-title { color: var(--dim); font-size: var(--t-tiny); line-height: 1.5; margin-bottom: var(--sp-2); }
 .dp-softmax { color: var(--dim); font-size: var(--t-tiny); margin-bottom: var(--sp-2); }
 .dp-blend-note { color: var(--faint); font-size: var(--t-micro); line-height: 1.5; margin-top: var(--sp-2); }
+
+/* the worked unembed (reuses the .dp-* worked-dot styling) */
+.unembed-demo { margin-top: var(--sp-2); }
+.unembed-note { color: var(--faint); font-size: var(--t-micro); line-height: 1.5; margin-top: var(--sp-2); }
+.unembed-note b { color: var(--dim); }
 /* the shared stepper: play/pause + a scrubber + an i/max readout. Used by the
    worked dot product, the logit-lens climb, and the tokenize demo. */
 .stepper { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-2); }
@@ -996,6 +1001,45 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .rope-label { color: var(--faint); font-size: var(--t-micro); font-variant-numeric: tabular-nums; }
 .rope-note { color: var(--dim); font-size: var(--t-tiny); line-height: 1.5; margin: var(--sp-2) 0; }
 .rope-check { color: var(--dim); font-size: var(--t-tiny); margin-top: var(--sp-2); }
+
+/* ---------- KV cache: the cache growing per token ---------- */
+.kv-demo { margin-top: var(--sp-3); }
+.kv-status { color: var(--faint); font-size: var(--t-tiny); }
+.kv-title { color: var(--dim); font-size: var(--t-tiny); line-height: 1.5; margin-bottom: var(--sp-2); }
+.kv-rows { display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
+.kv-row { display: flex; align-items: center; gap: var(--sp-2); }
+.kv-row.on .kv-lnum { color: var(--red); }
+.kv-lnum {
+  color: var(--faint); font-family: var(--dot); font-size: var(--t-micro);
+  width: 3ch; text-align: right; flex-shrink: 0;
+}
+.kv-cells { display: flex; gap: 1px; flex-shrink: 0; }
+.kv-cell {
+  width: 10px; height: 10px; background: #161616; border: 1px solid #232323;
+  flex-shrink: 0;
+}
+.kv-cell.filled { background: var(--ink); border-color: var(--ink); }
+.kv-cell.top { background: var(--red); border-color: var(--red); }
+.kv-note { color: var(--dim); font-size: var(--t-tiny); line-height: 1.5; margin: var(--sp-2) 0 0; }
+
+/* ---------- embedding: row lookup ---------- */
+.emb-row { margin-top: var(--sp-3); }
+.emb-status { color: var(--faint); font-size: var(--t-tiny); }
+.emb-title { color: var(--dim); font-size: var(--t-tiny); line-height: 1.5; margin-bottom: var(--sp-2); }
+.emb-title b { color: var(--ink); font-family: var(--dot); }
+.emb-cells { display: flex; flex-wrap: wrap; gap: 3px; }
+.emb-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 3px 5px; background: var(--surface); border: 1px solid var(--hair);
+  font-size: var(--t-micro); font-variant-numeric: tabular-nums;
+}
+.emb-idx { color: var(--faint); }
+.emb-val { color: var(--ink); }
+.emb-ellipsis {
+  display: flex; align-items: center; color: var(--faint); border: none;
+  background: none; padding: 3px 5px;
+}
+.emb-note { color: var(--dim); font-size: var(--t-tiny); line-height: 1.5; margin-top: var(--sp-2); }
 
 /* ---------- residual rms sparkline ---------- */
 .spark-wrap { margin-top: var(--sp-3); }

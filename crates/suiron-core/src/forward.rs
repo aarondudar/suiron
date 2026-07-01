@@ -178,6 +178,12 @@ pub fn forward(
     cache.len = pos + 1;
 
     let xn = rmsnorm(&x, &model.output_norm.data, c.rms_eps);
+    // reported at layer index n_layers (one past the last real layer) so a
+    // caller asking to observe "the final stage" can gate on that layer
+    // number, exactly like every per-layer vector gates on its own layer.
+    if let Some(o) = obs {
+        o.vector(model.layers.len(), "final_norm", &xn);
+    }
     let w_out = model.output.as_ref().unwrap_or(&model.token_embd);
     w_out.matvec(&xn, backend)
 }

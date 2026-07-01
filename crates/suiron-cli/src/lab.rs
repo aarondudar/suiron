@@ -206,7 +206,9 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                     let st = shared.lock().unwrap();
                     if st.busy {
                         Err("busy")
-                    } else if pos >= st.tokens.len() || layer >= model.config.n_layers {
+                    } else if pos >= st.tokens.len() || layer > model.config.n_layers {
+                        // layer == n_layers is the final stage (post output_norm,
+                        // pre-unembed), one past the last real per-layer index
                         Err("bad pos/layer")
                     } else if let Some(cache) = &st.cache {
                         // clone so the resident cache (and future forks) are untouched
@@ -236,13 +238,21 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                                 )
                             })
                             .flatten();
-                        // worked RMSNorm for this layer's attention norm
-                        let norm = crate::machine::worked_norm(
-                            &deep,
-                            &model.layers[layer].attn_norm.data,
-                            model.config.rms_eps,
-                            8,
-                        );
+                        // worked RMSNorm for this layer's attention norm (the
+                        // final stage has no per-layer attn_norm weight — skip)
+                        let norm = (layer < model.config.n_layers).then(|| {
+                            crate::machine::worked_norm(
+                                &deep,
+                                &model.layers[layer].attn_norm.data,
+                                model.config.rms_eps,
+                                8,
+                            )
+                        }).flatten();
+                        // worked unembed: at the final stage only, the top few
+                        // vocabulary candidates' rows against the final vector
+                        let unembed = (layer == model.config.n_layers)
+                            .then(|| crate::machine::worked_unembed(&deep, &model, 4))
+                            .flatten();
                         let text = tok.decode(&[id]);
                         let json = crate::machine::inspect_json(
                             &deep,
@@ -250,6 +260,7 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                             (id, &text),
                             worked.as_ref(),
                             norm.as_ref(),
+                            unembed.as_ref(),
                         );
                         respond(&mut s, "200 OK", "application/json", json.as_bytes());
                     }

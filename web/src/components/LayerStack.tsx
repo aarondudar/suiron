@@ -151,6 +151,7 @@ export function LayerStack({
       >
         <Explain of="embedding" label="embedding" />
         <Explain of="residual" label="residual" />
+        <Explain of="kvcache" label="KV cache" />
         <RoleTag trace={trace} pos={nPos - 1} kind="prod" />
       </BandHeader>
       {outputMarker && <div className="moment-output">{outputMarker.label}</div>}

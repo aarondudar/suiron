@@ -147,6 +147,21 @@ export interface WorkedNorm {
   len: number;
 }
 
+/** The worked unembed (from /api/v1/inspect at the final stage): the final
+ *  normalized vector, and for the top candidates each one's row in the tied
+ *  embedding table with the dot product that is its logit. */
+export interface UnembedCand {
+  id: number;
+  row: number[];
+  logit: number;
+  prob: number;
+}
+export interface WorkedUnembed {
+  x: number[];
+  len: number;
+  cands: UnembedCand[];
+}
+
 /** one real Q8_0 block from the model, for the quantization explainer */
 export interface QuantSample {
   tensor: string;

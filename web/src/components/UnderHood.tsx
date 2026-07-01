@@ -151,19 +151,24 @@ export function UnderHood({
   const [data, setData] = useState<Inspect | null>(null);
   const [src, setSrc] = useState<string | null>(null);
 
+  // embedding is the token's own IDENTITY (a table row keyed by token id, no
+  // forward pass required), so it reads at `cur` — including the seed, where
+  // there is no producing pass at all. Every other stage is a PRODUCTION read
+  // and fetches the pass that produced `cur`, at `prod` (absent at the seed).
+  const readPos = stage === "embedding" ? ctx.cur : ctx.prod;
+
   useEffect(() => {
     let dead = false;
     setData(null);
-    if (ctx.prod < 0) return; // the seed token had no forward pass to inspect
-    // the compute stages that produced `cur` ran at the previous position
-    fetch(`/api/v1/inspect?pos=${ctx.prod}&layer=${eff}`)
+    if (readPos < 0) return; // the seed token had no forward pass to inspect
+    fetch(`/api/v1/inspect?pos=${readPos}&layer=${eff}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => !dead && setData(d))
       .catch(() => !dead && setData(null));
     return () => {
       dead = true;
     };
-  }, [ctx.prod, eff]);
+  }, [readPos, eff]);
 
   useEffect(() => {
     let dead = false;
@@ -241,7 +246,11 @@ export function UnderHood({
             />
           </label>
         )}
-        {!data && <span className="uh-loading">loading the producing pass…</span>}
+        {!data && (
+          <span className="uh-loading">
+            {stage === "embedding" ? "loading the table row…" : "loading the producing pass…"}
+          </span>
+        )}
       </div>
 
       <pre className="code uh-code">
@@ -258,7 +267,9 @@ export function UnderHood({
             <span className="uh-val">{data ? active.value(data, head, ctx.trace) : "…"}</span>
           </>
         ) : (
-          <span className="uh-readout-idle">hover a highlighted name to see its value for the producing pass</span>
+          <span className="uh-readout-idle">
+            hover a highlighted name to see its real value{stage === "embedding" ? " for this token" : " for the producing pass"}
+          </span>
         )}
       </div>
     </div>

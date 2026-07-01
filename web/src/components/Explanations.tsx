@@ -12,12 +12,15 @@ import type { FocusTarget, GenParams, Sel, Step, Trace } from "../types";
 import { AttentionInteractive } from "./AttentionInteractive";
 import { EngineSource } from "./EngineSource";
 import { Explain, Term } from "./Explainer";
+import { EmbeddingRow } from "./EmbeddingRow";
 import { GeometryCard, type Read } from "./Geometry";
+import { KvCacheDemo } from "./KvCacheDemo";
 import { ModelOverview } from "./ModelOverview";
 import { RmsNormDemo } from "./RmsNormDemo";
 import { RnormSparkline } from "./RnormSparkline";
 import { RopeDemo } from "./RopeDemo";
 import { TokenizeDemo } from "./TokenizeDemo";
+import { UnembedDemo } from "./UnembedDemo";
 import { TemperatureDemo } from "./TemperatureDemo";
 import { TopKDemo } from "./TopKDemo";
 import { TopPDemo } from "./TopPDemo";
@@ -163,22 +166,30 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "embedding",
     title: "the token becomes a vector",
     highlight: (c) => ({ kind: "layer", layer: c.layer }),
-    interactive: (c) => <UnderHood ctx={c} stage="embedding" />,
-    rungs: [geoRung("meaning")],
-    intro: (c) => (
+    interactive: (c) => (
       <>
-        A <Term name="token">token ID</Term> is only an index; there is no arithmetic to perform on
-        "entry 8251". The model looks the index up in an{" "}
-        <Term name="token_embd">embedding table</Term> with one row per vocabulary entry, each a
-        vector of <Term name="h">1,024</Term> numbers learned during training. That row is the
-        token's starting
-        representation, before any context has been mixed in, and it is what enters the stack of
-        layers. As the token passes through, each layer adds information gathered from earlier
-        tokens. For the current token, {q(c.trace.tokens[c.cur]?.t ?? "")}, this row is the vector
-        entering layer 0. The same table reappears at the final stage, where its rows are reused to
-        convert the output vector into a score for every token in the vocabulary.
+        <EmbeddingRow ctx={c} />
+        <UnderHood ctx={c} stage="embedding" />
       </>
     ),
+    rungs: [geoRung("meaning")],
+    intro: (c) => {
+      const t = c.trace.tokens[c.cur];
+      return (
+        <>
+          A <Term name="token">token ID</Term> is only an index; there is no arithmetic to perform on
+          "entry 8251". The model looks the index up in an{" "}
+          <Term name="token_embd">embedding table</Term> with one row per vocabulary entry, each a
+          vector of <Term name="h">1,024</Term> numbers learned during training. That row is the
+          token's starting representation, before any context has been mixed in, and it is what
+          enters the stack of layers. For the current token, {q(t?.t ?? "")}, its row is <b>row{" "}
+          {t?.id}</b> of that table, shown below as real numbers, and that row is exactly the vector
+          entering layer 0. The same table reappears at the final stage, where its rows are reused
+          to convert the output vector into a score for every token in the vocabulary — the model
+          reads the same table both to start and to finish.
+        </>
+      );
+    },
   },
 
   position: {
@@ -242,7 +253,34 @@ export const CONCEPTS: Record<string, Concept> = {
             </>
           ) : (
             <>The first token has nothing earlier to look at, so there is no attention to show.</>
-          )}
+          )}{" "}
+          Reaching back like this only works because each earlier token's key and value are already
+          sitting in the <Explain of="kvcache">KV cache</Explain>, not recomputed here.
+        </>
+      );
+    },
+  },
+
+  kvcache: {
+    id: "kvcache",
+    title: "the KV cache",
+    highlight: (c) => ({ kind: "layer", layer: c.layer }),
+    interactive: (c) => <KvCacheDemo ctx={c} />,
+    intro: (c) => {
+      const n = c.prod + 1;
+      return (
+        <>
+          Every layer's attention needs each earlier token's <b>key</b> and <b>value</b> vectors, the
+          ones its own query is compared against and blended from. Recomputing them for every earlier
+          token on every step would mean redoing all the earlier work again and again as the sequence
+          grows. Instead, the moment a token is processed, its key and value at every layer (one pair
+          per <b>KV head</b>) are written once into the <b>KV cache</b> and kept.
+          Producing the next token only computes the new token's own query, key, and value, then reads
+          every key and value already in the cache. By the pass that produced this token, the cache
+          held <b>{n}</b> position{n === 1 ? "" : "s"} at each of the <b>{c.trace.layers}</b> layers.
+          This is exactly what the attention arcs above are drawing: reading back over cached
+          positions, not recomputing them. At real scale this cache is what a{" "}
+          <Explain of="scaling">paged KV cache</Explain> manages across many conversations at once.
         </>
       );
     },
@@ -296,7 +334,10 @@ export const CONCEPTS: Record<string, Concept> = {
     title: "what the model predicted here",
     highlight: () => ({ kind: "el", ref: "logit-0" }),
     interactive: (c) => <GeometryCard ctx={c} read="prediction" />,
-    rungs: [code("matmul")],
+    rungs: [
+      { label: "the unembed, worked", body: (c) => <UnembedDemo ctx={c} /> },
+      code("matmul"),
+    ],
     intro: (c) => {
       const top = c.step.top ?? [];
       const a = top[0];

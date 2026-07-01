@@ -412,6 +412,70 @@ fn lens_final_layer_equals_logits() {
 }
 
 #[test]
+fn final_norm_unembed_dot_matches_engine_logit() {
+    // The worked unembed demo re-forms one candidate's logit as a dot product
+    // of the final normalized vector (post output_norm, pre-unembed) against
+    // that candidate's row in the tied embedding table. This pins both the
+    // `final_norm` vector forward() now reports (one past the last real layer
+    // index) and the row indexing the web reads out — the same table
+    // `model.embedding` uses at the start of the pipeline.
+    if !std::path::Path::new(MODEL).exists() {
+        eprintln!("skipping: {MODEL} not present");
+        return;
+    }
+    let file = GgufFile::open(MODEL).expect("parse");
+    let model = Model::load(&file).expect("load");
+    let tok = Tokenizer::from_gguf(&file).expect("tokenizer");
+    let ids = tok.encode("The capital of France is");
+    assert!(ids.len() >= 2);
+
+    struct Cap {
+        n_layers: usize,
+        xn: Vec<f32>,
+    }
+    impl suiron_core::forward::Observer for Cap {
+        fn vector(&mut self, l: usize, name: &'static str, v: &[f32]) {
+            if l == self.n_layers && name == "final_norm" {
+                self.xn = v.to_vec();
+            }
+        }
+    }
+
+    let mut cache = KvCache::new(&model);
+    for &t in &ids[..ids.len() - 1] {
+        forward(&model, &mut cache, t, Backend::F32, None);
+    }
+    let mut cap = Cap { n_layers: model.config.n_layers, xn: Vec::new() };
+    let logits =
+        forward(&model, &mut cache, *ids.last().unwrap(), Backend::F32, Some(&mut cap));
+
+    assert!(!cap.xn.is_empty(), "final_norm captured");
+    assert_eq!(cap.xn.len(), model.config.hidden);
+
+    let w_out = model.output.as_ref().unwrap_or(&model.token_embd);
+    let hidden = model.config.hidden;
+    // the worked unembed scores the final vector directly (no re-norm), so its
+    // top candidate must be the model's actual argmax, and each candidate's dot
+    // must reproduce that token's real logit.
+    let mut order: Vec<usize> = (0..logits.len()).collect();
+    order.sort_unstable_by(|&a, &b| logits[b].total_cmp(&logits[a]));
+    assert_eq!(
+        order[0],
+        suiron_core::sampling::argmax(&logits) as usize,
+        "worked-unembed top-1 must be the real argmax"
+    );
+
+    let mut max_diff = 0.0f32;
+    for &id in order.iter().take(4) {
+        let row = &w_out.data[id * hidden..(id + 1) * hidden];
+        let dot: f32 = cap.xn.iter().zip(row).map(|(a, b)| a * b).sum();
+        max_diff = max_diff.max((dot - logits[id]).abs());
+    }
+    eprintln!("unembed worked dot vs engine logit: max |diff| = {max_diff}");
+    assert!(max_diff < 1e-2, "worked unembed dot diverges from engine logit by {max_diff}");
+}
+
+#[test]
 fn q4_k_model_loads_and_predicts_the_known_answer() {
     // Exercises Q4_K_M dequant on the real weights: the model must load (no
     // UnsupportedDtype) and greedily continue "The capital of France is" with

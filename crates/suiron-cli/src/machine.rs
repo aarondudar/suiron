@@ -4,7 +4,7 @@
 
 use crate::trace::escape_json;
 use suiron_core::forward::{KvCache, Observer};
-use suiron_core::model::Config;
+use suiron_core::model::{Backend, Config};
 use suiron_core::tokenizer::PreMerges;
 use suiron_core::Model;
 
@@ -99,6 +99,12 @@ fn stats(v: &[f32]) -> (f32, f32, f32) {
     let max = v.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
     (rms, min, max)
 }
+
+/// How many leading components of an inspected vector to serialize verbatim.
+/// Bounded and uniform across every emitted vector (x_in, q, k, gate, …); most
+/// consumers only render a handful, but the embedding view (plan 15) reads a
+/// fuller, honestly-labeled slice of the real row from this same field.
+const VEC_HEAD_N: usize = 16;
 
 fn vec_json(v: &[f32], head_n: usize) -> String {
     let (rms, min, max) = stats(v);
@@ -247,6 +253,56 @@ pub fn worked_norm(obs: &DeepObserver, weight: &[f32], eps: f32, n: usize) -> Op
     })
 }
 
+/// One worked unembed candidate: a vocabulary row (the SAME tied embedding
+/// table row the `embedding` concept reads) and the dot product of the final
+/// vector against it, which the softmax'd logits are built from.
+pub struct UnembedCand {
+    pub id: u32,
+    pub row: Vec<f32>,
+    pub logit: f32,
+    pub prob: f32,
+}
+
+/// The worked unembed: the final normalized vector (post `output_norm`, the
+/// same one the real forward pass scores against the vocabulary) plus, for the
+/// top-`k` candidates the logit lens already ranks, each one's row from the
+/// tied embedding table and the resulting dot product. Enough for the web to
+/// step `Σ x[i]·row[i]` for a candidate and see it reproduce that candidate's
+/// logit, exactly like the worked attention dot product steps q·k. None if the
+/// final vector wasn't recorded (not the final-stage inspection).
+pub struct WorkedUnembed {
+    pub x: Vec<f32>,
+    pub len: usize,
+    pub cands: Vec<UnembedCand>,
+}
+
+pub fn worked_unembed(obs: &DeepObserver, model: &Model, k: usize) -> Option<WorkedUnembed> {
+    let xn = obs.vectors.iter().find(|kv| kv.0 == "final_norm").map(|kv| &kv.1)?;
+    let len = xn.len();
+    if len == 0 {
+        return None;
+    }
+    let w_out = model.output.as_ref().unwrap_or(&model.token_embd);
+    // `xn` is already post-output_norm, so the real logits are the final vector
+    // scored directly against every row — the same ones the forward pass returns.
+    // (Do NOT re-normalize via lens_topk, which would double-apply output_norm.)
+    let logits = w_out.matvec(xn, Backend::F32);
+    let maxl = logits.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let exps: Vec<f32> = logits.iter().map(|l| (l - maxl).exp()).collect();
+    let sum: f32 = exps.iter().sum();
+    let mut order: Vec<usize> = (0..logits.len()).collect();
+    order.sort_unstable_by(|&a, &b| logits[b].total_cmp(&logits[a]));
+    let cands = order
+        .into_iter()
+        .take(k)
+        .map(|id| {
+            let row = w_out.data[id * len..id * len + len].to_vec();
+            UnembedCand { id: id as u32, row, logit: logits[id], prob: exps[id] / sum }
+        })
+        .collect();
+    Some(WorkedUnembed { x: xn.clone(), len, cands })
+}
+
 /// Captures the residual stream after every layer (`x_out`) for the logit lens.
 #[derive(Default)]
 pub struct LensObserver {
@@ -298,7 +354,18 @@ pub fn inspect_json(
     token: (u32, &str),
     worked: Option<&WorkedDot>,
     norm: Option<&WorkedNorm>,
+    unembed: Option<&WorkedUnembed>,
 ) -> String {
+    let arr = |out: &mut String, xs: &[f32]| {
+        out.push('[');
+        for (i, x) in xs.iter().enumerate() {
+            if i > 0 {
+                out.push(',');
+            }
+            out.push_str(&format!("{x:.6}"));
+        }
+        out.push(']');
+    };
     let mut j = String::with_capacity(1 << 16);
     j.push_str(&format!(
         "{{\"pos\":{pos},\"layer\":{},\"token\":{{\"id\":{},\"t\":\"{}\"}}",
@@ -307,7 +374,7 @@ pub fn inspect_json(
         escape_json(token.1)
     ));
     for (name, v) in &obs.vectors {
-        j.push_str(&format!(",\"{name}\":{}", vec_json(v, 8)));
+        j.push_str(&format!(",\"{name}\":{}", vec_json(v, VEC_HEAD_N)));
     }
     j.push_str(",\"heads\":[");
     for (h, (scores, weights)) in obs.scores.iter().zip(&obs.weights).enumerate() {
@@ -374,16 +441,6 @@ pub fn inspect_json(
         j.push_str("]}");
     }
     if let Some(n) = norm {
-        let arr = |out: &mut String, xs: &[f32]| {
-            out.push('[');
-            for (i, x) in xs.iter().enumerate() {
-                if i > 0 {
-                    out.push(',');
-                }
-                out.push_str(&format!("{x:.6}"));
-            }
-            out.push(']');
-        };
         j.push_str(",\"norm\":{\"pre\":");
         arr(&mut j, &n.pre);
         j.push_str(",\"post\":");
@@ -391,6 +448,20 @@ pub fn inspect_json(
         j.push_str(",\"weight\":");
         arr(&mut j, &n.weight);
         j.push_str(&format!(",\"rms\":{:.6},\"len\":{}}}", n.rms, n.len));
+    }
+    if let Some(u) = unembed {
+        j.push_str(",\"unembed\":{\"x\":");
+        arr(&mut j, &u.x);
+        j.push_str(&format!(",\"len\":{},\"cands\":[", u.len));
+        for (i, c) in u.cands.iter().enumerate() {
+            if i > 0 {
+                j.push(',');
+            }
+            j.push_str(&format!("{{\"id\":{},\"row\":", c.id));
+            arr(&mut j, &c.row);
+            j.push_str(&format!(",\"logit\":{:.6},\"prob\":{:.6}}}", c.logit, c.prob));
+        }
+        j.push_str("]}");
     }
     j.push('}');
     j
