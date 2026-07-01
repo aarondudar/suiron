@@ -236,9 +236,21 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                                 )
                             })
                             .flatten();
+                        // worked RMSNorm for this layer's attention norm
+                        let norm = crate::machine::worked_norm(
+                            &deep,
+                            &model.layers[layer].attn_norm.data,
+                            model.config.rms_eps,
+                            8,
+                        );
                         let text = tok.decode(&[id]);
-                        let json =
-                            crate::machine::inspect_json(&deep, pos, (id, &text), worked.as_ref());
+                        let json = crate::machine::inspect_json(
+                            &deep,
+                            pos,
+                            (id, &text),
+                            worked.as_ref(),
+                            norm.as_ref(),
+                        );
                         respond(&mut s, "200 OK", "application/json", json.as_bytes());
                     }
                 }

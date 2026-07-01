@@ -970,6 +970,18 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .tok-nav-where { color: var(--dim); font-size: var(--t-tiny); }
 .tok-nav-where b { color: var(--ink); font-family: var(--dot); }
 
+/* ---------- RMSNorm worked demo ---------- */
+.rms-demo { margin-top: var(--sp-3); }
+.rms-status { color: var(--faint); font-size: var(--t-tiny); }
+.rms-formula { color: var(--dim); font-size: var(--t-tiny); margin-bottom: var(--sp-2); }
+.rms-formula b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.rms-tbl { border-collapse: collapse; font-size: var(--t-tiny); font-variant-numeric: tabular-nums; }
+.rms-tbl th { color: var(--faint); font-weight: 400; text-align: right; padding: 1px var(--sp-2); }
+.rms-tbl td { color: var(--dim); text-align: right; padding: 1px var(--sp-2); }
+.rms-tbl .rms-out { color: var(--ink); }
+.rms-note { color: var(--dim); font-size: var(--t-tiny); line-height: 1.5; margin: var(--sp-2) 0; }
+.rms-check { color: var(--dim); font-size: var(--t-tiny); }
+
 /* ---------- RoPE rotation demo ---------- */
 .rope-demo { margin-top: var(--sp-3); }
 .rope-status { color: var(--faint); font-size: var(--t-tiny); }

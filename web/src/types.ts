@@ -136,6 +136,17 @@ export interface Merges {
   pretokens: Pretoken[];
 }
 
+/** A worked RMSNorm slice (from /api/v1/inspect): the first components of the
+ *  pre-norm vector, the exact rms divisor, the norm weight, and the resulting
+ *  post-norm values — so the web can show x → x/rms → ·weight and check it. */
+export interface WorkedNorm {
+  pre: number[];
+  post: number[];
+  weight: number[];
+  rms: number;
+  len: number;
+}
+
 /** one real Q8_0 block from the model, for the quantization explainer */
 export interface QuantSample {
   tensor: string;

@@ -167,6 +167,62 @@ fn worked_dot_matches_engine_score() {
 }
 
 #[test]
+fn rmsnorm_reconstructs_from_pre_and_weight() {
+    // RMSNorm: postᵢ = xᵢ · weightᵢ / rms, rms = sqrt(mean(x²) + eps). Rebuilding
+    // the post-norm vector from the pre-norm vector, the rms, and the weight must
+    // equal the engine's recorded attn_norm. Pins the worked-norm slice the web
+    // steps and checks.
+    if !std::path::Path::new(MODEL).exists() {
+        eprintln!("skipping: {MODEL} not present");
+        return;
+    }
+    let file = GgufFile::open(MODEL).expect("parse");
+    let model = Model::load(&file).expect("load");
+    let tok = Tokenizer::from_gguf(&file).expect("tokenizer");
+    let ids = tok.encode("The capital of France is");
+    assert!(ids.len() >= 2);
+
+    let layer = 5usize;
+    struct Cap {
+        layer: usize,
+        x_in: Vec<f32>,
+        attn_norm: Vec<f32>,
+    }
+    impl suiron_core::forward::Observer for Cap {
+        fn vector(&mut self, l: usize, name: &'static str, v: &[f32]) {
+            if l == self.layer {
+                match name {
+                    "x_in" => self.x_in = v.to_vec(),
+                    "attn_norm" => self.attn_norm = v.to_vec(),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    let mut cache = KvCache::new(&model);
+    for &t in &ids[..ids.len() - 1] {
+        forward(&model, &mut cache, t, Backend::F32, None);
+    }
+    let mut cap = Cap { layer, x_in: Vec::new(), attn_norm: Vec::new() };
+    forward(&model, &mut cache, *ids.last().unwrap(), Backend::F32, Some(&mut cap));
+
+    assert!(!cap.x_in.is_empty() && !cap.attn_norm.is_empty(), "x_in/attn_norm captured");
+    let weight = &model.layers[layer].attn_norm.data;
+    let len = cap.x_in.len();
+    let rms = ((cap.x_in.iter().map(|v| v * v).sum::<f32>() / len as f32) + model.config.rms_eps)
+        .sqrt();
+
+    let mut max_diff = 0.0f32;
+    for j in 0..len {
+        let recomputed = cap.x_in[j] * weight[j] / rms;
+        max_diff = max_diff.max((recomputed - cap.attn_norm[j]).abs());
+    }
+    eprintln!("rmsnorm: reconstructed vs engine attn_norm, max |diff| = {max_diff}");
+    assert!(max_diff < 1e-4, "rmsnorm reconstruction diverges by {max_diff}");
+}
+
+#[test]
 fn rope_rotates_query_by_position() {
     // RoPE rotates each query pair (i, i+d/2) by pos·base^(-2i/d). Applying those
     // angles to the pre-RoPE query (post per-head norm) must reproduce the

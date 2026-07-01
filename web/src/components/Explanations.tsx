@@ -14,6 +14,7 @@ import { EngineSource } from "./EngineSource";
 import { Explain, Term } from "./Explainer";
 import { GeometryCard, type Read } from "./Geometry";
 import { ModelOverview } from "./ModelOverview";
+import { RmsNormDemo } from "./RmsNormDemo";
 import { RnormSparkline } from "./RnormSparkline";
 import { RopeDemo } from "./RopeDemo";
 import { TokenizeDemo } from "./TokenizeDemo";
@@ -203,15 +204,17 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "norm",
     title: "keeping the size stable",
     highlight: (c) => ({ kind: "layer", layer: c.layer }),
+    interactive: (c) => <RmsNormDemo ctx={c} />,
     rungs: [code("rmsnorm")],
     intro: (c) => (
       <>
         Before each step inside a layer, first attention and then feed-forward, the token's vector is
-        rescaled to a stable overall size without changing the direction it points (<b>RMSNorm</b>:
-        divide by the root mean square of its 1,024 numbers, then scale by a learned weight). Across
-        the <b>{c.trace.layers}</b> stacked layers this keeps the numbers from growing without bound
-        or collapsing toward zero. It is the one operation here that changes a vector's length but not
-        its meaning.
+        rescaled to a stable overall size (<b>RMSNorm</b>: divide every number by the root mean
+        square of its 1,024 values, then scale by a learned weight). Across the{" "}
+        <b>{c.trace.layers}</b> stacked layers this keeps the numbers from growing without bound or
+        collapsing toward zero, and the same operation runs once more at the very end, before the
+        vocabulary scores. Dividing by the rms is a uniform scale: it changes the vector's length,
+        not its direction. The worked view below steps it on this token's real numbers.
       </>
     ),
   },

@@ -213,6 +213,40 @@ pub fn worked_dot(
     })
 }
 
+/// One worked RMSNorm for the attention norm: a short slice of the pre-norm
+/// vector, the exact rms divisor, the norm weight, and the resulting post-norm
+/// values — enough for the web to show x → x/rms → ·weight and check it against
+/// the engine. `pre`/`post` come from `forward()`'s recorded `x_in`/`attn_norm`;
+/// `weight` is the layer's attn-norm gain.
+pub struct WorkedNorm {
+    pub pre: Vec<f32>,
+    pub post: Vec<f32>,
+    pub weight: Vec<f32>,
+    pub rms: f32,
+    pub len: usize,
+}
+
+/// Build the worked attention-norm slice from one deep inspection. `rms` matches
+/// `math::rmsnorm`: sqrt(mean(x²) + eps). Takes the first `n` components. None if
+/// the recorded vectors are missing (then the inspect response omits it).
+pub fn worked_norm(obs: &DeepObserver, weight: &[f32], eps: f32, n: usize) -> Option<WorkedNorm> {
+    let pre = obs.vectors.iter().find(|kv| kv.0 == "x_in").map(|kv| &kv.1)?;
+    let post = obs.vectors.iter().find(|kv| kv.0 == "attn_norm").map(|kv| &kv.1)?;
+    let len = pre.len();
+    if len == 0 || post.len() < len || weight.len() < len {
+        return None;
+    }
+    let rms = ((pre.iter().map(|v| v * v).sum::<f32>() / len as f32) + eps).sqrt();
+    let take = n.min(len);
+    Some(WorkedNorm {
+        pre: pre[..take].to_vec(),
+        post: post[..take].to_vec(),
+        weight: weight[..take].to_vec(),
+        rms,
+        len,
+    })
+}
+
 /// Captures the residual stream after every layer (`x_out`) for the logit lens.
 #[derive(Default)]
 pub struct LensObserver {
@@ -263,6 +297,7 @@ pub fn inspect_json(
     pos: usize,
     token: (u32, &str),
     worked: Option<&WorkedDot>,
+    norm: Option<&WorkedNorm>,
 ) -> String {
     let mut j = String::with_capacity(1 << 16);
     j.push_str(&format!(
@@ -337,6 +372,25 @@ pub fn inspect_json(
             j.push_str(&format!("{x:.6}"));
         }
         j.push_str("]}");
+    }
+    if let Some(n) = norm {
+        let arr = |out: &mut String, xs: &[f32]| {
+            out.push('[');
+            for (i, x) in xs.iter().enumerate() {
+                if i > 0 {
+                    out.push(',');
+                }
+                out.push_str(&format!("{x:.6}"));
+            }
+            out.push(']');
+        };
+        j.push_str(",\"norm\":{\"pre\":");
+        arr(&mut j, &n.pre);
+        j.push_str(",\"post\":");
+        arr(&mut j, &n.post);
+        j.push_str(",\"weight\":");
+        arr(&mut j, &n.weight);
+        j.push_str(&format!(",\"rms\":{:.6},\"len\":{}}}", n.rms, n.len));
     }
     j.push('}');
     j
