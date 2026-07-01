@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAutoplay } from "../autoplay";
-import { litToken } from "../lib";
+import { litToken, softmaxAt } from "../lib";
 import { Stepper } from "./Stepper";
 import type { ExplainCtx } from "./Explanations";
 import type { WorkedDot } from "../types";
@@ -125,8 +125,102 @@ export function DotProduct({ ctx, layer, head }: { ctx: ExplainCtx; layer: numbe
           )}
 
           <Stepper i={i} max={hd} playing={playing} setI={setI} toggle={toggle} unit="component" />
+
+          {data.heads[head] && w.v && w.ctx && w.v.length === data.heads[head].weights.length && (
+            <Blend
+              scores={data.heads[head].scores}
+              weights={data.heads[head].weights}
+              v={w.v}
+              ctx={w.ctx}
+              srcText={srcText}
+            />
+          )}
         </>
       )}
+    </div>
+  );
+}
+
+/* The second half of attention: that one score was for one source; softmax turns
+   ALL the scores into weights, and the head's output is every source's value
+   vector summed by its weight. Stepped over sources; the final sum equals the
+   engine's recorded head context. One head — the heads are then concatenated and
+   output-projected to finish attention. */
+function Blend({
+  scores,
+  weights,
+  v,
+  ctx,
+  srcText,
+}: {
+  scores: number[];
+  weights: number[];
+  v: number[][];
+  ctx: number[];
+  srcText: (p: number) => string;
+}) {
+  const n = weights.length;
+  const hd = ctx.length;
+  const { i: s, playing, setI, toggle } = useAutoplay(n, { stepMs: 260 });
+
+  const soft = softmaxAt(scores, 1);
+  const softOk = soft.length === n && weights.every((wp, p) => Math.abs(wp - soft[p]) < 2e-3);
+
+  const at = Math.min(s, n);
+  const run = new Array(hd).fill(0);
+  for (let p = 0; p < at; p++) {
+    const wp = weights[p];
+    const vp = v[p];
+    for (let d = 0; d < hd; d++) run[d] += wp * vp[d];
+  }
+  const done = s >= n;
+  const rms = (a: number[]) => Math.sqrt(a.reduce((x, y) => x + y * y, 0) / (a.length || 1));
+  const maxDiff = Math.max(...ctx.map((c, d) => Math.abs(c - run[d])));
+  const cur = at > 0 ? at - 1 : -1;
+
+  return (
+    <div className="dp-blend">
+      <div className="dp-blend-title">
+        then the blend — softmax turns the scores into weights, and the head reads each token's value
+        by its weight.
+      </div>
+      <div className="dp-softmax">
+        softmax(scores) → weights{" "}
+        <span className="dp-check">{softOk ? "· matches the engine" : "· differs"}</span>
+      </div>
+
+      <div className="dp-step">
+        {cur >= 0 ? (
+          <span className="dp-term">
+            weight[{cur}] × v(<span className="dp-prod">{srcText(cur)}</span>) = {f(weights[cur])} ×
+            [{hd} numbers]
+          </span>
+        ) : (
+          <span className="dp-term">add each source's value vector, scaled by its weight.</span>
+        )}
+      </div>
+
+      <div className="dp-runsum">
+        <span className="dp-runsum-val">
+          Σ weight·v so far · rms {f(rms(run))} · [{run.slice(0, 4).map(f).join(", ")} …]
+        </span>
+      </div>
+
+      {done && (
+        <div className="dp-result">
+          head output · rms {f(rms(ctx))}{" "}
+          <span className="dp-check">
+            engine {maxDiff < 5e-3 ? "· matches" : `· differs (${f(maxDiff)})`}
+          </span>
+        </div>
+      )}
+
+      <Stepper i={s} max={n} playing={playing} setI={setI} toggle={toggle} unit="source" />
+
+      <div className="dp-blend-note">
+        one head. the heads' outputs are concatenated and passed through the output projection to
+        finish attention.
+      </div>
     </div>
   );
 }

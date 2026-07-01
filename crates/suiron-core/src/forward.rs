@@ -79,16 +79,26 @@ pub fn forward(
         let mut k = layer.wk.matvec(&xn, backend);
         let v = layer.wv.matvec(&xn, backend);
 
-        // Qwen3: RMSNorm each head's q/k, then RoPE
+        // Qwen3: per-head RMSNorm on q and k (before position is applied)
         for head in 0..c.n_heads {
             let qh = &mut q[head * hd..(head + 1) * hd];
             qh.copy_from_slice(&rmsnorm(qh, &layer.q_norm.data, c.rms_eps));
-            rope(qh, pos, c.rope_base);
         }
         for head in 0..c.n_kv_heads {
             let kh = &mut k[head * hd..(head + 1) * hd];
             kh.copy_from_slice(&rmsnorm(kh, &layer.k_norm.data, c.rms_eps));
-            rope(kh, pos, c.rope_base);
+        }
+        // the post-norm, pre-RoPE q/k, for the worked RoPE demo
+        if let Some(o) = obs.as_deref_mut() {
+            o.vector(li, "q_pre", &q);
+            o.vector(li, "k_pre", &k);
+        }
+        // then NeoX RoPE, rotating each head's q/k by its position
+        for head in 0..c.n_heads {
+            rope(&mut q[head * hd..(head + 1) * hd], pos, c.rope_base);
+        }
+        for head in 0..c.n_kv_heads {
+            rope(&mut k[head * hd..(head + 1) * hd], pos, c.rope_base);
         }
 
         if let Some(o) = obs.as_deref_mut() {
@@ -128,6 +138,11 @@ pub fn forward(
             }
         }
         // machine:attention:end
+        // the per-head context concat before the output projection: each head's
+        // slice is Σ_p weights[p]·v_p, the "blend" the worked demo verifies.
+        if let Some(o) = obs.as_deref_mut() {
+            o.vector(li, "attn_ctx", &attn);
+        }
         let proj = layer.wo.matvec(&attn, backend);
         for i in 0..h {
             x[i] += proj[i];

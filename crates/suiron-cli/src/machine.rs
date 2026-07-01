@@ -120,6 +120,17 @@ pub struct WorkedDot {
     pub src: usize,
     pub q: Vec<f32>,
     pub k: Vec<f32>,
+    /// this head's value vector for each source position (KV group), so the web
+    /// can step the blend Σ_p weight[p]·v[p]
+    pub v: Vec<Vec<f32>>,
+    /// the engine's recorded head context (that blend), for the "matches" check
+    pub ctx: Vec<f32>,
+    /// this head's query BEFORE RoPE (post per-head norm), so the web can show
+    /// the rotation; `q` above is the same vector after RoPE
+    pub q_pre: Vec<f32>,
+    /// per-pair rotation angles RoPE applies at this position: pos·base^(-2i/d)
+    /// for i in 0..head_dim/2 (pairs (i, i+head_dim/2))
+    pub angles: Vec<f32>,
 }
 
 /// Pull the (head, src) query/key slice out of one deep inspection. `q` is the
@@ -132,6 +143,7 @@ pub fn worked_dot(
     cache: &KvCache,
     head: usize,
     src_req: Option<usize>,
+    pos: usize,
     cfg: &Config,
 ) -> Option<WorkedDot> {
     let hd = cfg.head_dim;
@@ -161,11 +173,43 @@ pub fn worked_dot(
     if src >= weights.len() || start + hd > layer_k.len() {
         return None;
     }
+    // value vector for each source position (this head's KV group), for the blend
+    let layer_v = cache.v.get(obs.layer)?;
+    let kv_head = head / group;
+    let n_pos = weights.len();
+    let mut v = Vec::with_capacity(n_pos);
+    for p in 0..n_pos {
+        let vs = p * kv_dim + kv_head * hd;
+        if vs + hd > layer_v.len() {
+            return None;
+        }
+        v.push(layer_v[vs..vs + hd].to_vec());
+    }
+    // the engine's head context (Σ_p weights[p]·v[p]) recorded before the output
+    // projection — the blend's target
+    let ctx_full = obs.vectors.iter().find(|kv| kv.0 == "attn_ctx").map(|kv| &kv.1)?;
+    if (head + 1) * hd > ctx_full.len() {
+        return None;
+    }
+    // the pre-RoPE (post-norm) query for this head, plus the rotation angles RoPE
+    // applies at this position — enough for the web to show q rotating
+    let q_pre_full = obs.vectors.iter().find(|kv| kv.0 == "q_pre").map(|kv| &kv.1)?;
+    if (head + 1) * hd > q_pre_full.len() {
+        return None;
+    }
+    let half = hd / 2;
+    let angles: Vec<f32> = (0..half)
+        .map(|i| pos as f32 * cfg.rope_base.powf(-(2.0 * i as f32) / hd as f32))
+        .collect();
     Some(WorkedDot {
         head,
         src,
         q: q[head * hd..head * hd + hd].to_vec(),
         k: layer_k[start..start + hd].to_vec(),
+        v,
+        ctx: ctx_full[head * hd..head * hd + hd].to_vec(),
+        q_pre: q_pre_full[head * hd..head * hd + hd].to_vec(),
+        angles,
     })
 }
 
@@ -250,6 +294,43 @@ pub fn inspect_json(
         }
         j.push_str("],\"k\":[");
         for (i, x) in w.k.iter().enumerate() {
+            if i > 0 {
+                j.push(',');
+            }
+            j.push_str(&format!("{x:.6}"));
+        }
+        // value vector per source (for the blend) and the engine head context
+        j.push_str("],\"v\":[");
+        for (i, vp) in w.v.iter().enumerate() {
+            if i > 0 {
+                j.push(',');
+            }
+            j.push('[');
+            for (d, x) in vp.iter().enumerate() {
+                if d > 0 {
+                    j.push(',');
+                }
+                j.push_str(&format!("{x:.6}"));
+            }
+            j.push(']');
+        }
+        j.push_str("],\"ctx\":[");
+        for (i, x) in w.ctx.iter().enumerate() {
+            if i > 0 {
+                j.push(',');
+            }
+            j.push_str(&format!("{x:.6}"));
+        }
+        // pre-RoPE query and the per-pair rotation angles (for the RoPE demo)
+        j.push_str("],\"q_pre\":[");
+        for (i, x) in w.q_pre.iter().enumerate() {
+            if i > 0 {
+                j.push(',');
+            }
+            j.push_str(&format!("{x:.6}"));
+        }
+        j.push_str("],\"angles\":[");
+        for (i, x) in w.angles.iter().enumerate() {
             if i > 0 {
                 j.push(',');
             }

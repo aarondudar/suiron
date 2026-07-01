@@ -95,6 +95,14 @@ export interface WorkedDot {
   src: number;
   q: number[];
   k: number[];
+  /** this head's value vector for each source position (for the blend) */
+  v: number[][];
+  /** the engine's recorded head context = Σ_p weight[p]·v[p] */
+  ctx: number[];
+  /** this head's query before RoPE (post-norm); `q` is the same after rotation */
+  q_pre: number[];
+  /** per-pair rotation angles RoPE applies at this position (head_dim/2 of them) */
+  angles: number[];
 }
 
 /** Per-layer logit lens for one position (from /api/v1/lens): what the model

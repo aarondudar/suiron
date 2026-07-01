@@ -15,6 +15,7 @@ import { Explain, Term } from "./Explainer";
 import { GeometryCard, type Read } from "./Geometry";
 import { ModelOverview } from "./ModelOverview";
 import { RnormSparkline } from "./RnormSparkline";
+import { RopeDemo } from "./RopeDemo";
 import { TokenizeDemo } from "./TokenizeDemo";
 import { TemperatureDemo } from "./TemperatureDemo";
 import { TopKDemo } from "./TopKDemo";
@@ -183,6 +184,7 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "position",
     title: "where the token sits",
     highlight: (c) => ({ kind: "token", pos: c.cur }),
+    interactive: (c) => <RopeDemo ctx={c} />,
     rungs: [code("rope")],
     intro: (c) => (
       <>

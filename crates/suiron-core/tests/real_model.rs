@@ -167,6 +167,140 @@ fn worked_dot_matches_engine_score() {
 }
 
 #[test]
+fn rope_rotates_query_by_position() {
+    // RoPE rotates each query pair (i, i+d/2) by pos·base^(-2i/d). Applying those
+    // angles to the pre-RoPE query (post per-head norm) must reproduce the
+    // post-RoPE query the attention score multiplies. Pins the q_pre + angles the
+    // inspect slice exposes and the web rotates.
+    if !std::path::Path::new(MODEL).exists() {
+        eprintln!("skipping: {MODEL} not present");
+        return;
+    }
+    let file = GgufFile::open(MODEL).expect("parse");
+    let model = Model::load(&file).expect("load");
+    let tok = Tokenizer::from_gguf(&file).expect("tokenizer");
+    let ids = tok.encode("The capital of France is");
+    assert!(ids.len() >= 2);
+
+    let cfg = &model.config;
+    let (hd, layer, head) = (cfg.head_dim, 5usize, 3usize);
+    let half = hd / 2;
+    let base = cfg.rope_base;
+
+    struct Cap {
+        layer: usize,
+        q_pre: Vec<f32>,
+        q: Vec<f32>,
+    }
+    impl suiron_core::forward::Observer for Cap {
+        fn vector(&mut self, l: usize, name: &'static str, v: &[f32]) {
+            if l == self.layer {
+                match name {
+                    "q_pre" => self.q_pre = v.to_vec(),
+                    "q" => self.q = v.to_vec(),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    let mut cache = KvCache::new(&model);
+    for &t in &ids[..ids.len() - 1] {
+        forward(&model, &mut cache, t, Backend::F32, None);
+    }
+    let mut cap = Cap { layer, q_pre: Vec::new(), q: Vec::new() };
+    forward(&model, &mut cache, *ids.last().unwrap(), Backend::F32, Some(&mut cap));
+
+    let pos = ids.len() - 1; // the position the last token was processed at
+    assert!(!cap.q_pre.is_empty() && !cap.q.is_empty(), "q_pre/q captured");
+
+    // rotate head `head`'s pre-RoPE pairs by the position angles, compare to q
+    let mut max_diff = 0.0f32;
+    for i in 0..half {
+        let angle = pos as f32 * base.powf(-(2.0 * i as f32) / hd as f32);
+        let (sin, cos) = angle.sin_cos();
+        let x0 = cap.q_pre[head * hd + i];
+        let x1 = cap.q_pre[head * hd + i + half];
+        let r0 = x0 * cos - x1 * sin;
+        let r1 = x0 * sin + x1 * cos;
+        max_diff = max_diff.max((r0 - cap.q[head * hd + i]).abs());
+        max_diff = max_diff.max((r1 - cap.q[head * hd + i + half]).abs());
+    }
+    eprintln!("rope pos={pos}: rotated q_pre vs engine q, max |diff| = {max_diff}");
+    assert!(max_diff < 1e-3, "rotated q_pre diverges from engine q by {max_diff}");
+}
+
+#[test]
+fn attention_blend_matches_engine_context() {
+    // The worked blend re-forms one head's attention output: softmax turns the
+    // scores into weights, and each source's value vector is summed by its
+    // weight. That sum must equal the engine's recorded per-head context
+    // (`attn_ctx`, the concat before the output projection). Pins the value
+    // vectors + context the inspect slice exposes and the web steps.
+    if !std::path::Path::new(MODEL).exists() {
+        eprintln!("skipping: {MODEL} not present");
+        return;
+    }
+    let file = GgufFile::open(MODEL).expect("parse");
+    let model = Model::load(&file).expect("load");
+    let tok = Tokenizer::from_gguf(&file).expect("tokenizer");
+    let ids = tok.encode("The capital of France is");
+    assert!(ids.len() >= 2);
+
+    let cfg = &model.config;
+    let (hd, layer, head) = (cfg.head_dim, 5usize, 3usize);
+    let kv_dim = cfg.n_kv_heads * hd;
+    let kv_head = head / (cfg.n_heads / cfg.n_kv_heads);
+
+    struct Cap {
+        layer: usize,
+        ctx: Vec<f32>,
+        weights: Vec<Vec<f32>>,
+    }
+    impl suiron_core::forward::Observer for Cap {
+        fn vector(&mut self, l: usize, name: &'static str, v: &[f32]) {
+            if l == self.layer && name == "attn_ctx" {
+                self.ctx = v.to_vec();
+            }
+        }
+        fn attention(&mut self, l: usize, _head: usize, w: &[f32]) {
+            if l == self.layer {
+                self.weights.push(w.to_vec());
+            }
+        }
+    }
+
+    let mut cache = KvCache::new(&model);
+    for &t in &ids[..ids.len() - 1] {
+        forward(&model, &mut cache, t, Backend::F32, None);
+    }
+    let mut cap = Cap { layer, ctx: Vec::new(), weights: Vec::new() };
+    forward(&model, &mut cache, *ids.last().unwrap(), Backend::F32, Some(&mut cap));
+
+    let n_pos = ids.len();
+    assert_eq!(cap.weights.len(), cfg.n_heads, "one weights row per head");
+    assert_eq!(cap.ctx.len(), cfg.n_heads * hd, "context concat over all heads");
+
+    // reconstruct head `head`'s context = Σ_p weights[p]·v[p], values from the cache
+    let w = &cap.weights[head];
+    assert_eq!(w.len(), n_pos, "weights over all positions");
+    let mut recomputed = vec![0.0f32; hd];
+    for (p, &wp) in w.iter().enumerate() {
+        let vp = &cache.v[layer][p * kv_dim + kv_head * hd..][..hd];
+        for d in 0..hd {
+            recomputed[d] += wp * vp[d];
+        }
+    }
+    let engine = &cap.ctx[head * hd..head * hd + hd];
+    let mut max_diff = 0.0f32;
+    for d in 0..hd {
+        max_diff = max_diff.max((recomputed[d] - engine[d]).abs());
+    }
+    eprintln!("blend vs engine head context: max |diff| = {max_diff}");
+    assert!(max_diff < 1e-3, "blend diverges from engine context by {max_diff}");
+}
+
+#[test]
 fn lens_final_layer_equals_logits() {
     // The logit lens at the final layer must reproduce the real next-token
     // logits exactly: it applies the same final RMSNorm + tied unembed to the

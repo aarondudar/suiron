@@ -231,6 +231,7 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                                     &c,
                                     head,
                                     (src != usize::MAX).then_some(src),
+                                    pos,
                                     &model.config,
                                 )
                             })
