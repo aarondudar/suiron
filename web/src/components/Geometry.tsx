@@ -6,6 +6,7 @@ import { BandHeader } from "./BandHeader";
 import { Explain, useExplainer } from "./Explainer";
 import { SUB, type ExplainCtx } from "./Explanations";
 import { RoleTag } from "./RoleTag";
+import { Stepper } from "./Stepper";
 import type { FocusTarget, Lens, Neighbor, Step, Trace } from "../types";
 
 /* The geometry view — meaning, traversal, prediction, and the climb in one
@@ -192,22 +193,14 @@ export function GeometryView({
   return (
     <div className={"geo-view" + (compact ? " compact" : "")}>
       {read === "lens" && (
-        <div className="geo-lens-bar">
-          <button className="geo-lens-play" onClick={toggleLens} aria-label={lensPlaying ? "pause" : "play"}>
-            {lensPlaying ? "❚❚" : "▶"}
-          </button>
-          <input
-            type="range"
-            min={0}
-            max={lastLayer}
-            value={layerSel}
-            onChange={(e) => setSelLayer(+e.target.value)}
-            aria-label="layer"
-          />
-          <span className="geo-lens-where">
-            layer <b>{layerSel}</b> / {lastLayer}
-          </span>
-        </div>
+        <Stepper
+          i={layerSel}
+          max={lastLayer}
+          playing={lensPlaying}
+          setI={setSelLayer}
+          toggle={toggleLens}
+          unit="layer"
+        />
       )}
 
       <svg className={"geo-svg" + (REDUCED ? " still" : "")} viewBox={`0 0 ${L.W} ${L.H}`} role="img">

@@ -270,6 +270,8 @@ footer a:hover { color: var(--red); border-bottom-color: var(--red); }
 /* ---------- the walk: entry button + fixed player bar ---------- */
 .walk-go { border-color: var(--red); color: var(--red); }
 .walk-go:hover:not(:disabled) { background: var(--red); color: var(--bg); }
+/* the guided-tour launcher when it lives in a band header (compact) */
+.hdr-tour { font-size: var(--t-tiny); padding: 2px 8px; }
 
 .walk-bar {
   position: fixed; left: 50%; bottom: var(--sp-4); transform: translateX(-50%);
@@ -661,8 +663,13 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .dp-result { font-size: var(--t-tiny); color: var(--dim); font-variant-numeric: tabular-nums; }
 .dp-score { color: var(--red); font-weight: 600; }
 .dp-check { color: var(--faint); }
-.dp-buttons { display: flex; gap: var(--sp-1); margin-top: var(--sp-2); }
-.dp-buttons button { font-size: var(--t-tiny); padding: 2px 8px; }
+/* the shared stepper: play/pause + a scrubber + an i/max readout. Used by the
+   worked dot product, the logit-lens climb, and the tokenize demo. */
+.stepper { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-2); }
+.stepper-play { font-size: var(--t-tiny); padding: 2px 8px; flex-shrink: 0; }
+.stepper-range { flex: 1; min-width: 80px; height: 4px; accent-color: var(--red); cursor: pointer; }
+.stepper-where { color: var(--dim); font-size: var(--t-tiny); white-space: nowrap; }
+.stepper-where b { color: var(--ink); font-family: var(--dot); }
 @media (prefers-reduced-motion: reduce) {
   .dp-bar-fill { transition: none; }
 }
@@ -868,14 +875,8 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .geo-card .geo-svg { max-width: 360px; margin: 0 auto; }
 .geo-card-note { color: var(--faint); font-size: var(--t-tiny); line-height: 1.6; margin-top: var(--sp-2); }
 
-/* the climb (logit lens): layer slider above the radial frame */
-.geo-lens-bar { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-2); }
-.geo-lens-bar input[type="range"] {
-  flex: 1; accent-color: var(--red); height: 4px; cursor: pointer; min-width: 80px;
-}
-.geo-lens-where { color: var(--dim); font-size: var(--t-tiny); white-space: nowrap; }
-.geo-lens-where b { color: var(--ink); font-family: var(--dot); }
-.geo-lens-play { font-size: var(--t-tiny); padding: 2px 8px; flex-shrink: 0; }
+/* the climb (logit lens) uses the shared .stepper above the radial frame */
+.geo-view > .stepper { margin-bottom: var(--sp-2); }
 
 /* shared layer/head control for the attention interactive (one set, drives both
    the worked dot product and the woven view) */
@@ -921,17 +922,34 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   padding: var(--sp-3) var(--sp-4); margin: var(--sp-3) 0;
 }
 
-/* ---------- tokenization demo (BPE merges, stepped) ---------- */
+/* ---------- tokenization demo (BPE merges, one word at a time) ---------- */
 .tok-demo { margin-top: var(--sp-3); }
 .tok-status { color: var(--faint); font-size: var(--t-tiny); margin-top: var(--sp-3); }
-.tok-rows { display: flex; flex-direction: column; gap: 4px; }
-.tok-row { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+
+/* context line: the whole prompt as its tokens, the active word lit, clickable */
+.tok-context { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-bottom: var(--sp-3); }
+.tok-word {
+  background: none; border: 1px solid transparent; border-bottom-color: var(--hair);
+  color: var(--faint); font-family: var(--mono); font-size: var(--t-body);
+  padding: 1px 3px; cursor: pointer; white-space: pre;
+}
+.tok-word:hover { color: var(--ink); }
+.tok-word.active { color: var(--red); border-color: var(--red); }
+
+/* the active word collapsing */
+.tok-word-demo { border: 1px solid var(--hair); border-left: 2px solid var(--red); padding: var(--sp-3); }
+.tok-word-title { color: var(--dim); font-size: var(--t-tiny); margin-bottom: var(--sp-2); }
+.tok-word-title b { color: var(--ink); }
+.tok-row { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: flex-start; }
 .tok-piece {
   display: inline-flex; flex-direction: column; align-items: center; gap: 1px;
   border: 1px solid var(--hair); padding: 2px 5px; background: var(--surface);
   color: var(--ink); font-size: var(--t-body); white-space: pre;
 }
+/* raw byte-level chips read distinctly from merged pieces */
+.tok-piece.raw { border-style: dashed; border-color: var(--faint); color: var(--dim); background: none; }
 .tok-piece.just { border-color: var(--red); color: var(--red); }
+.tok-piece.done { border-color: var(--dim); }
 .tok-id {
   color: var(--faint); font-family: var(--dot); font-size: var(--t-micro);
   font-variant-numeric: tabular-nums;
@@ -939,10 +957,13 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .tok-label { color: var(--dim); font-size: var(--t-tiny); margin: var(--sp-2) 0; min-height: 1.4em; }
 .tok-pair { color: var(--ink); }
 .tok-merged { color: var(--red); }
-.tok-ctl { display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; }
-.tok-where { color: var(--dim); font-size: var(--t-tiny); margin-right: var(--sp-1); }
-.tok-where b { color: var(--ink); font-family: var(--dot); }
-.tok-ctl button { font-size: var(--t-tiny); padding: 2px 8px; }
+.tok-final { margin-right: var(--sp-2); color: var(--ink); }
+
+/* prev / next word nav */
+.tok-nav { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-3); }
+.tok-nav button { font-size: var(--t-tiny); padding: 2px 8px; }
+.tok-nav-where { color: var(--dim); font-size: var(--t-tiny); }
+.tok-nav-where b { color: var(--ink); font-family: var(--dot); }
 
 /* ---------- residual rms sparkline ---------- */
 .spark-wrap { margin-top: var(--sp-3); }

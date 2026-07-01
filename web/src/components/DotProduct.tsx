@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAutoplay } from "../autoplay";
 import { litToken } from "../lib";
+import { Stepper } from "./Stepper";
 import type { ExplainCtx } from "./Explanations";
 import type { WorkedDot } from "../types";
 
@@ -91,12 +92,13 @@ export function DotProduct({ ctx, layer, head }: { ctx: ExplainCtx; layer: numbe
           </div>
 
           <div className="dp-step">
-            component <b>{Math.min(i, hd)}</b> / {hd}
-            {i > 0 && (
+            {i > 0 ? (
               <span className="dp-term">
                 q[{i - 1}] × k[{i - 1}] = {f(w.q[i - 1])} × {f(w.k[i - 1])} ={" "}
                 <span className="dp-prod">{f(w.q[i - 1] * w.k[i - 1])}</span>
               </span>
+            ) : (
+              <span className="dp-term">pair each of the {hd} components, multiply, sum.</span>
             )}
           </div>
 
@@ -122,21 +124,7 @@ export function DotProduct({ ctx, layer, head }: { ctx: ExplainCtx; layer: numbe
             </div>
           )}
 
-          <div className="dp-buttons">
-            <button onClick={toggle}>{playing ? "❚❚ pause" : "▶ play"}</button>
-            <button onClick={() => setI(Math.max(0, i - 1))} disabled={i <= 0}>
-              ◀
-            </button>
-            <button onClick={() => setI(Math.min(hd, i + 1))} disabled={done}>
-              ▶ step
-            </button>
-            <button onClick={() => setI(hd)} disabled={done}>
-              to end
-            </button>
-            <button onClick={() => setI(0)} disabled={i === 0}>
-              reset
-            </button>
-          </div>
+          <Stepper i={i} max={hd} playing={playing} setI={setI} toggle={toggle} unit="component" />
         </>
       )}
     </div>

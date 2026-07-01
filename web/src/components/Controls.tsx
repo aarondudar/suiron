@@ -57,7 +57,17 @@ export function Controls({
         idx="00"
         title={<Explain of="settings">{chatOpen ? "chat" : "prompt"}</Explain>}
         sub={chatOpen ? SUB.chat : SUB.prompt}
-      />
+      >
+        {!chatOpen && canWalk && (
+          <button
+            className="walk-go hdr-tour"
+            title="take the guided tour of how this token was produced, top to bottom"
+            onClick={onWalk}
+          >
+            ▶ tour
+          </button>
+        )}
+      </BandHeader>
 
       {chatOpen ? (
         <ChatPanel />
@@ -71,30 +81,23 @@ export function Controls({
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && go()}
           />
-          <button className={busy ? "busy" : ""} disabled={busy} onClick={go}>
-            generate
-          </button>
-          <button
-            disabled={busy || !hasTokens}
-            title="advance the model exactly one token from where it stands"
-            onClick={() => {
-              onStep();
-              void step(1, p);
-            }}
-          >
-            step +1
-          </button>
-          <button disabled={!busy} onClick={() => void stop()}>
-            stop
-          </button>
-          <button
-            className="walk-go"
-            disabled={!canWalk || busy}
-            title="take the guided tour of how this token was produced, top to bottom"
-            onClick={onWalk}
-          >
-            ▶ guided tour
-          </button>
+          {busy ? (
+            <button onClick={() => void stop()}>stop</button>
+          ) : (
+            <>
+              <button onClick={go}>generate</button>
+              <button
+                disabled={!hasTokens}
+                title="advance the model exactly one token from where it stands"
+                onClick={() => {
+                  onStep();
+                  void step(1, p);
+                }}
+              >
+                step +1
+              </button>
+            </>
+          )}
         </div>
       )}
 
