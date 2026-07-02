@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { getLens, getNeighbors } from "../api";
 import { useAutoplay } from "../autoplay";
 import { attnSources, litToken, settledSeq } from "../lib";
@@ -303,6 +303,8 @@ export function Geometry({
   prod,
   active,
   setHover,
+  card,
+  dim,
 }: {
   trace: Trace;
   step: Step;
@@ -310,6 +312,10 @@ export function Geometry({
   prod: number;
   active: string | null;
   setHover: (f: FocusTarget) => void;
+  /** the open concept's inline card, when this band hosts it (docs/16) */
+  card?: ReactNode;
+  /** another band hosts the open card: this one recedes */
+  dim?: boolean;
 }) {
   const [read, setRead] = useState<Read>("prediction");
 
@@ -322,7 +328,7 @@ export function Geometry({
   }, [active]);
 
   return (
-    <section data-explain-el="geo">
+    <section data-explain-el="geo" className={dim ? "dimmed" : undefined}>
       <BandHeader
         idx="04"
         title={<Explain of="geometry">the geometry of one prediction</Explain>}
@@ -346,6 +352,7 @@ export function Geometry({
           ))}
         </div>
       </BandHeader>
+      {card}
 
       <div className="geo-wrap">
         <GeometryView trace={trace} step={step} cur={cur} prod={prod} read={read} onHover={setHover} />
@@ -370,8 +377,10 @@ const CARD_NOTE: Record<Read, string> = {
 /** The compact drawer card: a deliberately simplified view, reachable from
  *  inspecting a token. The concept fixes the read. */
 export function GeometryCard({ ctx, read }: { ctx: ExplainCtx; read: Read }) {
-  const { setProgramFocus, docked } = useExplainer();
-  const onHover = docked ? undefined : setProgramFocus;
+  // during a walk the program focus belongs to the stop's highlight; hovering
+  // the card must not clobber it
+  const { setProgramFocus, walk } = useExplainer();
+  const onHover = walk ? undefined : setProgramFocus;
   return (
     <div className="geo-card">
       <GeometryView trace={ctx.trace} step={ctx.step} cur={ctx.cur} prod={ctx.prod} read={read} compact onHover={onHover} />

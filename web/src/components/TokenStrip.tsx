@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { attnSources, confBar, confColor, confidence, esc } from "../lib";
 import { BandHeader } from "./BandHeader";
 import { Explain } from "./Explainer";
@@ -14,6 +14,8 @@ export function TokenStrip({
   prod,
   setCur,
   focus,
+  card,
+  dim,
 }: {
   trace: Trace;
   step: Step;
@@ -25,6 +27,10 @@ export function TokenStrip({
   /** the one thing the lab is lighting up (hover, the open Explainer, or a
    *  programmatic writer); this band reacts to the foci that touch tokens. */
   focus: FocusTarget;
+  /** the open concept's inline card, when this band hosts it (docs/16) */
+  card?: ReactNode;
+  /** another band hosts the open card: this one recedes */
+  dim?: boolean;
 }) {
   // unpack the foci this band visualizes
   const focusLayer = focus.kind === "layer" ? focus.layer : null;
@@ -66,7 +72,7 @@ export function TokenStrip({
   });
 
   return (
-    <section>
+    <section className={dim ? "dimmed" : undefined}>
       <BandHeader
         idx="01"
         title={<Explain of="tokenization">tokens</Explain>}
@@ -78,6 +84,7 @@ export function TokenStrip({
           <input type="checkbox" checked={arcs} onChange={(e) => setArcs(e.target.checked)} /> arcs
         </label>
       </BandHeader>
+      {card}
       {trace.fork && (
         <div className="fork-note">
           ⑂ forked at {trace.fork.pos} · before:{" "}

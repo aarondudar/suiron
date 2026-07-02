@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { esc, q } from "../lib";
 import { BandHeader } from "./BandHeader";
 import { Explain } from "./Explainer";
@@ -43,11 +44,17 @@ export function Selection({
   cur,
   sel,
   isPrompt,
+  card,
+  dim,
 }: {
   trace: Trace;
   cur: number;
   sel?: Sel;
   isPrompt: boolean;
+  /** the open concept's inline card, when this band hosts it (docs/16) */
+  card?: ReactNode;
+  /** another band hosts the open card: this one recedes */
+  dim?: boolean;
 }) {
   const body = !sel ? (
     <div className="sel-math">
@@ -60,7 +67,7 @@ export function Selection({
   );
 
   return (
-    <section>
+    <section className={dim ? "dimmed" : undefined}>
       <BandHeader
         idx="05"
         title={<Explain of="draw">how this token was chosen</Explain>}
@@ -68,6 +75,7 @@ export function Selection({
       >
         <RoleTag trace={trace} pos={cur} kind="cur" />
       </BandHeader>
+      {card}
       <div>{body}</div>
     </section>
   );

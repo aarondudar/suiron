@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { getQuantSample } from "../api";
 import { BandHeader } from "./BandHeader";
 import { BackendToggle } from "./Controls";
@@ -17,11 +17,17 @@ export function Quantization({
   params,
   setParams,
   busy,
+  card,
+  dim,
 }: {
   trace: Trace;
   params: GenParams;
   setParams: (p: GenParams) => void;
   busy: boolean;
+  /** the open concept's inline card, when this band hosts it (docs/16) */
+  card?: ReactNode;
+  /** another band hosts the open card: this one recedes */
+  dim?: boolean;
 }) {
   const [sample, setSample] = useState<QuantSample | null>(null);
   const [open, setOpen] = useState(false);
@@ -39,7 +45,7 @@ export function Quantization({
   const gib = (b: number) => (b / 1024 ** 3).toFixed(2);
 
   return (
-    <section>
+    <section className={dim ? "dimmed" : undefined}>
       <BandHeader
         idx="06"
         title={<Explain of="quantization">quantization</Explain>}
@@ -50,6 +56,7 @@ export function Quantization({
           show a real block
         </button>
       </BandHeader>
+      {card}
 
       {/* headline: which path is live + the memory it moves */}
       <div className="q-cards">

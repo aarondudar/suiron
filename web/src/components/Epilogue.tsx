@@ -33,15 +33,26 @@ function ScaleEntry({ term, children }: { term: string; children: ReactNode }) {
   )
 }
 
-export function Epilogue({ onTryChat }: { onTryChat: () => void }) {
+export function Epilogue({
+  onTryChat,
+  card,
+  dim,
+}: {
+  onTryChat: () => void;
+  /** the open concept's inline card, when this band hosts it (docs/16) */
+  card?: ReactNode;
+  /** another band hosts the open card: this one recedes */
+  dim?: boolean;
+}) {
   return (
-    <section className="epilogue" data-explain-el="epilogue">
+    <section className={"epilogue" + (dim ? " dimmed" : "")} data-explain-el="epilogue">
       <div className="epi-boundary" role="separator">
         <span className="epi-boundary-up">↑ computed and verified in this lab</span>
         <span className="epi-boundary-down">
           ↓ how this scales · described here, not implemented
         </span>
       </div>
+      {card}
 
       <div className="epi-half">
         <h3 className="epi-h">

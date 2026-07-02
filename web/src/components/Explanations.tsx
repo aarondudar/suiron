@@ -80,6 +80,35 @@ export interface Concept {
   interactive?: (c: ExplainCtx) => ReactNode; // optional embedded demo
 }
 
+/** Which band hosts each concept's inline card (docs/16): the explanation
+ *  renders inside the module it explains, right under its header. Every concept
+ *  MUST have a home (pinned by a test); concepts opened before any tokens exist
+ *  fall back to band "00" in App. */
+export const CARD_HOME: Record<string, string> = {
+  model: "00",
+  settings: "00",
+  temperature: "00",
+  topk: "00",
+  topp: "00",
+  tokenization: "01",
+  confidence: "01",
+  loop: "01",
+  embedding: "02",
+  position: "02",
+  norm: "02",
+  attention: "02",
+  kvcache: "02",
+  feedforward: "02",
+  residual: "02",
+  logits: "03",
+  geometry: "04",
+  lens: "04",
+  draw: "05",
+  quantization: "06",
+  scaling: "epilogue",
+  agents: "epilogue",
+};
+
 /** a "the code" rung that reuses the live engine source endpoint. */
 const code = (fn: string): ExplainRung => ({ label: "the code", body: () => <EngineSource fn={fn} /> });
 
@@ -127,7 +156,7 @@ export const CONCEPTS: Record<string, Concept> = {
           text into them. A <b>token</b> is a common chunk of text: frequent words are usually a
           single token, rarer words split into a few. The text became {c.trace.tokens.length} of
           them. The token under inspection, number {c.cur}, is {q(t?.t ?? "")}; its{" "}
-          <b>token ID</b> is <b>{t?.id}</b>, its index into the vocabulary of 151,936 tokens. Step
+          <b>token ID</b> is <b>{t?.id}</b>, its index into the vocabulary. Step
           through the merges below to watch the text collapse, byte pair by byte pair, into exactly
           these tokens.
         </>
@@ -182,9 +211,8 @@ export const CONCEPTS: Record<string, Concept> = {
           <Term name="token_embd">embedding table</Term> with one row per vocabulary entry, each a
           vector of <Term name="h">1,024</Term> numbers learned during training. That row is the
           token's starting representation, before any context has been mixed in, and it is what
-          enters the stack of layers. For the current token, {q(t?.t ?? "")}, its row is <b>row{" "}
-          {t?.id}</b> of that table, shown below as real numbers, and that row is exactly the vector
-          entering layer 0. The same table reappears at the final stage, where its rows are reused
+          enters the stack of layers. The lookup for the current token, {q(t?.t ?? "")}, is shown
+          below as real numbers. The same table reappears at the final stage, where its rows are reused
           to convert the output vector into a score for every token in the vocabulary: the model
           reads the same table to start and to finish.
         </>
@@ -201,8 +229,10 @@ export const CONCEPTS: Record<string, Concept> = {
     intro: (c) => (
       <>
         A transformer reads every token at once, so order is not built in; it has to be added.
-        Before attention can compare two tokens, each one's query and key are rotated by an angle set
-        by its position in the sequence (rotary position embedding, or <b>RoPE</b>). This token sits
+        Attention, the next step, compares tokens using two small vectors each one carries: a{" "}
+        <b>query</b> and a <b>key</b>. Before any comparison happens, every query and key is rotated
+        by an angle set by its token's position in the sequence (rotary position embedding, or{" "}
+        <b>RoPE</b>). This token sits
         at position <b>{c.cur}</b>. The same word rotated for an early position points differently
         from the same word later on, so {q(c.trace.tokens[c.cur]?.t ?? "")} here is not identical to
         the same token elsewhere. The plot below runs that rotation on this token's real query, pair
@@ -242,8 +272,8 @@ export const CONCEPTS: Record<string, Concept> = {
           Predicting the next token requires context, the tokens that came before. <b>Attention</b>{" "}
           is the step that supplies it: at each layer, every token looks back at the earlier tokens
           and pulls in information from the ones that matter. It does this by scoring every earlier
-          token, turning those <Term name="scores">scores</Term> into{" "}
-          <Term name="weights">weights</Term> with softmax, then blending the tokens by those
+          token, rescaling those <Term name="scores">scores</Term> with <b>softmax</b> into{" "}
+          <Term name="weights">weights</Term> that add up to 100%, then blending the tokens by those
           weights. It is the only step where tokens exchange information. The highlighted dots show
           where each layer looked, larger meaning more attention and red the strongest.{" "}
           {g ? (
@@ -271,10 +301,11 @@ export const CONCEPTS: Record<string, Concept> = {
       return (
         <>
           Every layer's attention needs each earlier token's <b>key</b> and <b>value</b> vectors, the
-          ones its own query is compared against and blended from. Recomputing them for every earlier
-          token on every step would mean redoing all the earlier work again and again as the sequence
-          grows. Instead, the moment a token is processed, its key and value at every layer (one pair
-          per <b>KV head</b>) are written once into the <b>KV cache</b> and kept.
+          ones its own query is compared against and blended from. Recomputing them on every step
+          would redo all the earlier work each time the sequence grows by one token. Instead, the
+          moment a token is processed, its keys and values at every layer are written once into the{" "}
+          <b>KV cache</b> and kept (one pair per <b>KV head</b>; small groups of attention heads
+          share each pair).
           Producing the next token only computes the new token's own query, key, and value, then reads
           every key and value already in the cache. By the pass that produced this token, the cache
           held <b>{n}</b> position{n === 1 ? "" : "s"} at each of the <b>{c.trace.layers}</b> layers.
@@ -372,7 +403,8 @@ export const CONCEPTS: Record<string, Concept> = {
           passed through every layer, the model held one final 1,024-number vector and scored the
           next token by comparing that vector against every row of the <b>embedding table</b>, the
           same table that turned token IDs into vectors at the start: a closer match means a higher
-          score. Each raw score is a <b>logit</b>. <b>Softmax</b> then turns all 151,936 logits into
+          score. That comparison is called the <b>unembedding</b>, and each raw score is a{" "}
+          <b>logit</b>. <b>Softmax</b> then turns all 151,936 logits into
           probabilities that add up to 100%, and the token at the top is the one that became{" "}
           {tok(c, c.cur)}.{read} Click a bar to <b>force</b> a different token here instead and watch
           the model continue from that choice. These rankings build up gradually:{" "}
@@ -394,8 +426,8 @@ export const CONCEPTS: Record<string, Concept> = {
           Every token's <b>1,024</b> numbers are a direction in space, and directions that point a
           similar way mean similar things. This view draws that directly. <b>What it means</b>{" "}
           centers on the inspected token and places its closest vocabulary entries around it, with
-          distance set by <b>cosine</b> similarity, so the nearest entries are the ones the
-          model treats as most alike. <b>What comes next</b> centers on the output direction that
+          distance set by <b>cosine</b> similarity (how closely two directions align), so the
+          nearest entries are the ones the model treats as most alike. <b>What comes next</b> centers on the output direction that
           produced this token and arranges the candidate tokens around it by how high the model
           scored each, so the strongest sits closest to the center
           {win ? (
@@ -420,9 +452,10 @@ export const CONCEPTS: Record<string, Concept> = {
       return (
         <>
           The residual stream is not only growing in size; it is this token's prediction resolving.
-          The <b>logit lens</b> asks, at each layer of the pass that produced this token, what the
-          model would predict if it stopped there: it applies the final normalization and the same
-          unembedding the output uses, and reads the top token.{" "}
+          At each layer of the pass that produced this token, the model can be stopped early and
+          asked what it would predict from there: apply the final normalization and the same
+          unembedding the real output uses, then read the top token. That per-layer read is called
+          the <b>logit lens</b>.{" "}
           {win ? (
             <>
               By the last layer the top guess is {q(win[1])} at <b>{(win[2] * 100).toFixed(0)}%</b>.{" "}
@@ -518,7 +551,7 @@ export const CONCEPTS: Record<string, Concept> = {
         return (
           <>
             A ranking is not yet a choice, so the model must commit to one token. At temperature 0
-            there is no randomness: the highest-scoring survivor always wins, and this token was
+            there is no randomness: the highest-scoring candidate always wins, and this token was
             chosen that way. Raise the temperature to turn this step into a weighted random draw.
           </>
         );

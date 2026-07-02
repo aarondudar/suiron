@@ -1,10 +1,8 @@
-import type { FocusTarget } from "../types";
-
 /* The walk: a guided read of the page top to bottom, one token's whole life.
-   Each stop opens the Explainer (docked) to a concept, lights the real
-   instrument via the program focus, and scrolls that element into view. Manual
-   stepping only — no autoplay. The list is the entire choreography; the orchestration
-   lives in App (it owns the focus + drawer + scroll state). */
+   Each stop opens a concept (its inline card mounts in the host band and
+   scrolls itself into view) and lights the real instrument via the program
+   focus. Manual stepping only — no autoplay. The list is the entire
+   choreography; the orchestration lives in App. */
 
 export interface WalkStop {
   /** the concept the drawer opens to (also supplies the highlight + scroll target) */
@@ -22,7 +20,6 @@ export interface WalkStop {
 // placed, processed layer by layer, accumulated, scored, resolved, chosen.
 export const WALK: WalkStop[] = [
   { concept: "model", label: "what this is" },
-  { concept: "settings", label: "the settings" },
   { concept: "tokenization", label: "tokens" },
   { concept: "embedding", label: "the vector" },
   { concept: "position", label: "where it sits" },
@@ -33,24 +30,10 @@ export const WALK: WalkStop[] = [
   { concept: "logits", label: "the prediction" },
   { concept: "geometry", label: "what comes next" },
   { concept: "lens", label: "the climb" },
+  { concept: "settings", label: "the settings" },
   { concept: "draw", label: "the draw" },
   { concept: "loop", label: "and then repeat" },
 ];
-
-/** The element a focus target points at, as a `data-explain-el` selector. The
- *  walk scrolls to this; returns null when there is nothing to scroll to. */
-export function focusSelector(f: FocusTarget): string | null {
-  switch (f.kind) {
-    case "token":
-      return `[data-explain-el="token-${f.pos}"]`;
-    case "layer":
-      return `[data-explain-el="layer-dots-${f.layer}"]`;
-    case "el":
-      return `[data-explain-el="${f.ref}"]`;
-    default:
-      return null;
-  }
-}
 
 export function WalkBar({
   index,

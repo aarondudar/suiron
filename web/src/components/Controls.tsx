@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { generate, step, stop } from "../api";
 import { CHAT_PARAMS } from "../lib";
 import { BandHeader } from "./BandHeader";
@@ -10,6 +11,8 @@ export function Controls({
   busy,
   chatOpen,
   onChatToggle,
+  card,
+  dim,
   hasTokens,
   prompt,
   setPrompt,
@@ -25,6 +28,10 @@ export function Controls({
    *  settings are locked to the chat-optimal values */
   chatOpen: boolean;
   onChatToggle: (v: boolean) => void;
+  /** the open concept's inline card, when this band hosts it (docs/16) */
+  card?: ReactNode;
+  /** another band hosts the open card: this one recedes */
+  dim?: boolean;
   hasTokens: boolean;
   prompt: string;
   setPrompt: (p: string) => void;
@@ -52,7 +59,7 @@ export function Controls({
   const view = chatOpen ? CHAT_PARAMS : p;
 
   return (
-    <section>
+    <section className={dim ? "dimmed" : undefined}>
       <BandHeader
         idx="00"
         title={<Explain of="settings">{chatOpen ? "chat" : "prompt"}</Explain>}
@@ -68,6 +75,7 @@ export function Controls({
           </button>
         )}
       </BandHeader>
+      {card}
 
       {chatOpen ? (
         <ChatPanel />

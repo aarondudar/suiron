@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getTrace, stop } from "./api";
 import { Controls } from "./components/Controls";
+import { ConceptCard } from "./components/ConceptCard";
 import { EmptyState } from "./components/EmptyState";
 import { Epilogue } from "./components/Epilogue";
-import { Explain, Explainer, ExplainerProvider } from "./components/Explainer";
-import { CONCEPTS, type ExplainCtx } from "./components/Explanations";
+import { Explain, ExplainerProvider } from "./components/Explainer";
+import { CARD_HOME, CONCEPTS, type ExplainCtx } from "./components/Explanations";
 import { Geometry } from "./components/Geometry";
 import { LayerStack } from "./components/LayerStack";
 import { Logits } from "./components/Logits";
@@ -12,7 +13,7 @@ import { Quantization } from "./components/Quantization";
 import { Selection } from "./components/Selection";
 import { TokenStrip } from "./components/TokenStrip";
 import { Welcome, WELCOME_SEEN_KEY } from "./components/Welcome";
-import { focusSelector, WALK, WalkBar } from "./components/Walk";
+import { WALK, WalkBar } from "./components/Walk";
 import { DEFAULT_PARAMS, moments } from "./lib";
 import type { FocusTarget, GenParams, Trace } from "./types";
 
@@ -134,7 +135,7 @@ export default function App() {
   const explainer = useMemo(
     () => ({
       active,
-      docked: walk !== null,
+      walk: walk !== null ? { index: walk, total: WALK.length } : null,
       open: (id: string) => setActive(id),
       close: () => setActive(null),
       setProgramFocus: setProgFocus,
@@ -190,9 +191,10 @@ export default function App() {
     setActive(null);
     setProgFocus(NONE);
   };
-  // apply a walk stop: open its concept, light its instrument, optionally scroll.
-  // ◀/▶/entry scroll; re-anchoring after a token change does not (the user moved).
-  const applyStop = (i: number, scroll: boolean) => {
+  // apply a walk stop: open its concept (the card scrolls itself into view when
+  // it lands off-screen) and light its instrument. Re-anchoring after a token
+  // change re-runs this with the same concept, which changes nothing visual.
+  const applyStop = (i: number) => {
     if (!ctx || i < 0 || i >= WALK.length) {
       exitWalk();
       return;
@@ -201,7 +203,7 @@ export default function App() {
     let tgt = CONCEPTS[stop.concept]?.highlight?.(ctx) ?? NONE;
     if (stop.expandLayer) {
       // point the attention stop at this prompt's attention-lock layer, and
-      // light / scroll to that same layer (not the stale default)
+      // light that same layer (not the stale default)
       let layer = ctx.layer;
       if (stop.expandMoment === "attention-lock") {
         const m = moments(ctx.trace, ctx.prod).find((mk) => mk.kind === "attention");
@@ -213,15 +215,6 @@ export default function App() {
     setActive(stop.concept);
     setProgFocus(tgt);
     setWalk(i);
-    if (scroll) {
-      const sel = focusSelector(tgt);
-      if (sel)
-        requestAnimationFrame(() =>
-          document
-            .querySelector(sel)
-            ?.scrollIntoView({ block: "center", behavior: REDUCED ? "auto" : "smooth" }),
-        );
-    }
   };
   const dismissHint = () => {
     setHintDone(true);
@@ -233,13 +226,13 @@ export default function App() {
   };
   const goToStop = (i: number) => {
     dismissHint(); // taking the tour retires the nudge
-    applyStop(i, true);
+    applyStop(i);
   };
 
   // scrubbing or forking to another token keeps the walk alive and follows the
-  // token: re-anchor the current stop to the new token, without yanking scroll.
+  // token: re-anchor the current stop to the new token.
   useEffect(() => {
-    if (walkRef.current !== null) applyStop(walkRef.current, false);
+    if (walkRef.current !== null) applyStop(walkRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [safeCur]);
 
@@ -274,6 +267,14 @@ export default function App() {
   const hasTokens = trace.tokens.length > 0;
   // while running, show what's actually running; otherwise what's selected
   const activeBackend = trace.busy ? trace.backend ?? params.backend : params.backend;
+
+  // the open concept's card renders inside its host band (docs/16); with no
+  // tokens only band 00 exists, so everything falls back there. All other
+  // bands dim while a card is open (the spotlight).
+  const home = active ? (CARD_HOME[active] ?? "00") : null;
+  const host = home === null ? null : hasTokens ? home : "00";
+  const cardFor = (band: string) => (host === band ? <ConceptCard ctx={ctx} /> : undefined);
+  const dimFor = (band: string) => host !== null && host !== band;
 
   return (
     <ExplainerProvider value={explainer}>
@@ -316,6 +317,8 @@ export default function App() {
         busy={!!trace.busy}
         chatOpen={chatOpen}
         onChatToggle={toggleChat}
+        card={cardFor("00")}
+        dim={dimFor("00")}
         hasTokens={hasTokens}
         prompt={prompt}
         setPrompt={setPrompt}
@@ -369,6 +372,8 @@ export default function App() {
             prod={prod}
             setCur={setCur}
             focus={focus}
+            card={cardFor("01")}
+            dim={dimFor("01")}
           />
           {prodStep ? (
             <>
@@ -381,8 +386,18 @@ export default function App() {
                 setHover={setHoverFocus}
                 focus={focus}
                 lensActive={active === "lens"}
+                card={cardFor("02")}
+                dim={dimFor("02")}
               />
-              <Logits trace={trace} step={prodStep} cur={safeCur} busy={!!trace.busy} setHover={setHoverFocus} />
+              <Logits
+                trace={trace}
+                step={prodStep}
+                cur={safeCur}
+                busy={!!trace.busy}
+                setHover={setHoverFocus}
+                card={cardFor("03")}
+                dim={dimFor("03")}
+              />
               <Geometry
                 trace={trace}
                 step={prodStep}
@@ -390,8 +405,17 @@ export default function App() {
                 prod={prod}
                 active={active}
                 setHover={setHoverFocus}
+                card={cardFor("04")}
+                dim={dimFor("04")}
               />
-              <Selection trace={trace} cur={safeCur} sel={step.sel} isPrompt={safeCur < trace.n_prompt} />
+              <Selection
+                trace={trace}
+                cur={safeCur}
+                sel={step.sel}
+                isPrompt={safeCur < trace.n_prompt}
+                card={cardFor("05")}
+                dim={dimFor("05")}
+              />
             </>
           ) : (
             <div className="seed-note">
@@ -401,8 +425,15 @@ export default function App() {
             </div>
           )}
           <div className="aside-divider">the same model, faster · an aside, not a step</div>
-          <Quantization trace={trace} params={params} setParams={setParams} busy={!!trace.busy} />
-          <Epilogue onTryChat={onTryChat} />
+          <Quantization
+            trace={trace}
+            params={params}
+            setParams={setParams}
+            busy={!!trace.busy}
+            card={cardFor("06")}
+            dim={dimFor("06")}
+          />
+          <Epilogue onTryChat={onTryChat} card={cardFor("epilogue")} dim={dimFor("epilogue")} />
         </>
       )}
 
@@ -428,7 +459,6 @@ export default function App() {
           onExit={exitWalk}
         />
       )}
-      <Explainer ctx={ctx} />
       <Welcome open={welcomeOpen} onClose={closeWelcome} />
     </ExplainerProvider>
   );

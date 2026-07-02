@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { edgesToWeights, headGlance, layerGlance, litToken, meanHeadWeights, moments, q, settledSeq, type Marker } from "../lib";
 import type { FocusTarget, Step, Trace } from "../types";
 import { BandHeader } from "./BandHeader";
@@ -23,6 +24,8 @@ export function LayerStack({
   setHover,
   focus,
   lensActive,
+  card,
+  dim,
 }: {
   trace: Trace;
   step: Step;
@@ -35,6 +38,10 @@ export function LayerStack({
   focus: FocusTarget;
   /** when the lens concept is open: show the per-layer top guess in the spine */
   lensActive: boolean;
+  /** the open concept's inline card, when this band hosts it (docs/16) */
+  card?: ReactNode;
+  /** another band hosts the open card: this one recedes */
+  dim?: boolean;
 }) {
   const litLayer = focus.kind === "layer" ? focus.layer : null;
   const group = trace.heads / trace.kv_heads;
@@ -58,8 +65,8 @@ export function LayerStack({
     step.attn[l] && (
       <div className="detail" key={`d${l}`}>
         <div className="label">
-          layer {l}, its {trace.heads} heads. each head reads the sentence its own way (kv group
-          = head ÷ {group})
+          layer {l}, its {trace.heads} heads. each head reads the sentence its own way; groups of{" "}
+          {group} share one set of cached keys and values
         </div>
         <div className="stage-crumb">
           this layer's math: <Explain of="norm" label="normalize" /> →{" "}
@@ -143,7 +150,7 @@ export function LayerStack({
   }
 
   return (
-    <section>
+    <section className={dim ? "dimmed" : undefined}>
       <BandHeader
         idx="02"
         title={<Explain of="attention">inside the {trace.layers} layers</Explain>}
@@ -154,6 +161,7 @@ export function LayerStack({
         <Explain of="kvcache" label="KV cache" />
         <RoleTag trace={trace} pos={nPos - 1} kind="prod" />
       </BandHeader>
+      {card}
       {outputMarker && <div className="moment-output">{outputMarker.label}</div>}
       <div onMouseLeave={() => setHover({ kind: "none" })}>{rows}</div>
     </section>

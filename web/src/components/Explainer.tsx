@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import type { FocusTarget } from "../types";
 import { CONCEPTS, type Concept, type ExplainCtx, type ExplainRung } from "./Explanations";
 
@@ -10,8 +10,9 @@ import { CONCEPTS, type Concept, type ExplainCtx, type ExplainRung } from "./Exp
 interface ExplainerApi {
   /** id of the open concept, or null when closed */
   active: string | null;
-  /** docked mode (during a walk): no scrim, the page stays visible and lit */
-  docked: boolean;
+  /** the guided walk, when one is running: which stop the card belongs to.
+   *  Interactives also use this to leave the walk's program focus alone. */
+  walk: { index: number; total: number } | null;
   open: (id: string) => void;
   close: () => void;
   /** FORWARD: the band-05 "token lifespan" stepper (a later step) writes the
@@ -97,52 +98,10 @@ function Rung({ rung, ctx }: { rung: ExplainRung; ctx: ExplainCtx }) {
   );
 }
 
-export function Explainer({ ctx }: { ctx: ExplainCtx | null }) {
-  const { active, docked, close } = useExplainer();
-
-  useEffect(() => {
-    if (!active) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [active, close]);
-
-  if (!active) return null;
-  const concept = CONCEPTS[active];
-
-  return (
-    <>
-      {/* docked (walk) mode has no scrim so the lit instrument stays visible */}
-      {!docked && <div className="explainer-scrim" onClick={close} />}
-      <aside
-        className={"explainer" + (docked ? " docked" : "")}
-        role="dialog"
-        aria-label={concept?.title ?? "explain"}
-      >
-        <div className="explainer-head">
-          <span className="explainer-title">{concept?.title ?? active}</span>
-          <button className="explainer-x" onClick={close} aria-label="close">
-            ×
-          </button>
-        </div>
-        <div className="explainer-body">
-          {!concept || !ctx ? (
-            <div className="explainer-intro">nothing to explain yet: run a prompt first.</div>
-          ) : (
-            // keyed by concept so hotVar (the woven linked-highlight) resets on switch
-            <ExplainerBody key={active} concept={concept} ctx={ctx} />
-          )}
-        </div>
-      </aside>
-    </>
-  );
-}
-
 /** Renders one concept generically (intro → interactive → rungs) and owns the
- *  drawer-scoped hotVar for the woven view. Never branches on which concept. */
-function ExplainerBody({ concept, ctx }: { concept: Concept; ctx: ExplainCtx }) {
+ *  card-scoped hotVar for the woven view. Never branches on which concept.
+ *  Rendered by ConceptCard (the inline card inside the concept's host band). */
+export function ExplainerBody({ concept, ctx }: { concept: Concept; ctx: ExplainCtx }) {
   const [hot, setHot] = useState<string | null>(null);
   return (
     <HotVarCtx.Provider value={{ hot, setHot }}>
