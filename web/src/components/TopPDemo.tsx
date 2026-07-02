@@ -7,7 +7,18 @@ import type { Cand } from "../types";
    up to p, so the cut depends on the distribution — a confident step keeps few,
    an uncertain one keeps more. Pure client-side, no engine call. */
 
-export function TopPDemo({ cand, p: p0, temp }: { cand: Cand[]; p: number; temp: number }) {
+export function TopPDemo({
+  cand,
+  p: p0,
+  temp,
+  chosen,
+}: {
+  cand: Cand[];
+  p: number;
+  temp: number;
+  /** the token the draw actually picked, so dragging the cut has an anchor */
+  chosen?: number;
+}) {
   const rows = [...cand].sort((a, b) => b.logit - a.logit);
   const base = temp > 0 ? temp : 1;
   const probs = softmaxAt(
@@ -54,7 +65,11 @@ export function TopPDemo({ cand, p: p0, temp }: { cand: Cand[]; p: number; temp:
         {rows.map((c, i) => {
           const cut = i >= n;
           return (
-            <div className={"temp-row" + (cut ? " cut" : "")} key={c.id}>
+            <div
+              className={"temp-row" + (cut ? " cut" : "") + (c.id === chosen ? " chosen" : "")}
+              key={c.id}
+              title={c.id === chosen ? "the token the draw actually picked" : undefined}
+            >
               <span className="temp-tok">{esc(c.t)}</span>
               <div className="temp-track">
                 <div
@@ -72,6 +87,9 @@ export function TopPDemo({ cand, p: p0, temp }: { cand: Cand[]; p: number; temp:
         top-p keeps the smallest set of top tokens whose probabilities add up to p: {n} token
         {n === 1 ? "" : "s"} here, covering {(cum[n - 1] * 100).toFixed(0)}%. the right column is the
         running total. raise p to keep more, lower it to keep fewer. shown at temperature {base}.
+        {chosen !== undefined && rows.findIndex((c) => c.id === chosen) >= n && (
+          <b> at this p, the token that was actually picked would have been cut.</b>
+        )}
       </div>
     </div>
   );

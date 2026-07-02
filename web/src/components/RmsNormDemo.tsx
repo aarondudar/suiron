@@ -55,7 +55,8 @@ export function RmsNormDemo({ ctx }: { ctx: ExplainCtx }) {
   return (
     <div className="rms-demo">
       <div className="rms-formula">
-        each number: x ÷ rms × weight · rms = <b>{f(n.rms)}</b> over {n.len} numbers
+        each number: x ÷ rms × weight, where rms = <b>{f(n.rms)}</b> (the root mean square of all{" "}
+        {n.len.toLocaleString()} numbers)
       </div>
 
       <div className="tbl-scroll">
@@ -84,8 +85,9 @@ export function RmsNormDemo({ ctx }: { ctx: ExplainCtx }) {
       </div>
 
       <div className="rms-note">
-        dividing by the rms is a uniform scale: it changes the vector's length, not its direction.
-        the learned weight then rescales each dimension. showing the first {n.pre.length} of {n.len}.
+        the ÷ rms column is every number scaled by the same factor, which is why the vector's
+        direction cannot change, only its length. the learned weight then rescales each dimension
+        individually. showing the first {n.pre.length} of {n.len.toLocaleString()}.
       </div>
       <div className="rms-check">
         reconstructed = the engine's normalized vector{" "}

@@ -74,7 +74,7 @@ export function DotProduct({ ctx, layer, head }: { ctx: ExplainCtx; layer: numbe
       ) : (
         <>
           <div className="dp-src">
-            source token:
+            rebuild the score for:
             {srcOptions.map(([p, wt]) => (
               <button
                 key={p}
@@ -89,6 +89,10 @@ export function DotProduct({ ctx, layer, head }: { ctx: ExplainCtx; layer: numbe
 
           <div className="dp-formula">
             score = ( q · k<sub>{srcText(w.src)}</sub> ) / √{hd}
+          </div>
+          <div className="dp-why">
+            dividing by √{hd} keeps the score in a stable range: a sum of {hd} products would
+            otherwise grow with the vector length.
           </div>
 
           <div className="dp-step">

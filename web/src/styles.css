@@ -309,7 +309,10 @@ section.dimmed { opacity: 0.45; transition: opacity 0.18s ease; }
 .temp-row.cut { opacity: 0.4; }
 .temp-row.cut .temp-tok { text-decoration: line-through; }
 .temp-row.cut .temp-fill { background: var(--faint); }
-.temp-demo-note { margin-top: var(--sp-2); color: var(--faint); font-size: var(--t-micro); }
+/* the token the draw actually picked: the anchor for the counterfactual sliders */
+.temp-row.chosen .temp-tok { color: var(--red); }
+.temp-demo-note { margin-top: var(--sp-2); color: var(--faint); font-size: var(--t-micro); line-height: 1.5; }
+.temp-demo-note b { color: var(--ink); font-weight: normal; }
 @media (prefers-reduced-motion: reduce) { .temp-fill { transition: none; } }
 
 /* ---------- controls ---------- */
@@ -649,6 +652,8 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .dp-blend-title { color: var(--dim); font-size: var(--t-tiny); line-height: 1.5; margin-bottom: var(--sp-2); }
 .dp-softmax { color: var(--dim); font-size: var(--t-tiny); margin-bottom: var(--sp-2); }
 .dp-blend-note { color: var(--faint); font-size: var(--t-micro); line-height: 1.5; margin-top: var(--sp-2); }
+/* the one-line "why the scale" aside under the score formula */
+.dp-why { color: var(--faint); font-size: var(--t-micro); line-height: 1.5; margin-bottom: var(--sp-2); }
 
 /* the worked unembed (reuses the .dp-* worked-dot styling) */
 .unembed-demo { margin-top: var(--sp-2); }
@@ -897,6 +902,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .tok-status { color: var(--faint); font-size: var(--t-tiny); margin-top: var(--sp-3); }
 
 /* context line: the whole prompt as its tokens, the active word lit, clickable */
+.tok-context-cap { color: var(--faint); font-size: var(--t-micro); letter-spacing: 0.04em; margin-bottom: var(--sp-1); }
 .tok-context { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-bottom: var(--sp-3); }
 .tok-word {
   background: none; border: 1px solid transparent; border-bottom-color: var(--hair);

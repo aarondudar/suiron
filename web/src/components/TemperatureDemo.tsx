@@ -7,7 +7,16 @@ import type { Cand } from "../types";
    and is WASM-safe. temp 0 collapses to the single top pick; high temp flattens
    toward uniform. */
 
-export function TemperatureDemo({ cand, temp }: { cand: Cand[]; temp: number }) {
+export function TemperatureDemo({
+  cand,
+  temp,
+  chosen,
+}: {
+  cand: Cand[];
+  temp: number;
+  /** the token the draw actually picked, so the counterfactual has an anchor */
+  chosen?: number;
+}) {
   const [t, setT] = useState(temp);
   // the candidates the trace recorded, strongest first; cap for readability
   const rows = [...cand].sort((a, b) => b.logit - a.logit).slice(0, 8);
@@ -36,7 +45,11 @@ export function TemperatureDemo({ cand, temp }: { cand: Cand[]; temp: number }) 
       </div>
       <div className="temp-demo-bars">
         {rows.map((c, i) => (
-          <div className="temp-row" key={c.id}>
+          <div
+            className={"temp-row" + (c.id === chosen ? " chosen" : "")}
+            key={c.id}
+            title={c.id === chosen ? "the token the draw actually picked" : undefined}
+          >
             <span className="temp-tok">{esc(c.t)}</span>
             <div className="temp-track">
               <div
@@ -49,7 +62,8 @@ export function TemperatureDemo({ cand, temp }: { cand: Cand[]; temp: number }) 
         ))}
       </div>
       <div className="temp-demo-note">
-        recomputed from this token's real logits. {t <= 0 ? "at 0 the top pick takes everything." : "higher flattens the field."}
+        recomputed from this token's real logits; the red token is the one actually picked.{" "}
+        {t <= 0 ? "at 0 the top pick takes everything." : "higher flattens the field."}
       </div>
     </div>
   );

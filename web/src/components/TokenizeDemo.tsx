@@ -51,6 +51,7 @@ export function TokenizeDemo({ ctx }: { ctx: ExplainCtx }) {
   return (
     <div className="tok-demo">
       {/* the whole prompt as its tokens; the active word is lit. click to switch. */}
+      <div className="tok-context-cap">the prompt, as its final tokens · click a word to watch it form</div>
       <div className="tok-context">
         {pts.map((p, j) => (
           <button

@@ -7,7 +7,18 @@ import type { Cand } from "../types";
    the bars show the distribution at the token's temperature (or 1 if greedy) for
    context. Pure client-side, no engine call. */
 
-export function TopKDemo({ cand, k: k0, temp }: { cand: Cand[]; k: number; temp: number }) {
+export function TopKDemo({
+  cand,
+  k: k0,
+  temp,
+  chosen,
+}: {
+  cand: Cand[];
+  k: number;
+  temp: number;
+  /** the token the draw actually picked, so dragging the cut has an anchor */
+  chosen?: number;
+}) {
   const rows = [...cand].sort((a, b) => b.logit - a.logit);
   const base = temp > 0 ? temp : 1;
   const probs = softmaxAt(
@@ -41,7 +52,11 @@ export function TopKDemo({ cand, k: k0, temp }: { cand: Cand[]; k: number; temp:
         {rows.map((c, i) => {
           const cut = i >= kept;
           return (
-            <div className={"temp-row" + (cut ? " cut" : "")} key={c.id}>
+            <div
+              className={"temp-row" + (cut ? " cut" : "") + (c.id === chosen ? " chosen" : "")}
+              key={c.id}
+              title={c.id === chosen ? "the token the draw actually picked" : undefined}
+            >
               <span className="temp-tok">{esc(c.t)}</span>
               <div className="temp-track">
                 <div
@@ -58,6 +73,9 @@ export function TopKDemo({ cand, k: k0, temp }: { cand: Cand[]; k: number; temp:
         top-k keeps the {kept} highest-scoring token{kept === 1 ? "" : "s"} and discards the rest; the
         draw then happens only among those, their probabilities rescaled to add to 100%. shown over
         the recorded candidates at temperature {base}.
+        {chosen !== undefined && rows.findIndex((c) => c.id === chosen) >= kept && (
+          <b> at this k, the token that was actually picked would have been cut.</b>
+        )}
       </div>
     </div>
   );

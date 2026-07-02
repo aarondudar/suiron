@@ -105,13 +105,14 @@ export function RopeDemo({ ctx }: { ctx: ExplainCtx }) {
           </>
         ) : (
           <>
-            each pair rotates by its own angle (position × frequency): pair 0 spins fast with
-            position, pair {half - 1} barely moves. rotation changes direction, never length.
+            the dim dot is one pair of the query's numbers before rotation; the red dot is after. it
+            stays on its ring: rotation changes direction, never length. each pair has its own speed
+            (position × frequency), so pair 0 spins fast while pair {half - 1} barely moves.
           </>
         )}
       </div>
 
-      <Stepper i={t} max={STEPS} playing={playing} setI={setI} toggle={toggle} unit="rotate" />
+      <Stepper i={t} max={STEPS} playing={playing} setI={setI} toggle={toggle} unit="step" />
 
       {t >= STEPS && (
         <div className="rope-check">

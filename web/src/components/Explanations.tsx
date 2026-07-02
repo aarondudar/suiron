@@ -474,7 +474,8 @@ export const CONCEPTS: Record<string, Concept> = {
     title: "temperature",
     highlight: () => ({ kind: "el", ref: "ctl-temp" }),
     rungs: [code("softmax")],
-    interactive: (c) => (c.sel ? <TemperatureDemo cand={c.sel.cand} temp={c.sel.temp} /> : null),
+    interactive: (c) =>
+      c.sel ? <TemperatureDemo cand={c.sel.cand} temp={c.sel.temp} chosen={c.sel.chosen} /> : null,
     intro: (c) => {
       if (!c.sel)
         return (
@@ -500,7 +501,8 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "topk",
     title: "top-k",
     highlight: () => ({ kind: "el", ref: "ctl-topk" }),
-    interactive: (c) => (c.sel ? <TopKDemo cand={c.sel.cand} k={c.sel.top_k} temp={c.sel.temp} /> : null),
+    interactive: (c) =>
+      c.sel ? <TopKDemo cand={c.sel.cand} k={c.sel.top_k} temp={c.sel.temp} chosen={c.sel.chosen} /> : null,
     intro: (c) => (
       <>
         <b>Top-k</b> keeps only the k highest-scoring tokens and discards the rest before the draw
@@ -519,7 +521,8 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "topp",
     title: "top-p",
     highlight: () => ({ kind: "el", ref: "ctl-topp" }),
-    interactive: (c) => (c.sel ? <TopPDemo cand={c.sel.cand} p={c.sel.top_p} temp={c.sel.temp} /> : null),
+    interactive: (c) =>
+      c.sel ? <TopPDemo cand={c.sel.cand} p={c.sel.top_p} temp={c.sel.temp} chosen={c.sel.chosen} /> : null,
     intro: (c) => (
       <>
         <b>Top-p</b> (nucleus sampling) keeps the smallest group of top tokens whose probabilities
