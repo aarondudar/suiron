@@ -4,17 +4,15 @@
 number on screen is computed live by a from-scratch engine and verified
 token-for-token against `llama.cpp`.
 
-![the suiron microscope: the logit lens, a prediction forming layer by layer](docs/demo.gif)
-
 suiron is an LLM inference engine for Apple Silicon, written from scratch in Rust —
 a GGUF parser, a byte-level BPE tokenizer, attention, RoPE, SwiGLU, and hand-rolled
 Metal kernels, with **no ML dependencies** — paired with a browser "microscope" that
 traces an actual forward pass.
 
-- **Curious how text prediction actually works?** Open the microscope, type a
-  prompt, and watch it happen: attention reaching back over the words, the logit
-  lens showing the winning token climb the layers, one real attention score
-  stepped out component by component.
+- **Curious how text prediction actually works?** Take the guided tour: the
+  prompt splitting into tokens merge by merge, attention reaching back over the
+  words, one real attention score built out of two 128-number vectors, and the
+  logit lens showing the winning token climb the layers.
 - **Building inference, or want to read one end to end?** It is a complete,
   dependency-free implementation from the binary file format up to the GPU,
   checked against llama.cpp at every layer — not just the final output.
@@ -39,19 +37,45 @@ cargo run --release -p suiron-cli -- run models/Qwen3-0.6B-Q8_0.gguf -p "The cap
 ## The microscope
 
 `suiron lab` keeps the model resident and serves a single-page instrument over a
-JSON API. Type a prompt and step through generation one token at a time, reading —
-in real numbers — how each one was produced.
+JSON API. Type a prompt (or take the guided tour) and step through generation one
+token at a time; inspecting a token is a full read of how it was **produced** —
+the forward pass at the token before it, the prediction that formed, and the draw
+that picked it.
 
 The headline is the **logit lens**: drag a slider down the 28 layers and watch the
 winning token climb the rankings, the prediction resolving out of the residual
 stream layer by layer; the instrument marks the exact layer where it takes the
-lead. Around it: a **worked dot product** that steps one real attention score out
-of two 128-number vectors; per-layer attention with arcs back over the prompt; the
-residual stream; and the ranked next-token logits with the sampling decision that
-picked the winner. Click a candidate to force it and watch the model continue from
-the altered history. Every concept has an on-demand explainer that, for the compute
-stages, weaves the engine's own Rust source together with this token's real values.
-Built on `web/` (React + TypeScript) — see [`docs/microscope.md`](docs/microscope.md).
+lead. And every other stage runs on real numbers too, demonstrated rather than
+described:
+
+- the prompt collapsing through its **actual BPE merges**, rank by rank, into
+  the token ids the model reads
+- the token's **embedding row** — one real row of the 151,936 × 1,024 table
+- **RoPE** rotating the query's pairs by the token's position (direction
+  changes, length never)
+- **RMSNorm** rescaling the vector, shown number by number
+- one attention score built from two 128-number vectors, then **softmax →
+  weights → the blend** of value vectors into the head's output — attention,
+  end to end
+- the **KV cache** filling, one column per cached token, brightness showing how
+  hard this pass read from each
+- the **unembed**: the final vector dotted against a candidate's own table row,
+  landing exactly on its logit
+- temperature / top-k / top-p **re-run live on this token's real options**, with
+  the actually-picked token marked — drag the cut below it and the demo tells you
+
+Every stepped demo is pinned to the engine by an integration test against the
+real weights (the worked score equals the recorded score, the blend equals the
+head's context, the final-layer lens equals the logits, replayed merges equal
+`encode`, q8 agrees with f32). Click any candidate to **fork** history and watch
+the model continue from your edit, or flip the prompt box to **chat** and talk to
+the same resident model. Every concept opens an inline explainer card inside the
+band it explains, weaving the engine's own Rust source with this token's live
+values — and past the last band, an **epilogue** draws one honest boundary:
+everything above it was computed and verified here; below it, how production
+systems scale the same loop, ending with why a coding agent is this exact loop
+plus a wrapper. Built on `web/` (React + TypeScript) — see
+[`docs/microscope.md`](docs/microscope.md).
 
 ## Roadmap
 
@@ -69,8 +93,10 @@ llama.cpp on an M1 Pro.
 - [x] **M3 — Metal backend.** Hand-rolled Objective-C FFI (no crates),
       runtime-compiled MSL kernels, full GPU forward parity with the CPU path,
       ~4× decode speedup.
-- [ ] **M4 — Quantized inference.** Q8_0/Q4 compute without dequantizing to f32,
-      on CPU (NEON) and GPU.
+- [x] **M4 — Quantized inference (CPU).** Q8_0 blocks multiplied directly, no f32
+      materialization — ~4× less weight-memory traffic, measured live in the lab's
+      f32/q8 toggle; argmax-identical to the f32 path. Q4_K_M loads via Q4_K/Q6_K
+      dequant. (GPU-quantized kernels: stretch.)
 - [ ] **M5 — Paged KV cache + continuous batching.**
 - [ ] **M6 — Speculative decoding.**
 - [ ] **M7 — OpenAI-compatible HTTP server.**
