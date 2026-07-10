@@ -159,8 +159,10 @@ impl Tokenizer {
     }
 
     /// Display text for one byte-mapped piece: stand-in chars → bytes → UTF-8.
-    /// Mirrors `decode` for a single raw piece (lossy across a partial multibyte
-    /// sequence, which only happens mid-merge inside a multibyte character).
+    /// A piece that is not valid UTF-8 (a partial multibyte sequence, which
+    /// happens mid-merge inside a multibyte character) renders as its real
+    /// bytes, `<0xE3><0x81>`, never as a lossy `�` that erases their identity —
+    /// so the merge demo shows bytes assembling into a character.
     fn piece_text(&self, mapped: &str) -> String {
         let mut bytes = Vec::new();
         for c in mapped.chars() {
@@ -169,7 +171,10 @@ impl Tokenizer {
                 None => bytes.extend(c.to_string().as_bytes()),
             }
         }
-        String::from_utf8_lossy(&bytes).into_owned()
+        match String::from_utf8(bytes) {
+            Ok(s) => s,
+            Err(e) => e.into_bytes().iter().map(|b| format!("<0x{b:02X}>")).collect(),
+        }
     }
 
     /// Opt-in observation alongside `encode`: the byte-pair merges this input

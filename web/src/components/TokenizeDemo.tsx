@@ -6,17 +6,22 @@ import { Stepper } from "./Stepper";
 import type { ExplainCtx } from "./Explanations";
 import type { Merges, Pretoken } from "../types";
 
-/* The tokenization "aha", one word at a time. The prompt is split into
-   pre-tokens; this demo focuses on ONE of them and steps its real byte-pair
-   merges (in rank order) from byte-level characters into the tokens the model
-   reads — so the split→merge is legible instead of flying by. A context line
-   shows the whole prompt's tokens with the active word lit; prev/next walk the
-   words. Pure render over the merge trace from /api/v1/merges (fetched only when
-   this interactive is open). Autoplays the active word (pausable; static under
-   reduced-motion). */
+/* The tokenization "aha", one word at a time on ONE timeline. The prompt is
+   split into pre-tokens; a single stepper walks every word's real byte-pair
+   merges in order — each word still collapses alone (byte level → merges →
+   its final token), the slider just carries on into the next word. A context
+   line shows the whole prompt's tokens with the active word lit; clicking a
+   word jumps the timeline to it. Raw bytes that are not yet a full character
+   render as their real hex (<0xE3>), never as a lossy replacement char. Pure
+   render over the merge trace from /api/v1/merges (fetched only when this
+   interactive is open); play is manual, static under reduced-motion. */
 
 /** a pre-token's final display pieces (== its tokens' text) */
 const finalPieces = (p: Pretoken) => (p.steps.length ? p.steps[p.steps.length - 1].result : p.start);
+
+/** a mid-merge piece that is still raw bytes: a single byte-level char, or
+ *  bytes of an unfinished multibyte character shown as hex */
+const isRawPiece = (piece: string) => piece.length <= 1 || /^(<0x[0-9A-Fa-f]{2}>)+$/.test(piece);
 
 export function TokenizeDemo({ ctx }: { ctx: ExplainCtx }) {
   // signature of the resident prompt; refetch when it changes
@@ -25,19 +30,12 @@ export function TokenizeDemo({ ctx }: { ctx: ExplainCtx }) {
     .map((t) => t.id)
     .join(",");
   const [m, setM] = useState<Merges | null>(null);
-  const [wi, setWi] = useState(0);
 
   useEffect(() => {
     let dead = false;
     setM(null);
     getMerges()
-      .then((d) => {
-        if (dead) return;
-        setM(d);
-        // default to the first word that actually merges (skip lone-token punctuation)
-        const first = d.pretokens.findIndex((p) => p.steps.length > 0);
-        setWi(first < 0 ? 0 : first);
-      })
+      .then((d) => !dead && setM(d))
       .catch(() => !dead && setM(null));
     return () => {
       dead = true;
@@ -45,12 +43,38 @@ export function TokenizeDemo({ ctx }: { ctx: ExplainCtx }) {
   }, [promptSig]);
 
   if (!m) return <div className="tok-status">loading the merges…</div>;
-  const pts = m.pretokens;
-  const active = pts[Math.min(wi, pts.length - 1)];
+  return <MergeTimeline key={promptSig} pts={m.pretokens} />;
+}
+
+/** One stepper over every word: word j owns frames [offset[j], offset[j] +
+ *  steps[j]] — local frame 0 is its byte-level start (or, for a word that is
+ *  already one token, its only frame) and the last is its finished state. */
+function MergeTimeline({ pts }: { pts: Pretoken[] }) {
+  const offsets: number[] = [];
+  let sum = 0;
+  for (const p of pts) {
+    offsets.push(sum);
+    sum += p.steps.length + 1;
+  }
+  const max = sum - 1;
+  const { i: g, playing, setI, toggle } = useAutoplay(max, { stepMs: 700 });
+
+  // start on the first word that actually merges (skip lone-token punctuation)
+  useEffect(() => {
+    const first = pts.findIndex((p) => p.steps.length > 0);
+    if (first > 0) setI(offsets[first]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // global frame → (word, its local merge count)
+  let wi = 0;
+  while (wi + 1 < pts.length && g >= offsets[wi + 1]) wi++;
+  const k = g - offsets[wi];
+  const word = pts[wi];
 
   return (
     <div className="tok-demo">
-      {/* the whole prompt as its tokens; the active word is lit. click to switch. */}
+      {/* the whole prompt as its tokens; the active word is lit. click to jump. */}
       <div className="tok-context-cap">the prompt, as its final tokens · click a word to watch it form</div>
       <div className="tok-context">
         {pts.map((p, j) => (
@@ -58,7 +82,7 @@ export function TokenizeDemo({ ctx }: { ctx: ExplainCtx }) {
             key={j}
             className={"tok-word" + (j === wi ? " active" : "")}
             title={`pre-token ${j}`}
-            onClick={() => setWi(j)}
+            onClick={() => setI(offsets[j])}
           >
             {finalPieces(p).map((piece, x) => {
               const lt = litToken(piece);
@@ -72,41 +96,30 @@ export function TokenizeDemo({ ctx }: { ctx: ExplainCtx }) {
         ))}
       </div>
 
-      {/* keyed by wi so useAutoplay restarts cleanly on each word */}
-      <WordMerge key={wi} word={active} />
+      <WordMerge word={word} k={k} />
 
-      <div className="tok-nav">
-        <button disabled={wi <= 0} onClick={() => setWi(wi - 1)}>
-          ‹ prev word
-        </button>
-        <span className="tok-nav-where">
-          word <b>{wi + 1}</b> / {pts.length}
-        </span>
-        <button disabled={wi >= pts.length - 1} onClick={() => setWi(wi + 1)}>
-          next word ›
-        </button>
-      </div>
+      <Stepper i={g} max={max} playing={playing} setI={setI} toggle={toggle} unit="step" />
     </div>
   );
 }
 
-/** One pre-token collapsing: byte-level → each real merge → the final token(s). */
-function WordMerge({ word }: { word: Pretoken }) {
+/** One pre-token at local frame `k`: byte-level start (k=0) → each real merge
+ *  → the final token(s) (k = steps.length). Controlled by the shared timeline. */
+function WordMerge({ word, k }: { word: Pretoken; k: number }) {
   const total = word.steps.length;
-  const { i: k, playing, setI, toggle } = useAutoplay(total, { stepMs: 700 });
   const isDone = k >= total;
 
   const pieces = k === 0 ? word.start : word.steps[k - 1].result;
   const justMerged = k > 0 ? word.steps[k - 1] : null;
   const mergedText = justMerged ? justMerged.left + justMerged.right : null;
-  const wordText = litToken(word.start.join(""));
+  // name the word by its final text (start pieces can be raw hex bytes)
+  const wordText = litToken(finalPieces(word).join(""));
 
   let label: ReactNode;
   if (total === 0) {
     label = (
       <>
-        {disp(word.start.join(""))} is already a single token · id{" "}
-        <b>{word.tokens[0]}</b>
+        {disp(word.start.join(""))} is already a single token · id <b>{word.tokens[0]}</b>
       </>
     );
   } else if (k === 0) {
@@ -141,8 +154,8 @@ function WordMerge({ word }: { word: Pretoken }) {
       <div className="tok-row">
         {pieces.map((piece, x) => {
           const lt = litToken(piece);
-          const just = mergedText !== null && piece === mergedText && firstMatch(pieces, mergedText) === x;
-          const raw = !isDone && piece.length <= 1;
+          const just = mergedText !== null && piece === mergedText && pieces.indexOf(mergedText) === x;
+          const raw = !isDone && isRawPiece(piece);
           return (
             <span
               key={x}
@@ -156,10 +169,6 @@ function WordMerge({ word }: { word: Pretoken }) {
       </div>
 
       <div className="tok-label">{label}</div>
-
-      {total > 0 && (
-        <Stepper i={k} max={total} playing={playing} setI={setI} toggle={toggle} unit="merge" />
-      )}
     </div>
   );
 }
@@ -167,7 +176,4 @@ function WordMerge({ word }: { word: Pretoken }) {
 // whitespace visible in the labels too
 function disp(s: string): string {
   return litToken(s).text;
-}
-function firstMatch(pieces: string[], text: string): number {
-  return pieces.indexOf(text);
 }

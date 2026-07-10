@@ -590,6 +590,26 @@ fn merge_trace_replays_to_the_same_ids() {
         .flat_map(|p| &p.steps)
         .any(|s| s.left == " " || s.right.starts_with(' ') || s.left.starts_with(' '));
     assert!(joined_space, "expected a leading-space merge step");
+
+    // Multibyte input: mid-merge pieces that are not yet a full character must
+    // render as their real bytes (<0xE3>), never a lossy replacement char, and
+    // the replay must still reduce to encode's ids.
+    let jp = "こんにちは。私の名前は";
+    let pm = t.encode_merges(jp);
+    let flat: Vec<u32> = pm.iter().flat_map(|p| p.ids.clone()).collect();
+    assert_eq!(flat, t.encode(jp), "merge replay != encode for japanese");
+    let all_pieces: Vec<&String> = pm
+        .iter()
+        .flat_map(|p| p.start.iter().chain(p.steps.iter().flat_map(|s| s.result.iter())))
+        .collect();
+    assert!(
+        all_pieces.iter().all(|p| !p.contains('\u{FFFD}')),
+        "a merge piece rendered as the lossy replacement char"
+    );
+    assert!(
+        all_pieces.iter().any(|p| p.starts_with("<0x")),
+        "expected raw-byte pieces rendered as <0xHH>"
+    );
 }
 
 #[test]
