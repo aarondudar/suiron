@@ -17,7 +17,7 @@ use std::cell::RefCell;
 
 use suiron_cli::chat::chat_prompt;
 use suiron_cli::machine;
-use suiron_cli::trace::{write_trace, Live, Recorder, Step};
+use suiron_cli::trace::{write_trace, Live, Recorder, Shadow, Step};
 use suiron_core::sampling::{Cand, SampleTrace};
 use suiron_core::{forward, Backend, KvCache, Model, Sampler, Tokenizer};
 use wasm_bindgen::prelude::*;
@@ -44,7 +44,8 @@ struct Lab {
     seq: u64,
     cache: KvCache,
     last_logits: Vec<f32>,
-    fork: Option<(usize, String)>,
+    /// the most recent fork's shadow (docs/22): the replaced run's tail
+    fork: Option<Shadow>,
     sampler: Option<Sampler>,
     work: Work,
 
@@ -176,11 +177,8 @@ pub fn fork_to(
         }
         // the model's own top predictions at the fork point, for the sel trace
         let model_top: Vec<(u32, f32)> = lab.steps[pos - 1].top.clone();
-        // remember the discarded tail, truncate the resident state
-        let prev: String = lab.tokens[pos..].iter().map(|(_, t)| t.as_str()).collect();
-        lab.fork = Some((pos, prev));
-        lab.tokens.truncate(pos);
-        lab.steps.truncate(pos);
+        // the discarded tail moves into the shadow (docs/22); prefix stays resident
+        lab.fork = Some(Shadow::capture(pos, &mut lab.tokens, &mut lab.steps, lab.n_prompt));
         lab.cache.truncate(pos);
         lab.n_prompt = lab.n_prompt.min(pos); // forking inside the prompt makes the rest generated
 

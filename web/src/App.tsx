@@ -5,6 +5,7 @@ import { ConceptCard } from "./components/ConceptCard";
 import { EmptyState } from "./components/EmptyState";
 import { Epilogue } from "./components/Epilogue";
 import { Explain, ExplainerProvider } from "./components/Explainer";
+import { ForkDiff } from "./components/ForkDiff";
 import { CARD_HOME, CONCEPTS, type ExplainCtx } from "./components/Explanations";
 import { Geometry } from "./components/Geometry";
 import { LayerStack } from "./components/LayerStack";
@@ -595,6 +596,7 @@ export default function App() {
             card={cardFor("01")}
             dim={dimFor("01")}
           />
+          <ForkDiff trace={trace} cur={safeCur} setCur={setCur} dim={dimFor("01")} />
           {prodStep ? (
             <>
               <LayerStack

@@ -6,7 +6,7 @@
 //! Anything else is served from web/dist (the built React app); in frontend
 //! dev, run `npm run dev` in web/ instead — vite proxies /api here.
 
-use suiron_cli::trace::{write_trace, Recorder, Step};
+use suiron_cli::trace::{write_trace, Recorder, Shadow, Step};
 use crate::view::{respond, serve_static};
 use std::io::Read;
 use std::net::{TcpListener, TcpStream};
@@ -25,8 +25,9 @@ struct Shared {
     cache: Option<KvCache>,
     /// Logits at the final position — kept so `step` can continue sampling.
     last_logits: Vec<f32>,
-    /// (position, discarded tail text) of the most recent fork.
-    fork: Option<(usize, String)>,
+    /// The most recent fork's shadow: the discarded tail of the replaced run
+    /// (docs/22). One level deep; cleared by the next generate.
+    fork: Option<Shadow>,
     /// backend of the most recent run, and last measured decode tok/s per
     /// backend — drives the lab's speed comparison.
     last_backend: Backend,
@@ -341,15 +342,14 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                     } else {
                         let mut cache = st.cache.take().unwrap();
                         cache.truncate(pos);
-                        let prev: String =
-                            st.tokens[pos..].iter().map(|(_, t)| t.as_str()).collect();
                         // model's preferences at the fork point, for the trace
                         let model_top = st.steps[pos - 1].top.clone();
-                        st.tokens.truncate(pos);
-                        st.steps.truncate(pos);
+                        // the discarded tail moves into the shadow (docs/22)
+                        let st = &mut *st;
+                        st.fork =
+                            Some(Shadow::capture(pos, &mut st.tokens, &mut st.steps, st.n_prompt));
                         // forking inside the prompt makes the rest generated
                         st.n_prompt = st.n_prompt.min(pos);
-                        st.fork = Some((pos, prev));
                         st.busy = true;
                         st.seq += 1;
                         Ok((cache, model_top))

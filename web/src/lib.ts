@@ -94,6 +94,23 @@ export function confBar(conf: number): number {
   return Math.max(0.08, Math.min(1, Math.sqrt(conf) * 1.25))
 }
 
+/** Reassemble the replaced run from a fork's shadow tail (docs/22): the
+ *  prefix [0, pos) is shared with the live run, so the shadow run is
+ *  prefix + tail. Null when the trace has no shadow (old engine, demo
+ *  recording, or no fork yet). The result is a plain Trace, so every read
+ *  that works on the live run (moments, confidence, …) works on it. */
+export function shadowTrace(trace: Trace): Trace | null {
+  const f = trace.fork
+  if (!f?.tokens || !f.steps) return null
+  return {
+    ...trace,
+    tokens: [...trace.tokens.slice(0, f.pos), ...f.tokens],
+    steps: [...trace.steps.slice(0, f.pos), ...f.steps],
+    n_prompt: f.n_prompt ?? trace.n_prompt,
+    fork: undefined,
+  }
+}
+
 /** Aggregate attention from one step over all layers + heads → the top source
  *  positions this token attended to (strongest first). Drops the attention
  *  sink (pos 0) once there's real context, matching the arc rendering. */

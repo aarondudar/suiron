@@ -60,8 +60,11 @@ export interface Trace {
   backend?: Backend;
   /** last measured decode tok/s per backend (null until each has run) */
   tps?: { f32: number | null; q8: number | null };
-  /** present after a counterfactual fork: where, and the discarded tail */
-  fork?: { pos: number; prev: string };
+  /** present after a counterfactual fork (docs/22): where it happened and the
+   *  replaced run's discarded tail (tokens + steps from `pos` on; the prefix
+   *  [0, pos) is shared with the live run). One level deep: the next fork
+   *  replaces it, the next generate clears it. */
+  fork?: { pos: number; prev: string; n_prompt?: number; tokens?: Tok[]; steps?: Step[] };
   /** client-side only: this trace is the shipped recording, not a live engine */
   demo?: boolean;
   tokens: Tok[];

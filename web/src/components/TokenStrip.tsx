@@ -85,12 +85,6 @@ export function TokenStrip({
         </label>
       </BandHeader>
       {card}
-      {trace.fork && (
-        <div className="fork-note">
-          ⑂ forked at {trace.fork.pos} · before:{" "}
-          <span className="fork-prev">{trace.fork.prev.slice(0, 120) || "(nothing)"}</span>
-        </div>
-      )}
       <div className="strip" ref={stripRef} onMouseLeave={() => setHoverTok(null)}>
         <canvas className="arc-layer" ref={canvasRef} />
         {trace.tokens.map((tok, i) => {
