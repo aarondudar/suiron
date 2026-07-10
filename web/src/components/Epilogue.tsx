@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { EXPERIMENTS, type Experiment } from '../experiments'
 import { Explain } from './Explainer'
 
 /* The epilogue: framing that sits OUTSIDE the verified instrument and closes the
@@ -35,10 +36,13 @@ function ScaleEntry({ term, children }: { term: string; children: ReactNode }) {
 
 export function Epilogue({
   onTryChat,
+  onRun,
   card,
   dim,
 }: {
   onTryChat: () => void;
+  /** run a curated experiment (docs/21): somewhere to go after the tour */
+  onRun: (e: Experiment) => void;
   /** the open concept's inline card, when this band hosts it (docs/16) */
   card?: ReactNode;
   /** another band hosts the open card: this one recedes */
@@ -137,6 +141,15 @@ export function Epilogue({
         <button className="chat-open" onClick={onTryChat}>
           ↑ try it yourself: switch the prompt box to chat
         </button>
+      </div>
+
+      <div className="epi-exps">
+        <span className="epi-exps-label">or run another experiment ↑</span>
+        {EXPERIMENTS.map((x) => (
+          <button key={x.id} className="epi-exp" title={x.hook} onClick={() => onRun(x)}>
+            {x.title}
+          </button>
+        ))}
       </div>
     </section>
   )

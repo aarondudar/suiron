@@ -1,29 +1,6 @@
-import { generate } from '../api'
-import type { GenParams } from '../types'
+import { EXPERIMENTS, type Experiment } from '../experiments'
 
-const SUGGESTIONS = [
-  'The cat sat on the',
-  'The capital of France is',
-  'Once upon a time, in a quiet village,',
-  '1 + 1 =',
-]
-
-export function EmptyState({
-  onPick,
-  params,
-  onGenerate,
-}: {
-  onPick: (p: string) => void
-  params: GenParams
-  onGenerate: () => void
-}) {
-  const run = (p: string) => {
-    const text = p.trim()
-    onPick(text)
-    onGenerate()
-    void generate(text, params)
-  }
-
+export function EmptyState({ onRun }: { onRun: (e: Experiment) => void }) {
   return (
     <section className="empty">
       <div className="empty-jp">suiron</div>
@@ -41,13 +18,15 @@ export function EmptyState({
         libraries.
       </p>
 
-      {/* the CTA — high, before the deeper overview */}
+      {/* the CTA — a gallery of experiments, each a phenomenon worth watching */}
       <div className="empty-cta">
-        <span className="empty-cta-label">run an example and take the tour</span>
-        <div className="empty-chips">
-          {SUGGESTIONS.map((s) => (
-            <button key={s} onClick={() => run(s)}>
-              {s}
+        <span className="empty-cta-label">run an experiment and take the tour</span>
+        <div className="exp-grid">
+          {EXPERIMENTS.map((e) => (
+            <button key={e.id} className="exp-card" onClick={() => onRun(e)}>
+              <span className="exp-title">{e.title}</span>
+              <span className="exp-hook">{e.hook}</span>
+              <span className="exp-prompt">“{e.prompt}”</span>
             </button>
           ))}
         </div>

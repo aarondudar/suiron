@@ -162,20 +162,60 @@ export function headGlance(edges: AttnEdge[]): { topPos: number; share: number }
   return sum > 0 ? { topPos: top[0], share: top[1] / sum } : null
 }
 
+/** Induction: when the token being read repeats an earlier token, a head may
+ *  reach for the token that FOLLOWED the earlier occurrence — copying what came
+ *  next last time. Returns the strongest such head, or null when no head puts
+ *  at least `bar` of its recorded attention on such a position (an honest
+ *  absence: the marker simply does not render). */
+export function inductionGlance(
+  trace: Trace,
+  cur: number,
+  bar = 0.3,
+): { layer: number; head: number; share: number; tgt: number } | null {
+  const step = trace.steps[cur]
+  if (!step || cur < 2) return null
+  const id = trace.tokens[cur]?.id
+  const tgts = new Set<number>()
+  for (let p = 0; p + 1 < cur; p++) if (trace.tokens[p].id === id) tgts.add(p + 1)
+  if (!tgts.size) return null
+  let best: { layer: number; head: number; share: number; tgt: number } | null = null
+  for (let l = 0; l < step.attn.length; l++) {
+    const heads = step.attn[l]
+    for (let h = 0; h < heads.length; h++) {
+      let sum = 0
+      let hit = 0
+      let tgt = -1
+      for (const [p, w] of heads[h]) {
+        sum += w
+        if (tgts.has(p) && w > hit) {
+          hit = w
+          tgt = p
+        }
+      }
+      if (sum <= 0 || tgt < 0) continue
+      const share = hit / sum
+      if (!best || share > best.share) best = { layer: l, head: h, share, tgt }
+    }
+  }
+  return best && best.share >= bar ? best : null
+}
+
 /** A curated "moment" worth pointing at for this prompt. Every marker cites the
  *  real number that earned it; one that no real value supports does not render. */
 export interface Marker {
-  kind: 'attention' | 'decision' | 'output'
+  kind: 'attention' | 'induction' | 'decision' | 'output'
   /** the layer it points at, when it is a per-layer moment */
   layer?: number
   label: string
 }
 
-/** The teacher's finger: 1–3 real moments for the inspected token, derived
+/** The teacher's finger: 1–4 real moments for the inspected token, derived
  *  purely from the trace (and the lens, when the lens read is open). Pure and
  *  deterministic.
  *  - attention lock: the layer whose mean-head attention concentrates most on
  *    one earlier token (absent on the first token).
+ *  - induction: a head reading what followed the previous copy of this token
+ *    (absent unless one clears the bar — see inductionGlance).
  *  - decision: the layer where the lens top-1 first becomes the final winner
  *    (absent unless `lens` is provided).
  *  - output: runaway vs near-tie at the end, from the real top-2 gap. */
@@ -210,6 +250,17 @@ export function moments(trace: Trace, cur: number, lens?: Lens | null): Marker[]
         label: `layer ${best.layer} · attention locks onto “${tok(best.pos)}” (${(best.share * 100).toFixed(0)}%)`,
       })
     }
+  }
+
+  // induction: pushed after the attention lock so that on a shared layer the
+  // more specific marker wins the row
+  const ind = inductionGlance(trace, cur)
+  if (ind) {
+    out.push({
+      kind: 'induction',
+      layer: ind.layer,
+      label: `layer ${ind.layer} · induction: head ${ind.head} re-reads “${tok(ind.tgt)}”, what followed the last “${tok(cur)}” (${(ind.share * 100).toFixed(0)}%)`,
+    })
   }
 
   if (lens && lens.layers.length) {

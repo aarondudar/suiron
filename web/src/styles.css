@@ -721,9 +721,44 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   display: block; color: var(--dim); font-size: var(--t-tiny);
   text-transform: lowercase; letter-spacing: 0.1em; margin-bottom: var(--sp-2);
 }
-.empty-chips { display: flex; gap: var(--sp-2); justify-content: center; flex-wrap: wrap; }
-.empty-chips button { white-space: pre; }
 .empty-hint { display: block; color: var(--faint); font-size: var(--t-tiny); margin-top: var(--sp-3); }
+
+/* the experiments gallery (docs/21): each card is a phenomenon, not a sentence */
+.exp-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--sp-2); max-width: 720px; margin: 0 auto;
+}
+.exp-card {
+  display: flex; flex-direction: column; gap: 4px; text-align: left;
+  padding: var(--sp-3); border: 1px solid var(--hair); background: none;
+  cursor: pointer;
+}
+.exp-card:hover { border-color: var(--hair-lit); }
+.exp-card:hover .exp-title { color: var(--red); }
+.exp-title { color: var(--ink); font-size: var(--t-body); letter-spacing: 0.06em; text-transform: lowercase; }
+.exp-hook { color: var(--dim); font-size: var(--t-tiny); line-height: 1.5; }
+.exp-prompt { color: var(--faint); font-size: var(--t-tiny); font-family: var(--mono, inherit); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* the running experiment's watch-for line: frames the run above the lifecycle */
+.watch-for {
+  color: var(--dim); font-size: var(--t-body); line-height: 1.6;
+  border: 1px solid var(--hair); border-left: 2px solid var(--hair-lit);
+  padding: var(--sp-2) var(--sp-3); margin: var(--sp-3) 0 0;
+}
+.watch-for-tag {
+  color: var(--faint); font-size: var(--t-tiny); text-transform: lowercase;
+  letter-spacing: 0.1em; margin-right: var(--sp-2);
+}
+
+/* the epilogue's way onward: the same experiments, one row */
+.epi-exps { margin-top: var(--sp-4); display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.epi-exps-label { color: var(--faint); font-size: var(--t-tiny); text-transform: lowercase; letter-spacing: 0.1em; }
+.epi-exp {
+  background: none; border: 1px solid var(--hair); color: var(--dim);
+  font-size: var(--t-tiny); padding: 3px 10px; cursor: pointer;
+  text-transform: lowercase; letter-spacing: 0.06em;
+}
+.epi-exp:hover { border-color: var(--hair-lit); color: var(--ink); }
 
 /* ---------- horizontal-scroll tracks (wide content) ---------- */
 /* the layer row's dot strip and the selection table can exceed a phone's

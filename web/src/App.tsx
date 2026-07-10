@@ -14,7 +14,8 @@ import { Selection } from "./components/Selection";
 import { TokenStrip } from "./components/TokenStrip";
 import { Welcome, WELCOME_SEEN_KEY } from "./components/Welcome";
 import { WALK, WalkBar } from "./components/Walk";
-import { currentLink, decodeLink, encodeLink, matchesResident } from "./link";
+import type { Experiment } from "./experiments";
+import { currentLink, decodeLink, encodeLink, matchesResident, residentPrompt } from "./link";
 import { DEFAULT_PARAMS, moments } from "./lib";
 import type { FocusTarget, GenParams, Trace } from "./types";
 
@@ -89,6 +90,30 @@ export default function App() {
     };
   }, []);
   const openGoLive = () => window.dispatchEvent(new CustomEvent("suiron-open-golive"));
+
+  /** the running curated experiment (docs/21); its watch-for line frames the
+   *  run until the user generates something of their own */
+  const [exp, setExp] = useState<Experiment | null>(null);
+  const runExperiment = useCallback(
+    (e: Experiment) => {
+      if (trace?.demo) {
+        // the recording can't run other prompts; experiments need the engine
+        openGoLive();
+        return;
+      }
+      const p: GenParams = { ...DEFAULT_PARAMS, backend: params.backend, ...e.params };
+      setPrompt(e.prompt);
+      setParams(p);
+      setExp(e);
+      jumpRef.current = true;
+      if (trace && trace.tokens.length === 0) setPendingTour(true); // first run: offer the tour
+      void generate(e.prompt, p);
+      requestAnimationFrame(() =>
+        window.scrollTo({ top: 0, behavior: REDUCED ? "auto" : "smooth" }),
+      );
+    },
+    [trace, params.backend],
+  );
 
   /** the epilogue chat dropdown. While open it owns the single resident model:
    *  opening halts any running lab generation and locks the main controls. */
@@ -523,6 +548,7 @@ export default function App() {
         params={params}
         setParams={setParams}
         onGenerate={() => {
+          setExp(null); // a run of your own retires the experiment framing
           jumpRef.current = true;
         }}
         onStep={() => {
@@ -532,16 +558,7 @@ export default function App() {
         canWalk={hasTokens && safeCur >= trace.n_prompt}
       />
 
-      {!hasTokens && (
-        <EmptyState
-          onPick={setPrompt}
-          params={params}
-          onGenerate={() => {
-            jumpRef.current = true;
-            setPendingTour(true); // the empty-state chips are "run + take the tour"
-          }}
-        />
-      )}
+      {!hasTokens && <EmptyState onRun={runExperiment} />}
 
       {hasTokens && safeCur >= trace.n_prompt && walk === null && !hintDone && (
         <div className="tour-hint">
@@ -557,6 +574,11 @@ export default function App() {
 
       {hasTokens && step && (
         <>
+          {exp && residentPrompt(trace) === exp.prompt && (
+            <div className="watch-for">
+              <span className="watch-for-tag">experiment · {exp.title}</span> {exp.watchFor}
+            </div>
+          )}
           {prodStep && (
             <div className="lifecycle-lead">
               how this token was produced, top to bottom: the read head (the token before it) reads
@@ -632,7 +654,12 @@ export default function App() {
             card={cardFor("06")}
             dim={dimFor("06")}
           />
-          <Epilogue onTryChat={onTryChat} card={cardFor("epilogue")} dim={dimFor("epilogue")} />
+          <Epilogue
+            onTryChat={onTryChat}
+            onRun={runExperiment}
+            card={cardFor("epilogue")}
+            dim={dimFor("epilogue")}
+          />
         </>
       )}
 
