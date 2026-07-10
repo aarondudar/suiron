@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getInspect } from "../api";
+import { getInspect, getSource } from "../api";
 import { settledSeq } from "../lib";
 import { useHotVar } from "./Explainer";
 import type { ExplainCtx } from "./Explanations";
@@ -174,9 +174,7 @@ export function UnderHood({
 
   useEffect(() => {
     let dead = false;
-    fetch(`/api/v1/source?fn=${anno.fn}`)
-      .then((r) => (r.ok ? r.text() : "// source unavailable — restart the lab (make dev)"))
-      .then((t) => !dead && setSrc(t.startsWith("<") ? "// stale backend — restart the lab (make dev)" : t));
+    getSource(anno.fn).then((t) => !dead && setSrc(t));
     return () => {
       dead = true;
     };

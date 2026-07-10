@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { getQuantSample } from "../api";
+import { getQuantSample, IS_WASM } from "../api";
 import { BandHeader } from "./BandHeader";
 import { BackendToggle } from "./Controls";
 import { Explain } from "./Explainer";
@@ -64,7 +64,13 @@ export function Quantization({
           <div className="q-name">f32</div>
           <div className="q-sub">weights expanded to 32-bit floats</div>
           <div className="q-big">{gib(f32Bytes)} GiB</div>
-          <div className="q-sub">{tps.f32 ? `${tps.f32.toFixed(1)} tok/s` : "run it to measure"}</div>
+          <div className="q-sub">
+            {tps.f32
+              ? `${tps.f32.toFixed(1)} tok/s`
+              : IS_WASM
+                ? "the native lab's reference path"
+                : "run it to measure"}
+          </div>
         </div>
         <div className="q-arrow">{speedup ? `${speedup.toFixed(2)}× faster →` : "→"}</div>
         <div className={"q-card" + (backend === "q8" ? " on" : "")}>

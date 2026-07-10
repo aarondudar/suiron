@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getSource } from "../api";
 
 /* Renders one real function from the engine, fetched live from /api/v1/source.
    Used by the Explainer's "the code" rungs on the non-compute concepts (the
@@ -34,11 +35,7 @@ function highlight(line: string, key: number) {
 export function EngineSource({ fn }: { fn: string }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
-    fetch(`/api/v1/source?fn=${fn}`)
-      .then((r) => (r.ok ? r.text() : "// source unavailable — restart the lab (make dev)"))
-      .then((t) =>
-        setSrc(t.startsWith("<") ? "// stale backend — restart the lab (make dev)" : t),
-      );
+    void getSource(fn).then(setSrc);
   }, [fn]);
   if (src === null) return <pre className="code">loading…</pre>;
   return (

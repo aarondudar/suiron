@@ -13,4 +13,8 @@ path = "src/main.rs"
 [dependencies]
 suiron-gguf = { path = "../suiron-gguf" }
 suiron-core = { path = "../suiron-core" }
+
+# Metal is macOS-only FFI; gating it here lets suiron-wasm depend on this
+# package's lib (machine/trace/chat) when building for wasm32.
+[target.'cfg(target_os = "macos")'.dependencies]
 suiron-metal = { path = "../suiron-metal" }

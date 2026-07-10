@@ -50,13 +50,30 @@ pub struct Tensor {
 
 impl Tensor {
     /// y = W·x for a 2D weight [rows, cols], under the chosen backend.
-    /// Q8 falls back to f32 if this tensor wasn't quantized.
+    /// Q8 falls back to f32 if this tensor wasn't quantized; F32 falls back to
+    /// the Q8 blocks when the f32 copy was skipped (a lean load).
     pub fn matvec(&self, x: &[f32], backend: Backend) -> Vec<f32> {
         let (rows, cols) = (self.shape[0], self.shape[1]);
         match (backend, &self.q8) {
             (Backend::Q8, Some(blocks)) => matvec_q8_0(blocks, x, rows, cols),
+            (_, Some(blocks)) if self.data.is_empty() => matvec_q8_0(blocks, x, rows, cols),
             _ => matmul(&self.data, x, rows, cols, 1),
         }
+    }
+
+    /// Row `r` as f32: a borrow of the f32 copy when present, else the row's
+    /// Q8_0 blocks dequantized into `buf` (lean loads; rows are block-aligned,
+    /// cols % 32 == 0). Same numbers either way — one dequant, two homes.
+    pub fn row<'a>(&'a self, r: usize, buf: &'a mut Vec<f32>) -> &'a [f32] {
+        let cols = self.shape[1];
+        if !self.data.is_empty() {
+            return &self.data[r * cols..(r + 1) * cols];
+        }
+        let blocks = self.q8.as_ref().expect("tensor has neither f32 nor q8 data");
+        let bpr = cols / 32 * 34; // Q8_0: 34 bytes per 32 values
+        buf.clear();
+        suiron_gguf::dequantize_q8_0(&blocks[r * bpr..(r + 1) * bpr], buf);
+        buf
     }
 }
 
@@ -132,17 +149,37 @@ pub struct Model {
 
 impl Model {
     pub fn load(file: &GgufFile) -> Result<Self, String> {
+        Self::load_with(file, false)
+    }
+
+    /// Quantized-resident load for memory-tight targets (the WASM build):
+    /// Q8_0 tensors keep ONLY their blocks (the Q8 backend computes from them
+    /// directly; f32 reads fall back per `Tensor::matvec`/`Tensor::row`), so a
+    /// Q8_0 model stays ~¼ the size of a full load. Tensors with no quantized
+    /// compute path (f32 norms; Q4_K/Q6_K sources) still materialize f32, so a
+    /// lean load only shrinks Q8_0 files.
+    pub fn load_lean(file: &GgufFile) -> Result<Self, String> {
+        Self::load_with(file, true)
+    }
+
+    fn load_with(file: &GgufFile, lean: bool) -> Result<Self, String> {
         let config = Config::from_gguf(file)?;
 
         let tensor = |name: &str| -> Result<Tensor, String> {
             let info = file.tensor(name).ok_or_else(|| format!("missing tensor {name}"))?;
-            let data = file.tensor_f32(info).map_err(|e| e.to_string())?;
             let shape: Vec<usize> = info.dims.iter().rev().map(|&d| d as usize).collect();
             // keep the raw Q8_0 blocks so the quantized backend can run without
             // reloading; cheap (a byte-slice copy) next to the f32 dequant.
             let q8 = match info.dtype {
                 GgmlType::Q8_0 => Some(file.tensor_bytes(info).map_err(|e| e.to_string())?.to_vec()),
                 _ => None,
+            };
+            // lean: skip the f32 materialization when the blocks can carry the
+            // tensor alone (rows block-aligned so Tensor::row can dequantize)
+            let data = if lean && q8.is_some() && shape.last().is_some_and(|c| c % 32 == 0) {
+                Vec::new()
+            } else {
+                file.tensor_f32(info).map_err(|e| e.to_string())?
             };
             Ok(Tensor { data, q8, shape })
         };
@@ -176,9 +213,10 @@ impl Model {
 
         let token_embd = expect(tensor("token_embd.weight")?, &[config.vocab, h], "token_embd")?;
         // Cache |emb_i| once; reused by every cosine-neighbor query.
+        let mut buf = Vec::new();
         let emb_norms: Vec<f32> = (0..config.vocab)
             .map(|r| {
-                let row = &token_embd.data[r * h..r * h + h];
+                let row = token_embd.row(r, &mut buf);
                 row.iter().map(|v| v * v).sum::<f32>().sqrt()
             })
             .collect();
@@ -194,10 +232,19 @@ impl Model {
     }
 
     /// The row of token_embd for one token id: its 1024 meaning-numbers.
+    /// Borrows the f32 copy, so full loads only; lean loads use `embedding_row`.
     pub fn embedding(&self, token: u32) -> &[f32] {
         let h = self.config.hidden;
         let start = token as usize * h;
         &self.token_embd.data[start..start + h]
+    }
+
+    /// The same row, owned, working under both full and lean loads (the lean
+    /// path dequantizes the row's 32-value blocks on demand — 32 blocks for a
+    /// 1024-wide row, trivial next to a forward pass).
+    pub fn embedding_row(&self, token: u32) -> Vec<f32> {
+        let mut buf = Vec::new();
+        self.token_embd.row(token as usize, &mut buf).to_vec()
     }
 
     /// Top-`n` vocabulary entries by cosine similarity to an arbitrary
@@ -208,14 +255,14 @@ impl Model {
     /// mutation) so the future WASM build can call it directly. A token queried
     /// against its own row scores exactly 1.0.
     pub fn neighbors(&self, query: &[f32], n: usize) -> Vec<(u32, f32)> {
-        let h = self.config.hidden;
         let qn = query.iter().map(|v| v * v).sum::<f32>().sqrt();
         if qn == 0.0 || n == 0 {
             return Vec::new();
         }
+        let mut buf = Vec::new();
         let mut scored: Vec<(u32, f32)> = (0..self.config.vocab)
             .map(|r| {
-                let row = &self.token_embd.data[r * h..r * h + h];
+                let row = self.token_embd.row(r, &mut buf);
                 let dot: f32 = row.iter().zip(query).map(|(a, b)| a * b).sum();
                 let denom = self.emb_norms[r] * qn;
                 let cos = if denom > 0.0 { dot / denom } else { 0.0 };
@@ -231,7 +278,7 @@ impl Model {
     /// Cosine neighbors of a token, using its own embedding row as the query.
     /// The first result is the token itself (cosine 1.0).
     pub fn neighbors_of(&self, token: u32, n: usize) -> Vec<(u32, f32)> {
-        self.neighbors(self.embedding(token), n)
+        self.neighbors(&self.embedding_row(token), n)
     }
 
     /// The logit lens for one residual vector: what the model would predict if it

@@ -2,6 +2,29 @@ import { useEffect, useRef } from 'react'
 
 export const WELCOME_SEEN_KEY = 'suiron.welcome.seen'
 
+/** The project's story, single-source: the overlay tells it on a native first
+ *  visit; the static build's gate tells it while the model downloads (one front
+ *  door, not two — docs/17). */
+export function WelcomeStory() {
+  return (
+    <>
+      <p className="welcome-lead">
+        A from-scratch LLM inference engine I built in Rust, paired with this lab: a microscope
+        for watching a real language model, Qwen3-0.6B, predict the next token one step at a time.
+      </p>
+      <p className="welcome-body">
+        I built it to understand how text prediction actually works, and to show it by
+        demonstration rather than description. Every number you see here is computed live by the
+        engine and verified token-for-token against <b>llama.cpp</b>; nothing is mocked. It is an
+        educational tool, not a product.
+      </p>
+      <p className="welcome-orient">
+        To start: type a prompt, step through a token, and open any stage to go deeper.
+      </p>
+    </>
+  )
+}
+
 export function Welcome({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
   const prevFocus = useRef<HTMLElement | null>(null)
@@ -65,19 +88,7 @@ export function Welcome({ open, onClose }: { open: boolean; onClose: () => void 
         <div className="welcome-brand">
           suiron<span className="jp">推論</span>
         </div>
-        <p className="welcome-lead">
-          A from-scratch LLM inference engine I built in Rust, paired with this lab: a microscope
-          for watching a real language model, Qwen3-0.6B, predict the next token one step at a time.
-        </p>
-        <p className="welcome-body">
-          I built it to understand how text prediction actually works, and to show it by
-          demonstration rather than description. Every number you see here is computed live by the
-          engine and verified token-for-token against <b>llama.cpp</b>; nothing is mocked. It is an
-          educational tool, not a product.
-        </p>
-        <p className="welcome-orient">
-          To start: type a prompt, step through a token, and open any stage to go deeper.
-        </p>
+        <WelcomeStory />
         <button className="welcome-enter" onClick={() => onClose()}>
           enter the lab
         </button>

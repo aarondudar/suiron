@@ -21,10 +21,13 @@ import { RnormSparkline } from "./RnormSparkline";
 import { RopeDemo } from "./RopeDemo";
 import { TokenizeDemo } from "./TokenizeDemo";
 import { UnembedDemo } from "./UnembedDemo";
+import { WeightLedger } from "./WeightLedger";
 import { TemperatureDemo } from "./TemperatureDemo";
 import { TopKDemo } from "./TopKDemo";
 import { TopPDemo } from "./TopPDemo";
 import { UnderHood } from "./UnderHood";
+
+import { IS_WASM } from "../api";
 
 /* always-on one-line subtitle under each band's title (depth 0). orientation,
    not explanation — the Explainer is the on-demand depth. */
@@ -92,7 +95,9 @@ export const CARD_HOME: Record<string, string> = {
   topp: "00",
   tokenization: "01",
   confidence: "01",
-  loop: "01",
+  // the loop closes the story, so its card lives where the story hands over —
+  // right above "how this scales" and the agent bridge
+  loop: "epilogue",
   embedding: "02",
   position: "02",
   norm: "02",
@@ -126,6 +131,7 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "model",
     title: "what this is",
     highlight: () => ({ kind: "el", ref: "spec" }),
+    interactive: (c) => <WeightLedger trace={c.trace} />,
     intro: (c) => <ModelOverview trace={c.trace} />,
   },
 
@@ -573,7 +579,7 @@ export const CONCEPTS: Record<string, Concept> = {
   loop: {
     id: "loop",
     title: "and then it repeats",
-    highlight: (c) => ({ kind: "token", pos: c.cur }),
+    highlight: () => ({ kind: "el", ref: "epilogue" }),
     rungs: [code("forward")],
     intro: (c) => {
       const t = q(c.trace.tokens[c.cur]?.t ?? "");
@@ -652,6 +658,12 @@ export const CONCEPTS: Record<string, Concept> = {
             <>
               Measured on this machine: <b>{tps.f32.toFixed(1)}</b> vs <b>{tps.q8.toFixed(1)}</b>{" "}
               tok/s.
+            </>
+          ) : IS_WASM ? (
+            <>
+              This browser build runs the q8 path only
+              {tps.q8 ? <> (measured here: <b>{tps.q8.toFixed(1)}</b> tok/s)</> : null}; the f32
+              reference lives in the native lab.
             </>
           ) : (
             <>Run both backends to measure the difference live.</>

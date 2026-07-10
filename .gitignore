@@ -8,3 +8,9 @@
 # frontend
 /web/node_modules/
 /web/dist/
+
+# wasm build artifacts (rebuilt by `make static`)
+/crates/suiron-wasm/pkg/
+/crates/suiron-wasm/pkg-node/
+/web/public/wasm/
+/web/dist-static/

@@ -2,7 +2,7 @@ MODEL := models/Qwen3-0.6B-Q8_0.gguf
 MODEL_URL := https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf
 PORT := 4117
 
-.PHONY: setup build web model dev lab test check clean help
+.PHONY: setup build web model dev lab static test check clean help
 
 help: ## list targets
 	@grep -E '^[a-z]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-8s %s\n", $$1, $$2}'
@@ -28,6 +28,14 @@ dev: build web/node_modules model ## lab + vite hot reload, opens browser
 lab: build web model ## production mode: lab serves web/dist, opens browser
 	@(sleep 2 && open http://127.0.0.1:$(PORT)) &
 	./target/release/suiron lab $(MODEL) $(PORT)
+
+static: build web/node_modules model ## static WASM lab -> web/dist (self-contained, no server)
+	wasm-pack build crates/suiron-wasm --target web --release --out-dir pkg
+	mkdir -p web/public/wasm
+	cp crates/suiron-wasm/pkg/suiron_wasm.js crates/suiron-wasm/pkg/suiron_wasm_bg.wasm web/public/wasm/
+	cd web && VITE_BACKEND=wasm npx vite build --outDir dist-static
+	@echo "✓ static lab in web/dist-static — serve it with the model alongside:"
+	@echo "  cp $(MODEL) web/dist-static/model.gguf && python3 -m http.server -d web/dist-static 8080"
 
 test: ## full test suite (release: model-loading tests are slow in debug)
 	cargo test --workspace --release

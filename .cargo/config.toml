@@ -1,0 +1,4 @@
+# wasm builds get SIMD128 so the scalar kernels autovectorize where LLVM can;
+# native targets are untouched.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128"]

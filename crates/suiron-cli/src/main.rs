@@ -1,6 +1,4 @@
 mod lab;
-mod machine;
-mod trace;
 mod view;
 
 use std::collections::BTreeMap;
@@ -8,6 +6,8 @@ use std::io::{self, Write};
 use std::process::ExitCode;
 use std::time::Instant;
 
+use suiron_cli::chat::chat_prompt;
+use suiron_cli::trace;
 use suiron_gguf::{GgufFile, MetadataValue};
 
 fn main() -> ExitCode {
@@ -269,23 +269,6 @@ fn generate_with(
         prefill,
         decode: t1.elapsed(),
     }
-}
-
-/// Qwen3 chat wrapping via special-token ids (the encoder treats the
-/// markers as plain text, so they're assembled by id).
-pub(crate) fn chat_prompt(
-    tok: &suiron_core::Tokenizer,
-    user: &str,
-) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
-    let im_start = tok.token_id("<|im_start|>").ok_or("no <|im_start|> token")?;
-    let im_end = tok.token_id("<|im_end|>").ok_or("no <|im_end|> token")?;
-    let mut ids = vec![im_start];
-    ids.extend(tok.encode(&format!("user\n{user}")));
-    ids.push(im_end);
-    ids.extend(tok.encode("\n"));
-    ids.push(im_start);
-    ids.extend(tok.encode("assistant\n"));
-    Ok(ids)
 }
 
 /// Print the longest valid UTF-8 prefix of `pending`; keep incomplete

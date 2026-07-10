@@ -292,11 +292,13 @@ pub fn worked_unembed(obs: &DeepObserver, model: &Model, k: usize) -> Option<Wor
     let sum: f32 = exps.iter().sum();
     let mut order: Vec<usize> = (0..logits.len()).collect();
     order.sort_unstable_by(|&a, &b| logits[b].total_cmp(&logits[a]));
+    let mut buf = Vec::new();
     let cands = order
         .into_iter()
         .take(k)
         .map(|id| {
-            let row = w_out.data[id * len..id * len + len].to_vec();
+            // row access works under lean loads too (dequantizes on demand)
+            let row = w_out.row(id, &mut buf).to_vec();
             UnembedCand { id: id as u32, row, logit: logits[id], prob: exps[id] / sum }
         })
         .collect();
@@ -464,6 +466,52 @@ pub fn inspect_json(
         j.push_str("]}");
     }
     j.push('}');
+    j
+}
+
+/// One real Q8_0 block from `blk.0.attn_q` → JSON for the quant explainer:
+/// the shared f16 scale, the 32 int8 quants, and the f32 values they
+/// reconstruct to (value = scale × quant). All real, from the loaded model.
+pub fn quant_sample_json(model: &Model) -> String {
+    let mut j = String::from("{\"tensor\":\"blk.0.attn_q\"");
+    if let Some(b) = model.layers[0].wq.q8.as_ref() {
+        let block = &b[..34];
+        let scale = suiron_gguf::f16_to_f32(u16::from_le_bytes([block[0], block[1]]));
+        j.push_str(&format!(",\"scale\":{scale:.6},\"quants\":["));
+        for i in 0..32 {
+            if i > 0 {
+                j.push(',');
+            }
+            j.push_str(&format!("{}", block[2 + i] as i8));
+        }
+        j.push_str("],\"values\":[");
+        for i in 0..32 {
+            if i > 0 {
+                j.push(',');
+            }
+            j.push_str(&format!("{:.5}", scale * (block[2 + i] as i8) as f32));
+        }
+        j.push(']');
+    }
+    j.push('}');
+    j
+}
+
+/// Cosine neighbors of one token over the embedding matrix, serialized as the
+/// lab's `/api/v1/neighbors` shape.
+pub fn neighbors_json(model: &Model, id: u32, n: usize, decode: impl Fn(u32) -> String) -> String {
+    let nbrs = model.neighbors_of(id, n.clamp(1, 64));
+    let mut j = String::from("[");
+    for (i, (tid, cos)) in nbrs.iter().enumerate() {
+        if i > 0 {
+            j.push(',');
+        }
+        j.push_str(&format!(
+            "{{\"id\":{tid},\"token\":\"{}\",\"cos\":{cos:.6}}}",
+            escape_json(&decode(*tid))
+        ));
+    }
+    j.push(']');
     j
 }
 

@@ -218,6 +218,7 @@ footer a:hover { color: var(--red); border-bottom-color: var(--red); }
   border: 1px solid var(--hair); border-left: 2px solid var(--red);
   background: var(--surface); padding: var(--sp-4); margin: var(--sp-3) 0;
   scroll-margin-top: 56px; /* the band header peeks when the card self-scrolls */
+  min-height: 180px; /* tall→short concept switches shouldn't snap the page */
 }
 .card-head { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-3); }
 .card-title {
@@ -941,6 +942,20 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .tok-nav-where { color: var(--dim); font-size: var(--t-tiny); }
 .tok-nav-where b { color: var(--ink); font-family: var(--dot); }
 
+/* ---------- the weight ledger (what the file is) ---------- */
+.ledger { margin-top: var(--sp-3); }
+.ledger-lead { color: var(--dim); font-size: var(--t-tiny); margin-bottom: var(--sp-2); }
+.ledger-tbl { border-collapse: collapse; font-size: var(--t-tiny); font-variant-numeric: tabular-nums; }
+.ledger-tbl th { color: var(--faint); font-weight: 400; text-align: left; padding: 1px var(--sp-3) 1px 0; }
+.ledger-tbl td { color: var(--dim); text-align: left; padding: 1px var(--sp-3) 1px 0; }
+.ledger-tbl th:last-child, .ledger-tbl td:last-child { text-align: right; padding-right: 0; }
+.ledger-name { font-family: var(--mono); color: var(--ink); }
+.ledger-count { font-family: var(--dot); }
+.ledger-total td { border-top: 1px solid var(--hair); color: var(--ink); padding-top: 3px; }
+.ledger-total .ledger-count { color: var(--red); }
+.ledger-note { color: var(--faint); font-size: var(--t-tiny); line-height: 1.6; margin-top: var(--sp-2); max-width: 68ch; }
+.ledger-note b { color: var(--ink); }
+
 /* ---------- RMSNorm worked demo ---------- */
 .rms-demo { margin-top: var(--sp-3); }
 .rms-status { color: var(--faint); font-size: var(--t-tiny); }
@@ -1135,6 +1150,31 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 
 /* note shown under the prompt band while the settings are locked for chat */
 .ctl-locked { color: var(--faint); font-size: var(--t-tiny); margin-top: var(--sp-2); }
+
+/* ---------- the wasm boot gate (static build only) ---------- */
+.wasmgate {
+  min-height: 80vh; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: var(--sp-4); text-align: center; padding: var(--sp-4);
+}
+.wasmgate-brand { font-size: var(--t-display); color: var(--ink); }
+.wasmgate-brand .jp { color: var(--dim); font-size: var(--t-md); margin-left: 10px; letter-spacing: 0.3em; }
+.wasmgate-msg { color: var(--dim); font-size: var(--t-body); min-height: 1.4em; }
+.wasmgate-bar { width: min(360px, 80vw); height: 4px; border: 1px solid var(--hair); }
+.wasmgate-fill { height: 100%; background: var(--red); transition: width 0.2s ease; }
+.wasmgate-fill[data-indeterminate] { animation: gate-pulse 1.2s ease-in-out infinite; }
+@keyframes gate-pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) {
+  .wasmgate-fill { transition: none; }
+  .wasmgate-fill[data-indeterminate] { animation: none; opacity: 0.6; }
+}
+.wasmgate-note { color: var(--faint); font-size: var(--t-tiny); max-width: 44ch; line-height: 1.6; }
+.wasmgate-err { color: var(--red); font-size: var(--t-body); }
+.wasmgate-retry { font-size: var(--t-tiny); padding: 2px 10px; }
+/* the download wait doubles as the reading moment: the welcome story, inline */
+.wasmgate-story {
+  max-width: 52ch; text-align: left; margin-top: var(--sp-4);
+  border-top: 1px solid var(--hair); padding-top: var(--sp-4);
+}
 
 /* ---------- scrollbar ---------- */
 ::-webkit-scrollbar { width: 8px; height: 8px; }

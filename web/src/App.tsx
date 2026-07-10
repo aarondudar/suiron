@@ -274,7 +274,33 @@ export default function App() {
   const home = active ? (CARD_HOME[active] ?? "00") : null;
   const host = home === null ? null : hasTokens ? home : "00";
   const cardFor = (band: string) => (host === band ? <ConceptCard ctx={ctx} /> : undefined);
-  const dimFor = (band: string) => host !== null && host !== band;
+  // the spotlight must never dim the band the lab is pointing INTO: when the
+  // open card (or a hover) highlights an element in another band, that band
+  // stays lit alongside the host.
+  const focusBand = (() => {
+    switch (focus.kind) {
+      case "token":
+        return "01";
+      case "layer":
+        return "02";
+      case "candidate":
+        return "03";
+      case "el": {
+        const r = focus.ref;
+        if (r === "spec" || r.startsWith("ctl-")) return "00";
+        if (r.startsWith("token-")) return "01";
+        if (r.startsWith("layer-dots-")) return "02";
+        if (r.startsWith("logit-")) return "03";
+        if (r.startsWith("geo")) return "04";
+        if (r === "draw-bar") return "05";
+        if (r === "epilogue") return "epilogue";
+        return null;
+      }
+      default:
+        return null;
+    }
+  })();
+  const dimFor = (band: string) => host !== null && host !== band && band !== focusBand;
 
   return (
     <ExplainerProvider value={explainer}>

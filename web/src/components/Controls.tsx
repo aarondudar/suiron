@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { generate, step, stop } from "../api";
+import { generate, IS_WASM, step, stop } from "../api";
 import { CHAT_PARAMS } from "../lib";
 import { BandHeader } from "./BandHeader";
 import { ChatPanel } from "./ChatPanel";
@@ -192,6 +192,18 @@ export function BackendToggle({
   disabled?: boolean;
   onChange: (b: Backend) => void;
 }) {
+  // the browser build runs the quantized path only; offering f32 would be a lie
+  if (IS_WASM) {
+    return (
+      <div
+        className="seg"
+        title="the browser build runs the quantized path; f32 is the native lab's reference"
+        data-explain-el="ctl-backend"
+      >
+        <span className="seg-opt on">q8</span>
+      </div>
+    );
+  }
   return (
     <div
       className={"seg" + (disabled ? " seg-dim" : "")}

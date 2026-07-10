@@ -6,7 +6,7 @@
 //! Anything else is served from web/dist (the built React app); in frontend
 //! dev, run `npm run dev` in web/ instead — vite proxies /api here.
 
-use crate::trace::{write_trace, Recorder, Step};
+use suiron_cli::trace::{write_trace, Recorder, Step};
 use crate::view::{respond, serve_static};
 use std::io::Read;
 use std::net::{TcpListener, TcpStream};
@@ -86,7 +86,7 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
         match (method.as_str(), path.split('?').next().unwrap_or("")) {
             ("GET", "/api/v1/trace") => {
                 let st = shared.lock().unwrap();
-                let live = crate::trace::Live {
+                let live = suiron_cli::trace::Live {
                     busy: st.busy,
                     seq: st.seq,
                     backend: st.last_backend.label(),
@@ -109,7 +109,7 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
             ("GET", "/api/v1/quant-sample") => {
                 // one real Q8_0 block from layer 0's Q projection: the f16
                 // scale + 32 int8 quants + the f32 values they reconstruct to.
-                let json = quant_sample_json(&model);
+                let json = suiron_cli::machine::quant_sample_json(&model);
                 respond(&mut s, "200 OK", "application/json", json.as_bytes());
             }
             ("GET", "/api/v1/neighbors") => {
@@ -119,20 +119,9 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                 if id == u32::MAX || id as usize >= model.config.vocab {
                     respond(&mut s, "400 Bad Request", "text/plain", b"bad id");
                 } else {
-                    let nbrs = model.neighbors_of(id, n.clamp(1, 64));
-                    let mut j = String::from("[");
-                    for (i, (tid, cos)) in nbrs.iter().enumerate() {
-                        if i > 0 {
-                            j.push(',');
-                        }
-                        let text = tok.decode(&[*tid]);
-                        j.push_str(&format!(
-                            "{{\"id\":{tid},\"token\":\"{}\",\"cos\":{cos:.6}}}",
-                            crate::trace::escape_json(&text)
-                        ));
-                    }
-                    j.push(']');
-                    respond(&mut s, "200 OK", "application/json", j.as_bytes());
+                    let json =
+                        suiron_cli::machine::neighbors_json(&model, id, n, |t| tok.decode(&[t]));
+                    respond(&mut s, "200 OK", "application/json", json.as_bytes());
                 }
             }
             ("GET", "/api/v1/merges") => {
@@ -151,7 +140,7 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                 match text {
                     None => respond(&mut s, "409 Conflict", "text/plain", b"busy"),
                     Some(text) => {
-                        let json = crate::machine::merges_json(&tok.encode_merges(&text));
+                        let json = suiron_cli::machine::merges_json(&tok.encode_merges(&text));
                         respond(&mut s, "200 OK", "application/json", json.as_bytes());
                     }
                 }
@@ -177,9 +166,9 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                 match setup {
                     Err(e) => respond(&mut s, "409 Conflict", "text/plain", e.as_bytes()),
                     Ok((mut c, id)) => {
-                        let mut obs = crate::machine::LensObserver::default();
+                        let mut obs = suiron_cli::machine::LensObserver::default();
                         forward(&model, &mut c, id, Backend::F32, Some(&mut obs));
-                        let json = crate::machine::lens_json(
+                        let json = suiron_cli::machine::lens_json(
                             &model,
                             &obs.residuals,
                             pos,
@@ -195,7 +184,7 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                     .split_once("fn=")
                     .map(|(_, v)| v.split('&').next().unwrap_or(""))
                     .unwrap_or("");
-                match crate::machine::source_for(name) {
+                match suiron_cli::machine::source_for(name) {
                     Some(src) => respond(&mut s, "200 OK", "text/plain; charset=utf-8", src.as_bytes()),
                     None => respond(&mut s, "404 Not Found", "text/plain", b"unknown fn"),
                 }
@@ -223,12 +212,12 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                     Err(e) => respond(&mut s, "409 Conflict", "text/plain", e.as_bytes()),
                     Ok((mut c, id)) => {
                         // deep inspection always uses the f32 reference math
-                        let mut deep = crate::machine::DeepObserver::new(layer);
+                        let mut deep = suiron_cli::machine::DeepObserver::new(layer);
                         forward(&model, &mut c, id, Backend::F32, Some(&mut deep));
                         // optional worked q/k slice when a head is requested
                         let worked = (head != usize::MAX)
                             .then(|| {
-                                crate::machine::worked_dot(
+                                suiron_cli::machine::worked_dot(
                                     &deep,
                                     &c,
                                     head,
@@ -241,7 +230,7 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                         // worked RMSNorm for this layer's attention norm (the
                         // final stage has no per-layer attn_norm weight — skip)
                         let norm = (layer < model.config.n_layers).then(|| {
-                            crate::machine::worked_norm(
+                            suiron_cli::machine::worked_norm(
                                 &deep,
                                 &model.layers[layer].attn_norm.data,
                                 model.config.rms_eps,
@@ -251,10 +240,10 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                         // worked unembed: at the final stage only, the top few
                         // vocabulary candidates' rows against the final vector
                         let unembed = (layer == model.config.n_layers)
-                            .then(|| crate::machine::worked_unembed(&deep, &model, 4))
+                            .then(|| suiron_cli::machine::worked_unembed(&deep, &model, 4))
                             .flatten();
                         let text = tok.decode(&[id]);
-                        let json = crate::machine::inspect_json(
+                        let json = suiron_cli::machine::inspect_json(
                             &deep,
                             pos,
                             (id, &text),
@@ -404,7 +393,7 @@ fn generate_traced(
     stop_ids: &[u32],
 ) {
     let ids = if p.chat {
-        crate::chat_prompt(tok, prompt).unwrap_or_else(|_| tok.encode(prompt))
+        suiron_cli::chat::chat_prompt(tok, prompt).unwrap_or_else(|_| tok.encode(prompt))
     } else {
         tok.encode(prompt)
     };
@@ -545,34 +534,6 @@ fn run_decode(
         }
     }
     logits
-}
-
-/// One real Q8_0 block from `blk.0.attn_q` → JSON for the quant explainer:
-/// the shared f16 scale, the 32 int8 quants, and the f32 values they
-/// reconstruct to (value = scale × quant). All real, from the loaded model.
-fn quant_sample_json(model: &Model) -> String {
-    let mut j = String::from("{\"tensor\":\"blk.0.attn_q\"");
-    if let Some(b) = model.layers[0].wq.q8.as_ref() {
-        let block = &b[..34];
-        let scale = suiron_gguf::f16_to_f32(u16::from_le_bytes([block[0], block[1]]));
-        j.push_str(&format!(",\"scale\":{scale:.6},\"quants\":["));
-        for i in 0..32 {
-            if i > 0 {
-                j.push(',');
-            }
-            j.push_str(&format!("{}", block[2 + i] as i8));
-        }
-        j.push_str("],\"values\":[");
-        for i in 0..32 {
-            if i > 0 {
-                j.push(',');
-            }
-            j.push_str(&format!("{:.5}", scale * (block[2 + i] as i8) as f32));
-        }
-        j.push(']');
-    }
-    j.push('}');
-    j
 }
 
 fn push_step(tok: &Tokenizer, rec: &mut Recorder, id: u32, shared: &Mutex<Shared>) {

@@ -16,8 +16,12 @@ export interface WalkStop {
   expandMoment?: "attention-lock";
 }
 
-// one token's whole life, in order: born from the text, turned into a vector,
-// placed, processed layer by layer, accumulated, scored, resolved, chosen.
+// one token's whole life, in strict page order — the tour only ever moves DOWN
+// the instrument (band 00 → 01 → 02… → the epilogue), never back up: born from
+// the text, turned into a vector, placed, processed layer by layer,
+// accumulated, scored, resolved, chosen, stored smaller, and then repeated.
+// (`settings` is not a stop: the draw grounds temperature/seed where they
+// matter, and the settings stay anchored in band 00.)
 export const WALK: WalkStop[] = [
   { concept: "model", label: "what this is" },
   { concept: "tokenization", label: "tokens" },
@@ -30,8 +34,8 @@ export const WALK: WalkStop[] = [
   { concept: "logits", label: "the prediction" },
   { concept: "geometry", label: "what comes next" },
   { concept: "lens", label: "the climb" },
-  { concept: "settings", label: "the settings" },
   { concept: "draw", label: "the draw" },
+  { concept: "quantization", label: "stored smaller" },
   { concept: "loop", label: "and then repeat" },
 ];
 

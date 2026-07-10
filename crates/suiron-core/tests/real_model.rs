@@ -167,6 +167,73 @@ fn worked_dot_matches_engine_score() {
 }
 
 #[test]
+fn lean_load_matches_full_load() {
+    // The lean (quantized-resident) load keeps only Q8_0 blocks for quantized
+    // tensors — the WASM build's memory path. Everything observable must match
+    // the full load: the on-demand embedding row is bit-identical (same dequant
+    // code), neighbors agree, the lens top-1 agrees, and greedy decoding picks
+    // the same next token (Q8 lean vs F32 full — argmax must agree, as the q8
+    // backend test already pins).
+    if !std::path::Path::new(MODEL).exists() {
+        eprintln!("skipping: {MODEL} not present");
+        return;
+    }
+    let file = GgufFile::open(MODEL).expect("parse");
+    let full = Model::load(&file).expect("full load");
+    let lean = Model::load_lean(&file).expect("lean load");
+    let tok = Tokenizer::from_gguf(&file).expect("tokenizer");
+
+    // the quantized-resident load actually dropped the f32 copies
+    assert!(lean.token_embd.data.is_empty(), "lean kept token_embd f32");
+    assert!(lean.layers[0].wq.data.is_empty(), "lean kept wq f32");
+    assert!(!lean.layers[0].attn_norm.data.is_empty(), "norms stay f32");
+
+    // embedding row: identical numbers (same dequant, different home)
+    assert_eq!(lean.embedding_row(1782), full.embedding(1782).to_vec(), "embedding row differs");
+
+    // neighbors: same ids in the same order
+    let nf: Vec<u32> = full.neighbors_of(1782, 8).iter().map(|&(id, _)| id).collect();
+    let nl: Vec<u32> = lean.neighbors_of(1782, 8).iter().map(|&(id, _)| id).collect();
+    assert_eq!(nf, nl, "neighbors differ under lean load");
+
+    // greedy decode: same next token
+    let ids = tok.encode("The capital of France is");
+    let mut cf = KvCache::new(&full);
+    let mut cl = KvCache::new(&lean);
+    let (mut lf, mut ll) = (Vec::new(), Vec::new());
+    for &t in &ids {
+        lf = forward(&full, &mut cf, t, Backend::F32, None);
+        ll = forward(&lean, &mut cl, t, Backend::Q8, None);
+    }
+    let (af, al) = (suiron_core::sampling::argmax(&lf), suiron_core::sampling::argmax(&ll));
+    assert_eq!(af, al, "lean q8 picked a different token than full f32");
+    eprintln!("lean vs full: next token id {af} ({:?})", tok.decode(&[af]));
+
+    // lens over the lean load (matvec falls back to q8 blocks): same top-1
+    struct Cap(Vec<f32>);
+    impl suiron_core::forward::Observer for Cap {
+        fn vector(&mut self, _l: usize, name: &'static str, v: &[f32]) {
+            if name == "x_out" {
+                self.0 = v.to_vec();
+            }
+        }
+    }
+    let mut cap_f = Cap(Vec::new());
+    let mut cap_l = Cap(Vec::new());
+    let mut cf2 = KvCache::new(&full);
+    let mut cl2 = KvCache::new(&lean);
+    for &t in &ids[..ids.len() - 1] {
+        forward(&full, &mut cf2, t, Backend::F32, None);
+        forward(&lean, &mut cl2, t, Backend::Q8, None);
+    }
+    forward(&full, &mut cf2, *ids.last().unwrap(), Backend::F32, Some(&mut cap_f));
+    forward(&lean, &mut cl2, *ids.last().unwrap(), Backend::Q8, Some(&mut cap_l));
+    let top_f = full.lens_topk(&cap_f.0, 1)[0].0;
+    let top_l = lean.lens_topk(&cap_l.0, 1)[0].0;
+    assert_eq!(top_f, top_l, "lens top-1 differs under lean load");
+}
+
+#[test]
 fn rmsnorm_reconstructs_from_pre_and_weight() {
     // RMSNorm: postᵢ = xᵢ · weightᵢ / rms, rms = sqrt(mean(x²) + eps). Rebuilding
     // the post-norm vector from the pre-norm vector, the rms, and the weight must

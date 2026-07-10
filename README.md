@@ -28,6 +28,13 @@ make lab     # open the microscope in your browser
 ```
 
 `make help` lists every target; `make dev` runs the frontend with hot reload.
+The lab also compiles to WebAssembly and runs **entirely in the browser** — no
+server, one-time cached model download, nothing leaves the device:
+
+```sh
+make static  # engine → wasm + static site in web/dist-static
+```
+
 Or from the terminal:
 
 ```sh

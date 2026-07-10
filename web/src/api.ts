@@ -1,17 +1,40 @@
+import * as wasm from "./wasmBackend";
 import type { GenParams, Lens, Merges, Neighbor, QuantSample, Trace } from "./types";
 
-// Relative paths: proxied by vite in dev, served by suiron itself in prod.
+/* The lab's data layer, behind a build-time switch (docs/07):
+   - dev / native lab: relative fetches, proxied by vite to `suiron lab` in dev
+     and served by suiron itself in prod;
+   - the static build (VITE_BACKEND=wasm): the same shapes produced in-process
+     by the suiron-wasm module — the identical Rust serializers, no server.
+   The flag is a build-time constant, so the unused branch is dead code. */
+
+const WASM = import.meta.env.VITE_BACKEND === "wasm";
+
+/** True in the static in-browser build. UI that only makes sense against the
+ *  native lab (the f32 reference toggle) checks this and stays honest. */
+export const IS_WASM = WASM;
 
 export async function getTrace(): Promise<Trace> {
+  if (WASM) return wasm.trace();
   const r = await fetch("/api/v1/trace");
   if (!r.ok) throw new Error(`trace: ${r.status}`);
   return r.json();
 }
 
 export async function getQuantSample(): Promise<QuantSample> {
+  if (WASM) return wasm.quantSample();
   const r = await fetch("/api/v1/quant-sample");
   if (!r.ok) throw new Error(`quant-sample: ${r.status}`);
   return r.json();
+}
+
+/** The engine's own source for a named function/block (the woven code views). */
+export async function getSource(fn: string): Promise<string> {
+  if (WASM) return wasm.source(fn);
+  const r = await fetch(`/api/v1/source?fn=${fn}`);
+  if (!r.ok) return "// source unavailable — restart the lab (make dev)";
+  const t = await r.text();
+  return t.startsWith("<") ? "// stale backend — restart the lab (make dev)" : t;
 }
 
 /** Top-n cosine neighbors of a token over the embedding matrix. A pure model
@@ -24,15 +47,17 @@ export function getNeighbors(id: number, n = 12): Promise<Neighbor[]> {
   const key = `${id}:${n}`;
   let p = neighborCache.get(key);
   if (!p) {
-    p = fetch(`/api/v1/neighbors?id=${id}&n=${n}`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`neighbors: ${r.status}`);
-        return r.json() as Promise<Neighbor[]>;
-      })
-      .catch((e) => {
-        neighborCache.delete(key); // let a failure be retried
-        throw e;
-      });
+    p = WASM
+      ? Promise.resolve().then(() => wasm.neighbors(id, n))
+      : fetch(`/api/v1/neighbors?id=${id}&n=${n}`)
+          .then((r) => {
+            if (!r.ok) throw new Error(`neighbors: ${r.status}`);
+            return r.json() as Promise<Neighbor[]>;
+          })
+          .catch((e) => {
+            neighborCache.delete(key); // let a failure be retried
+            throw e;
+          });
     neighborCache.set(key, p);
   }
   return p;
@@ -47,15 +72,17 @@ export function getLens(pos: number, k = 5): Promise<Lens> {
   const key = `${pos}:${k}`;
   let p = lensCache.get(key);
   if (!p) {
-    p = fetch(`/api/v1/lens?pos=${pos}&k=${k}`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`lens: ${r.status}`);
-        return r.json() as Promise<Lens>;
-      })
-      .catch((e) => {
-        lensCache.delete(key); // let a failure be retried
-        throw e;
-      });
+    p = WASM
+      ? Promise.resolve().then(() => wasm.lens(pos, k))
+      : fetch(`/api/v1/lens?pos=${pos}&k=${k}`)
+          .then((r) => {
+            if (!r.ok) throw new Error(`lens: ${r.status}`);
+            return r.json() as Promise<Lens>;
+          })
+          .catch((e) => {
+            lensCache.delete(key); // let a failure be retried
+            throw e;
+          });
     lensCache.set(key, p);
   }
   return p;
@@ -63,10 +90,11 @@ export function getLens(pos: number, k = 5): Promise<Lens> {
 
 /** One deep inspection: the full intermediates for (pos, layer), plus the
  *  worked slices when a head is requested. Every call runs a real forward pass
- *  server-side, so results are cached per (pos, layer, head, src) and in-flight
- *  requests deduped — the demos reading the same pass (the worked dot, the
- *  woven view, the norm, the rope, the unembed) share one call. Valid only
- *  while the resident trace is unchanged; generate/step/fork clear the cache. */
+ *  (server-side natively, in-process under wasm), so results are cached per
+ *  (pos, layer, head, src) and in-flight requests deduped — the demos reading
+ *  the same pass (the worked dot, the woven view, the norm, the rope, the
+ *  unembed) share one call. Valid only while the resident trace is unchanged;
+ *  generate/step/fork clear the cache. */
 const inspectCache = new Map<string, Promise<unknown>>();
 export function getInspect<T>(
   pos: number,
@@ -77,17 +105,21 @@ export function getInspect<T>(
   const key = `${pos}:${layer}:${head ?? ""}:${src ?? ""}`;
   let p = inspectCache.get(key);
   if (!p) {
-    const hp = head === undefined ? "" : `&head=${head}`;
-    const sp = src == null ? "" : `&src=${src}`;
-    p = fetch(`/api/v1/inspect?pos=${pos}&layer=${layer}${hp}${sp}`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`inspect: ${r.status}`);
-        return r.json() as Promise<unknown>;
-      })
-      .catch((e) => {
-        inspectCache.delete(key); // let a failure be retried
-        throw e;
-      });
+    if (WASM) {
+      p = Promise.resolve().then(() => wasm.inspect(pos, layer, head, src));
+    } else {
+      const hp = head === undefined ? "" : `&head=${head}`;
+      const sp = src == null ? "" : `&src=${src}`;
+      p = fetch(`/api/v1/inspect?pos=${pos}&layer=${layer}${hp}${sp}`)
+        .then((r) => {
+          if (!r.ok) throw new Error(`inspect: ${r.status}`);
+          return r.json() as Promise<unknown>;
+        })
+        .catch((e) => {
+          inspectCache.delete(key); // let a failure be retried
+          throw e;
+        });
+    }
     inspectCache.set(key, p);
   }
   return p as Promise<T>;
@@ -103,6 +135,7 @@ function invalidateResident(): void {
  *  behind opening the tokenization concept, so it never fires on idle. Not
  *  cached — it follows whatever prompt is currently resident. */
 export async function getMerges(): Promise<Merges> {
+  if (WASM) return wasm.merges();
   const r = await fetch("/api/v1/merges");
   if (!r.ok) throw new Error(`merges: ${r.status}`);
   return r.json();
@@ -122,16 +155,19 @@ function params(p: GenParams): URLSearchParams {
 
 export async function generate(prompt: string, p: GenParams): Promise<void> {
   invalidateResident();
+  if (WASM) return wasm.generate(prompt, p);
   await fetch(`/api/v1/generate?${params(p)}`, { method: "POST", body: prompt });
 }
 
 export async function stop(): Promise<void> {
+  if (WASM) return wasm.stop();
   await fetch("/api/v1/stop", { method: "POST" });
 }
 
 /** Advance the model exactly `n` more tokens from the resident state. */
 export async function step(n: number, p: GenParams): Promise<void> {
   invalidateResident();
+  if (WASM) return wasm.step(n, p);
   const q = params({ ...p, n });
   await fetch(`/api/v1/step?${q}`, { method: "POST" });
 }
@@ -140,6 +176,7 @@ export async function step(n: number, p: GenParams): Promise<void> {
  *  let the model continue from the altered history. */
 export async function fork(pos: number, token: number, p: GenParams): Promise<void> {
   invalidateResident();
+  if (WASM) return wasm.fork(pos, token, p);
   const q = params(p);
   q.set("pos", String(pos));
   q.set("token", String(token));

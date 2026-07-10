@@ -64,7 +64,7 @@ pub fn forward(
     let scale = 1.0 / (hd as f32).sqrt();
     let pos = cache.len;
 
-    let mut x = model.embedding(token).to_vec();
+    let mut x = model.embedding_row(token);
 
     for (li, layer) in model.layers.iter().enumerate() {
         // --- attention block ---
