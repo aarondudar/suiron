@@ -2,7 +2,7 @@ MODEL := models/Qwen3-0.6B-Q8_0.gguf
 MODEL_URL := https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf
 PORT := 4117
 
-.PHONY: setup build web model dev lab static test check clean help
+.PHONY: setup build web model dev lab static demo-data test check clean help
 
 help: ## list targets
 	@grep -E '^[a-z]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-8s %s\n", $$1, $$2}'
@@ -28,6 +28,9 @@ dev: build web/node_modules model ## lab + vite hot reload, opens browser
 lab: build web model ## production mode: lab serves web/dist, opens browser
 	@(sleep 2 && open http://127.0.0.1:$(PORT)) &
 	./target/release/suiron lab $(MODEL) $(PORT)
+
+demo-data: build model ## record the instant-demo payloads into web/public/demo
+	@./scripts/demo-data.sh $(MODEL)
 
 static: build web/node_modules model ## static WASM lab -> web/dist (self-contained, no server)
 	wasm-pack build crates/suiron-wasm --target web --release --out-dir pkg

@@ -12,6 +12,7 @@ export function Logits({
   step,
   cur,
   busy,
+  demo,
   setHover,
   card,
   dim,
@@ -20,6 +21,8 @@ export function Logits({
   step: Step;
   cur: number;
   busy: boolean;
+  /** the trace is the shipped recording: forking needs go-live */
+  demo?: boolean;
   setHover: (f: FocusTarget) => void;
   /** the open concept's inline card, when this band hosts it (docs/16) */
   card?: ReactNode;
@@ -32,7 +35,7 @@ export function Logits({
   // this band shows the prediction that produced token `cur`, so forking forces
   // a different candidate AT position cur (replacing the inspected token)
   const doFork = (id: number) => {
-    if (!busy) void fork(cur, id, DEFAULT_PARAMS);
+    if (!busy && !demo) void fork(cur, id, DEFAULT_PARAMS);
   };
 
   return (
@@ -48,13 +51,15 @@ export function Logits({
       <div>
         {top.map(([id, text, p], i) => (
           <div
-            className={"bar-row" + (busy ? " frozen" : " clickable") + (i === 0 ? " win" : "")}
+            className={"bar-row" + (busy || demo ? " frozen" : " clickable") + (i === 0 ? " win" : "")}
             key={id}
             data-explain-el={"logit-" + i}
             title={
-              busy
-                ? "wait for generation to finish"
-                : `fork: force "${esc(text)}" as this token instead`
+              demo
+                ? "recorded run — go live to fork"
+                : busy
+                  ? "wait for generation to finish"
+                  : `fork: force "${esc(text)}" as this token instead`
             }
             onClick={() => doFork(id)}
             onMouseEnter={() => setHover({ kind: "candidate", id })}

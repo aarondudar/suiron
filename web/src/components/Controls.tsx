@@ -11,6 +11,8 @@ export function Controls({
   busy,
   chatOpen,
   onChatToggle,
+  demo,
+  onGoLive,
   card,
   dim,
   hasTokens,
@@ -28,6 +30,9 @@ export function Controls({
    *  settings are locked to the chat-optimal values */
   chatOpen: boolean;
   onChatToggle: (v: boolean) => void;
+  /** the trace is the shipped recording: running the model needs go-live */
+  demo?: boolean;
+  onGoLive?: () => void;
   /** the open concept's inline card, when this band hosts it (docs/16) */
   card?: ReactNode;
   /** another band hosts the open card: this one recedes */
@@ -89,7 +94,15 @@ export function Controls({
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && go()}
           />
-          {busy ? (
+          {demo ? (
+            <button
+              className="walk-go"
+              title="this build booted on a recording; going live downloads the model once"
+              onClick={onGoLive}
+            >
+              ▶ go live to run your own prompts
+            </button>
+          ) : busy ? (
             <button onClick={() => void stop()}>stop</button>
           ) : (
             <>
@@ -163,6 +176,7 @@ export function Controls({
             seed <input type="number" value={p.seed} min={0} onChange={num("seed")} />
           </label>
         )}
+        {!demo && (
         <button
           className={"chat-toggle" + (chatOpen ? " on" : "")}
           aria-expanded={chatOpen}
@@ -171,6 +185,7 @@ export function Controls({
         >
           chat {chatOpen ? "▴" : "▾"}
         </button>
+        )}
       </div>
       {chatOpen && (
         <div className="ctl-locked">

@@ -14,3 +14,4 @@
 /crates/suiron-wasm/pkg-node/
 /web/public/wasm/
 /web/dist-static/
+/web/public/demo/

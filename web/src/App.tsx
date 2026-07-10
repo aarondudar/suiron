@@ -56,13 +56,39 @@ export default function App() {
       /* private mode — fine, just won't persist */
     }
   }, []);
+  /** demo mode (docs/19): a read that isn't in the shipped recording raises a
+   *  transient honest note */
+  const [demoMiss, setDemoMiss] = useState(false);
+  useEffect(() => {
+    let timer: number;
+    const onMiss = () => {
+      setDemoMiss(true);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setDemoMiss(false), 4000);
+    };
+    window.addEventListener("suiron-demo-miss", onMiss);
+    return () => {
+      window.removeEventListener("suiron-demo-miss", onMiss);
+      window.clearTimeout(timer);
+    };
+  }, []);
+  const openGoLive = () => window.dispatchEvent(new CustomEvent("suiron-open-golive"));
+
   /** the epilogue chat dropdown. While open it owns the single resident model:
    *  opening halts any running lab generation and locks the main controls. */
   const [chatOpen, setChatOpen] = useState(false);
-  const toggleChat = useCallback((v: boolean) => {
-    setChatOpen(v);
-    if (v) void stop(); // chat takes over the resident model
-  }, []);
+  const toggleChat = useCallback(
+    (v: boolean) => {
+      // in demo mode there is no engine to chat with — offer going live instead
+      if (v && trace?.demo) {
+        openGoLive();
+        return;
+      }
+      setChatOpen(v);
+      if (v) void stop(); // chat takes over the resident model
+    },
+    [trace?.demo],
+  );
   // open chat from the epilogue and bring the (now chat) prompt box into view
   const onTryChat = useCallback(() => {
     toggleChat(true);
@@ -322,6 +348,15 @@ export default function App() {
         </div>
         <div className="head-right">
           <div className="pos">
+            {trace.demo && (
+              <button
+                className="rec-tag"
+                title="this is a recording of one real run; go live to drive the model yourself"
+                onClick={openGoLive}
+              >
+                recorded · go live
+              </button>
+            )}
             <span className={"be-tag be-" + activeBackend}>{activeBackend}</span>
             {!hasTokens ? (
               <>token <b>0</b></>
@@ -339,10 +374,21 @@ export default function App() {
         </div>
       </header>
 
+      {demoMiss && (
+        <div className="demo-miss">
+          not in this recording ·{" "}
+          <button className="tour-hint-go" onClick={openGoLive}>
+            go live to compute anything
+          </button>
+        </div>
+      )}
+
       <Controls
         busy={!!trace.busy}
         chatOpen={chatOpen}
         onChatToggle={toggleChat}
+        demo={!!trace.demo}
+        onGoLive={openGoLive}
         card={cardFor("00")}
         dim={dimFor("00")}
         hasTokens={hasTokens}
@@ -420,6 +466,7 @@ export default function App() {
                 step={prodStep}
                 cur={safeCur}
                 busy={!!trace.busy}
+                demo={!!trace.demo}
                 setHover={setHoverFocus}
                 card={cardFor("03")}
                 dim={dimFor("03")}

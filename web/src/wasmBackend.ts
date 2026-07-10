@@ -15,6 +15,58 @@ import type { GenParams, Lens, Merges, Neighbor, QuantSample, Trace } from "./ty
 const BASE = import.meta.env.BASE_URL as string;
 const MODEL_URL = (import.meta.env.VITE_MODEL_URL as string | undefined) ?? `${BASE}model.gguf`;
 
+/* ---- instant demo mode (docs/19) ----
+   The page can boot in seconds on a RECORDING of one real run (payloads saved
+   from the native lab's own endpoints by `make demo-data`), labeled as such;
+   "go live" downloads the model and replays the same canonical prompt on the
+   real engine (greedy + fixed seed, so the tokens are identical). Reads that
+   weren't recorded reject honestly and raise a page-visible note. */
+
+type Mode = "none" | "demo" | "live";
+let mode: Mode = "none";
+
+/** the recorded run's exact parameters — go-live replays them */
+const CANON = { prompt: "The capital of France is", n: 1, temp: 0, top_k: 40, top_p: 0.95, seed: 7, chat: false };
+
+let demoTrace: Trace | null = null;
+
+function demoMiss(): never {
+  window.dispatchEvent(new CustomEvent("suiron-demo-miss"));
+  throw new Error("not in this recording — go live to compute it");
+}
+
+async function demoText(path: string): Promise<string> {
+  const r = await fetch(`${BASE}demo/${path}`);
+  if (!r.ok) demoMiss();
+  return r.text();
+}
+
+async function demoJson<T>(path: string): Promise<T> {
+  return JSON.parse(await demoText(path)) as T;
+}
+
+/** Try the instant demo: present when `make demo-data` populated the build.
+ *  Returns false (untouched state) when no recording is shipped. */
+export async function bootDemo(): Promise<boolean> {
+  try {
+    const r = await fetch(`${BASE}demo/trace.json`);
+    if (!r.ok) return false;
+    demoTrace = (await r.json()) as Trace;
+    mode = "demo";
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Download the model (once), start the worker, and replay the recorded run
+ *  live — same prompt, seed, and sampler, so the tokens match the recording. */
+export async function goLive(onProgress: (msg: string, frac: number | null) => void): Promise<void> {
+  await boot(onProgress);
+  mode = "live";
+  await generate(CANON.prompt, { ...CANON, backend: "q8" } as GenParams);
+}
+
 // ---- the model store: IndexedDB, keyed by URL, so a revisit skips the download ----
 
 function idb(): Promise<IDBDatabase> {
@@ -135,27 +187,33 @@ export async function boot(onProgress: (msg: string, frac: number | null) => voi
     worker = null;
     throw e;
   }
+  mode = "live";
 }
 
 // ---- the lab API, same shapes as the HTTP endpoints ----
 
 export async function trace(): Promise<Trace> {
+  if (mode === "demo") return { ...(demoTrace as Trace), demo: true };
   return JSON.parse(await rpc<string>("trace", [])) as Trace;
 }
 
 export async function generate(prompt: string, p: GenParams): Promise<void> {
+  if (mode === "demo") throw new Error("recorded demo — go live to run the model");
   await rpc("generate", [prompt, p.n, p.temp, p.top_k, p.top_p, BigInt(p.seed), p.chat]);
 }
 
 export async function step(n: number, p: GenParams): Promise<void> {
+  if (mode === "demo") throw new Error("recorded demo — go live to run the model");
   await rpc("step", [n, p.temp, p.top_k, p.top_p, BigInt(p.seed)]);
 }
 
 export async function fork(pos: number, token: number, p: GenParams): Promise<void> {
+  if (mode === "demo") throw new Error("recorded demo — go live to run the model");
   await rpc("fork", [pos, token, p.n, p.temp, p.top_k, p.top_p, BigInt(p.seed)]);
 }
 
 export async function stop(): Promise<void> {
+  if (mode === "demo") return;
   await rpc("stop", []);
 }
 
@@ -165,25 +223,41 @@ export async function inspect(
   head?: number,
   src?: number | null,
 ): Promise<unknown> {
+  if (mode === "demo") {
+    if (src != null) demoMiss();
+    const f = head === undefined ? `inspect-${pos}-${layer}.json` : `inspect-${pos}-${layer}-h${head}.json`;
+    return demoJson(f);
+  }
   return JSON.parse(await rpc<string>("inspect", [pos, layer, head ?? -1, src ?? -1]));
 }
 
 export async function lens(pos: number, k: number): Promise<Lens> {
+  if (mode === "demo") {
+    if (k !== 5) demoMiss();
+    return demoJson<Lens>(`lens-${pos}.json`);
+  }
   return JSON.parse(await rpc<string>("lens", [pos, k])) as Lens;
 }
 
 export async function neighbors(id: number, n: number): Promise<Neighbor[]> {
+  if (mode === "demo") {
+    if (n !== 12) demoMiss();
+    return demoJson<Neighbor[]>(`neighbors-${id}.json`);
+  }
   return JSON.parse(await rpc<string>("neighbors", [id, n])) as Neighbor[];
 }
 
 export async function merges(): Promise<Merges> {
+  if (mode === "demo") return demoJson<Merges>("merges.json");
   return JSON.parse(await rpc<string>("merges", [])) as Merges;
 }
 
 export async function quantSample(): Promise<QuantSample> {
+  if (mode === "demo") return demoJson<QuantSample>("quant-sample.json");
   return JSON.parse(await rpc<string>("quantSample", [])) as QuantSample;
 }
 
 export async function source(name: string): Promise<string> {
+  if (mode === "demo") return demoText(`source-${name}.txt`);
   return rpc<string>("source", [name]);
 }

@@ -1058,6 +1058,16 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   .welcome-scrim, .welcome { animation: none; }
 }
 
+/* demo mode: the recorded tag (which IS the go-live button) + the miss note */
+.rec-tag {
+  background: none; border: 1px solid var(--red); color: var(--red); cursor: pointer;
+  font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 1px 6px; margin-right: var(--sp-2);
+}
+.rec-tag:hover { background: var(--red); color: var(--bg); }
+.demo-miss { color: var(--faint); font-size: var(--t-tiny); margin: var(--sp-2) 0; }
+.golive .wasmgate { min-height: auto; background: var(--surface); border: 1px solid var(--hair); border-top: 2px solid var(--red); max-width: 520px; padding: var(--sp-5); }
+
 /* the persistent reopen affordance next to the model spec */
 .about-link {
   background: none; border: none; color: var(--faint); cursor: pointer;

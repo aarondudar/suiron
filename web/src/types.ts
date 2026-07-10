@@ -62,6 +62,8 @@ export interface Trace {
   tps?: { f32: number | null; q8: number | null };
   /** present after a counterfactual fork: where, and the discarded tail */
   fork?: { pos: number; prev: string };
+  /** client-side only: this trace is the shipped recording, not a live engine */
+  demo?: boolean;
   tokens: Tok[];
   steps: Step[];
 }

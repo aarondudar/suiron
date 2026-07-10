@@ -1,13 +1,15 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { boot } from "../wasmBackend";
+import { boot, bootDemo, goLive } from "../wasmBackend";
 import { WELCOME_SEEN_KEY, WelcomeStory } from "./Welcome";
 
-/* The static build's ONE front door (docs/17): downloads the model once (with
-   progress), caches it in IndexedDB, loads the wasm engine, then hands over to
-   the lab. The download wait doubles as the reading moment — the gate tells
-   the project's story (the same single-source copy as the welcome overlay) and
-   marks the welcome as seen, so no second gate ever appears. Only mounted when
-   the build was made with VITE_BACKEND=wasm. */
+/* The static build's ONE front door (docs/17 + 19). Boot order:
+   1. try the instant demo — a shipped recording of one real run; the lab is
+      alive in seconds with zero model download;
+   2. no recording shipped → the full download gate (as before).
+   While in demo mode, a "go live" overlay (opened via the header's recorded
+   tag or any disabled action) runs the download/progress flow and replays the
+   recorded run on the real engine. The gate/overlay tells the project's story
+   (single-source copy) and marks the welcome as seen — never two gates. */
 
 interface BootState {
   msg: string;
@@ -16,32 +18,25 @@ interface BootState {
   done: boolean;
 }
 
-export function WasmGate({ children }: { children: ReactNode }) {
-  const [s, setS] = useState<BootState>({ msg: "starting…", frac: null, err: null, done: false });
-  const [attempt, setAttempt] = useState(0);
+const IDLE: BootState = { msg: "starting…", frac: null, err: null, done: false };
 
-  useEffect(() => {
-    let dead = false;
-    boot((msg, frac) => !dead && setS({ msg, frac, err: null, done: false }))
-      .then(() => {
-        // the gate told the story; the welcome overlay must not gate again
-        try {
-          localStorage.setItem(WELCOME_SEEN_KEY, "1");
-        } catch {
-          /* private mode — fine */
-        }
-        if (!dead) setS({ msg: "", frac: null, err: null, done: true });
-      })
-      .catch((e: unknown) => {
-        if (!dead) setS({ msg: "", frac: null, err: String(e), done: false });
-      });
-    return () => {
-      dead = true;
-    };
-  }, [attempt]);
+function markWelcomeSeen() {
+  try {
+    localStorage.setItem(WELCOME_SEEN_KEY, "1");
+  } catch {
+    /* private mode — fine */
+  }
+}
 
-  if (s.done) return children;
-
+function GateBody({
+  s,
+  onRetry,
+  retryLabel = "retry",
+}: {
+  s: BootState;
+  onRetry: () => void;
+  retryLabel?: string;
+}) {
   return (
     <div className="wasmgate">
       <div className="wasmgate-brand">
@@ -50,8 +45,8 @@ export function WasmGate({ children }: { children: ReactNode }) {
       {s.err ? (
         <>
           <div className="wasmgate-err">could not start: {s.err}</div>
-          <button className="wasmgate-retry" onClick={() => setAttempt((a) => a + 1)}>
-            retry
+          <button className="wasmgate-retry" onClick={onRetry}>
+            {retryLabel}
           </button>
         </>
       ) : (
@@ -74,5 +69,64 @@ export function WasmGate({ children }: { children: ReactNode }) {
         </>
       )}
     </div>
+  );
+}
+
+export function WasmGate({ children }: { children: ReactNode }) {
+  const [s, setS] = useState<BootState>(IDLE);
+  const [attempt, setAttempt] = useState(0);
+  // the go-live overlay: null = closed, otherwise its own boot state
+  const [live, setLive] = useState<BootState | null>(null);
+
+  useEffect(() => {
+    let dead = false;
+    void bootDemo().then((demo) => {
+      if (dead) return;
+      if (demo) {
+        // instant: no gate ever shows, so the Welcome overlay (first visit)
+        // stays the storyteller
+        setS({ ...IDLE, done: true });
+        return;
+      }
+      // no recording shipped — the full gate, as before
+      boot((msg, frac) => !dead && setS({ msg, frac, err: null, done: false }))
+        .then(() => {
+          markWelcomeSeen();
+          if (!dead) setS({ ...IDLE, done: true });
+        })
+        .catch((e: unknown) => {
+          if (!dead) setS({ msg: "", frac: null, err: String(e), done: false });
+        });
+    });
+    return () => {
+      dead = true;
+    };
+  }, [attempt]);
+
+  // "go live" requested from inside the demo (header tag / a disabled action)
+  useEffect(() => {
+    const open = () => {
+      setLive((cur) => cur ?? { ...IDLE });
+      goLive((msg, frac) => setLive({ msg, frac, err: null, done: false }))
+        .then(() => setLive(null)) // the polling picks up the live engine
+        .catch((e: unknown) => setLive({ msg: "", frac: null, err: String(e), done: false }));
+    };
+    window.addEventListener("suiron-open-golive", open);
+    return () => window.removeEventListener("suiron-open-golive", open);
+  }, []);
+
+  if (!s.done) return <GateBody s={s} onRetry={() => setAttempt((a) => a + 1)} />;
+
+  return (
+    <>
+      {children}
+      {live && (
+        <div className="welcome-scrim">
+          <div className="golive">
+            <GateBody s={live} onRetry={() => setLive(null)} retryLabel="close" />
+          </div>
+        </div>
+      )}
+    </>
   );
 }
