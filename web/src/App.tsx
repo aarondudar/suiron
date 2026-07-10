@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getTrace, stop } from "./api";
+import { generate, getTrace, stop } from "./api";
 import { Controls } from "./components/Controls";
 import { ConceptCard } from "./components/ConceptCard";
 import { EmptyState } from "./components/EmptyState";
@@ -14,8 +14,13 @@ import { Selection } from "./components/Selection";
 import { TokenStrip } from "./components/TokenStrip";
 import { Welcome, WELCOME_SEEN_KEY } from "./components/Welcome";
 import { WALK, WalkBar } from "./components/Walk";
+import { currentLink, decodeLink, encodeLink, matchesResident } from "./link";
 import { DEFAULT_PARAMS, moments } from "./lib";
 import type { FocusTarget, GenParams, Trace } from "./types";
+
+// a deep link parsed once at load (docs/20); state initializers read it and the
+// restore effect below rebuilds the run + view
+const INITIAL_LINK = decodeLink(window.location.hash);
 
 const NONE: FocusTarget = { kind: "none" };
 const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -24,8 +29,19 @@ export default function App() {
   const [trace, setTrace] = useState<Trace | null>(null);
   const [cur, setCur] = useState(0);
   const [openLayer, setOpenLayer] = useState(-1);
-  const [prompt, setPrompt] = useState("");
-  const [params, setParams] = useState<GenParams>(DEFAULT_PARAMS);
+  const [prompt, setPrompt] = useState(INITIAL_LINK?.p ?? "");
+  const [params, setParams] = useState<GenParams>(
+    INITIAL_LINK
+      ? {
+          ...DEFAULT_PARAMS,
+          n: INITIAL_LINK.n,
+          temp: INITIAL_LINK.temp,
+          top_k: INITIAL_LINK.top_k,
+          top_p: INITIAL_LINK.top_p,
+          seed: INITIAL_LINK.seed,
+        }
+      : DEFAULT_PARAMS,
+  );
 
   // the open Explainer concept, and the focus the lab is lighting up. Focus has
   // three sources resolved by priority: a transient hover, a programmatic
@@ -288,6 +304,94 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trace, pendingTour]);
 
+  // ---- deep links (docs/20): restore the linked moment, keep the URL current ----
+  const pendingLink = useRef(INITIAL_LINK);
+  /** trace.seq when the restore re-run was fired; null = not fired */
+  const linkFiredAt = useRef<number | null>(null);
+  const [linkMiss, setLinkMiss] = useState(false);
+  useEffect(() => {
+    const link = pendingLink.current;
+    if (!link || !trace || trace.busy) return;
+    const applyView = () => {
+      pendingLink.current = null;
+      setLinkMiss(false);
+      const last = trace.tokens.length - 1;
+      if (link.cur !== undefined && last >= 0) setCur(Math.max(0, Math.min(last, link.cur)));
+      if (link.layer !== undefined) setOpenLayer(link.layer);
+      if (link.walk !== undefined) goToStop(Math.max(0, Math.min(WALK.length - 1, link.walk)));
+      else if (link.c && CONCEPTS[link.c]) setActive(link.c);
+    };
+    // the resident run already is this link (a demo link, a reload, or our own
+    // re-run once it settles): just apply the view
+    if (matchesResident(link, trace)) {
+      applyView();
+      return;
+    }
+    if (linkFiredAt.current !== null) {
+      // our re-run settled on something else (engine truth wins): show it as-is
+      if (trace.seq !== linkFiredAt.current && trace.tokens.length > trace.n_prompt) applyView();
+      return;
+    }
+    if (trace.demo) {
+      // the recording can't run other prompts; the link survives go-live and
+      // restores on the real engine afterwards
+      setLinkMiss(true);
+      return;
+    }
+    // rebuild the run: deterministic at the link's fixed seed
+    linkFiredAt.current = trace.seq ?? 0;
+    jumpRef.current = link.cur === undefined; // the link's cur decides the view
+    generate(link.p, {
+      ...DEFAULT_PARAMS,
+      n: link.n,
+      temp: link.temp,
+      top_k: link.top_k,
+      top_p: link.top_p,
+      seed: link.seed,
+      backend: params.backend,
+    }).catch(() => {
+      pendingLink.current = null;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trace]);
+
+  // write the current moment into the hash (replace, never push) so the address
+  // bar is always a shareable link; silent while a restore is still pending
+  useEffect(() => {
+    if (pendingLink.current || !trace || trace.busy) return;
+    const l = currentLink(trace, { cur: safeCur, c: active, walk, layer: openLayer });
+    if (!l && !window.location.hash) return;
+    const timer = window.setTimeout(() => {
+      history.replaceState(
+        null,
+        "",
+        l ? "#" + encodeLink(l) : window.location.pathname + window.location.search,
+      );
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [trace, safeCur, active, walk, openLayer]);
+
+  // copy a link to this exact view, built from live state so it is never stale
+  const [copied, setCopied] = useState(false);
+  const copyLink = () => {
+    if (!trace) return;
+    const l = currentLink(trace, { cur: safeCur, c: active, walk, layer: openLayer });
+    if (!l) return;
+    const url =
+      window.location.origin +
+      window.location.pathname +
+      window.location.search +
+      "#" +
+      encodeLink(l);
+    navigator.clipboard
+      .writeText(url)
+      .then(() => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1500);
+      })
+      .catch(() => {});
+  };
+
   if (!trace) return <div className="label">connecting to suiron…</div>;
 
   const hasTokens = trace.tokens.length > 0;
@@ -344,6 +448,16 @@ export default function App() {
             <button className="about-link" onClick={() => setWelcomeOpen(true)}>
               about
             </button>
+            {hasTokens &&
+              currentLink(trace, { cur: safeCur, c: active, walk, layer: openLayer }) && (
+                <button
+                  className="about-link"
+                  onClick={copyLink}
+                  title="copy a link to this exact view"
+                >
+                  {copied ? "copied ✓" : "share"}
+                </button>
+              )}
           </div>
         </div>
         <div className="head-right">
@@ -379,6 +493,18 @@ export default function App() {
           not in this recording ·{" "}
           <button className="tour-hint-go" onClick={openGoLive}>
             go live to compute anything
+          </button>
+        </div>
+      )}
+
+      {linkMiss && (
+        <div className="demo-miss">
+          this link points at a prompt that isn't in the shipped recording ·{" "}
+          <button className="tour-hint-go" onClick={openGoLive}>
+            go live to run it
+          </button>
+          <button className="tour-hint-x" onClick={() => setLinkMiss(false)} aria-label="dismiss">
+            ×
           </button>
         </div>
       )}
@@ -529,6 +655,8 @@ export default function App() {
           title={WALK[walk].label}
           onPrev={() => goToStop(walk - 1)}
           onNext={() => goToStop(walk + 1)}
+          onShare={copyLink}
+          shared={copied}
           onExit={exitWalk}
         />
       )}

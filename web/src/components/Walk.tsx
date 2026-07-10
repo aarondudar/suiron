@@ -44,12 +44,17 @@ export function WalkBar({
   title,
   onPrev,
   onNext,
+  onShare,
+  shared,
   onExit,
 }: {
   index: number;
   title: string;
   onPrev: () => void;
   onNext: () => void;
+  /** copy a deep link to this stop (docs/20) */
+  onShare?: () => void;
+  shared?: boolean;
   onExit: () => void;
 }) {
   const total = WALK.length;
@@ -64,6 +69,16 @@ export function WalkBar({
       <button className="walk-step" onClick={onNext} title="next stage" aria-label="next">
         ▶
       </button>
+      {onShare && (
+        <button
+          className="walk-step walk-share"
+          onClick={onShare}
+          title="copy a link to this stop"
+          aria-label="copy a link to this stop"
+        >
+          {shared ? "✓" : "⧉"}
+        </button>
+      )}
       <button className="walk-x" onClick={onExit} title="end walk" aria-label="end walk">
         ×
       </button>
