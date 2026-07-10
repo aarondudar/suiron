@@ -7,8 +7,8 @@
   --bg: #050505;
   --surface: #0a0a0a;
   --ink: #e8e8e8;
-  --dim: #6a6a6a;
-  --faint: #565656; /* quiet-but-legible tier (lifted from #3a3a3a for the cold reader) */
+  --dim: #7a7a7a;   /* 4.75:1 on bg — AA for the body-size prose it carries */
+  --faint: #646464; /* 3.44:1 — quiet tier, still clears the 3:1 UI bar */
   --hair: #2a2a2a;  /* structural hairline (per docs/microscope.md) */
   --hair-lit: #3a3a3a; /* hairline on hover */
   --red: #d71921;
@@ -321,7 +321,7 @@ section.dimmed { opacity: 0.45; transition: opacity 0.18s ease; }
 .ctl-row:last-child { margin-bottom: 0; }
 .ctl-row input[type="text"] {
   flex: 1; background: var(--bg); border: 1px solid var(--hair); color: var(--ink);
-  font: inherit; padding: var(--sp-2) var(--sp-3); outline: none;
+  font: inherit; padding: var(--sp-2) var(--sp-3);
   transition: border-color 0.18s;
 }
 .ctl-row input[type="text"]:focus { border-color: var(--dim); }
@@ -333,6 +333,14 @@ button {
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 button:hover:not(:disabled) { border-color: var(--red); color: var(--red); }
+/* keyboard focus: the same dotted hairline everywhere; invisible to the mouse */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+[role="button"]:focus-visible {
+  outline: 1px dotted var(--dim);
+  outline-offset: 2px;
+}
 button:active:not(:disabled) { background: var(--red); color: var(--bg); }
 button:disabled { color: var(--faint); cursor: default; }
 button.busy { border-color: var(--red); color: var(--red); }
@@ -341,7 +349,7 @@ button.busy { border-color: var(--red); color: var(--red); }
 .ctl-params label { display: flex; align-items: center; gap: 5px; }
 .ctl-params input[type="number"] {
   width: 56px; background: var(--bg); border: 1px solid var(--hair); color: var(--ink);
-  font: inherit; font-size: var(--t-tiny); padding: 3px 6px; outline: none;
+  font: inherit; font-size: var(--t-tiny); padding: 3px 6px;
   transition: border-color 0.18s;
 }
 .ctl-params input[type="number"]:focus { border-color: var(--dim); }
@@ -567,7 +575,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .m-sel { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 .m-sel input {
   width: 44px; background: var(--bg); border: 1px solid var(--hair); color: var(--ink);
-  font: inherit; font-size: var(--t-tiny); padding: 2px 5px; outline: none;
+  font: inherit; font-size: var(--t-tiny); padding: 2px 5px;
 }
 .m-loading { color: var(--red); }
 .m-card { border: 1px solid var(--hair); padding: 10px 14px; margin-bottom: var(--sp-2); background: var(--bg); }
@@ -591,7 +599,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .m-row { display: inline-flex; align-items: center; gap: 6px; }
 .m-row input {
   width: 40px; background: var(--bg); border: 1px solid var(--hair); color: var(--ink);
-  font: inherit; font-size: var(--t-tiny); padding: 1px 4px; outline: none;
+  font: inherit; font-size: var(--t-tiny); padding: 1px 4px;
 }
 .m-table { border-collapse: collapse; margin: var(--sp-2) 0; font-size: var(--t-body); }
 .m-table th, .m-table td {

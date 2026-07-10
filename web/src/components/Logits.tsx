@@ -61,7 +61,16 @@ export function Logits({
                   ? "wait for generation to finish"
                   : `fork: force "${esc(text)}" as this token instead`
             }
+            role="button"
+            tabIndex={busy || demo ? -1 : 0}
+            aria-disabled={busy || demo}
             onClick={() => doFork(id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                doFork(id);
+              }
+            }}
             onMouseEnter={() => setHover({ kind: "candidate", id })}
             onMouseLeave={() => setHover({ kind: "none" })}
           >

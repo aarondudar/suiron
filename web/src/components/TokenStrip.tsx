@@ -86,7 +86,7 @@ export function TokenStrip({
       </BandHeader>
       {card}
       <div className="strip" ref={stripRef} onMouseLeave={() => setHoverTok(null)}>
-        <canvas className="arc-layer" ref={canvasRef} />
+        <canvas className="arc-layer" ref={canvasRef} aria-hidden="true" />
         {trace.tokens.map((tok, i) => {
           const conf = confidence(trace, i);
           const isCur = i === cur;
@@ -111,7 +111,16 @@ export function TokenStrip({
                 (isProd ? " · read head (produced the inspected token)" : "") +
                 (conf !== null ? ` · p ${(conf * 100).toFixed(1)}%` : " · prompt")
               }
+              role="button"
+              tabIndex={0}
+              aria-pressed={isCur}
               onClick={() => setCur(i)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setCur(i);
+                }
+              }}
               onMouseEnter={() => setHoverTok(i)}
             >
               {isProd && <i className="tok-readhead">read head</i>}

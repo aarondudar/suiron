@@ -205,7 +205,18 @@ export function GeometryView({
         />
       )}
 
-      <svg className={"geo-svg" + (REDUCED ? " still" : "")} viewBox={`0 0 ${L.W} ${L.H}`} role="img">
+      <svg
+        className={"geo-svg" + (REDUCED ? " still" : "")}
+        viewBox={`0 0 ${L.W} ${L.H}`}
+        role="img"
+        aria-label={
+          read === "lens"
+            ? `logit lens at layer ${layerSel}: candidates by score, closest to the center is the current top guess`
+            : read === "meaning"
+              ? "nearest vocabulary entries to this token by cosine similarity"
+              : "next-token candidates by score; the winner sits closest to the center"
+        }
+      >
         {[L.rIn, (L.rIn + L.rOut) / 2, L.rOut].map((r) => (
           <circle key={r} className="geo-guide" cx={L.cx} cy={L.cy} r={r} />
         ))}

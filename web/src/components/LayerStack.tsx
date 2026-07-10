@@ -101,7 +101,17 @@ export function LayerStack({
       <div
         key={l}
         className={"row" + (l === openLayer ? " open" : "") + (l === litLayer ? " lit" : "")}
+        role="button"
+        tabIndex={0}
+        aria-expanded={l === openLayer}
+        aria-label={`layer ${l}: open its heads and math`}
         onClick={() => setOpenLayer(openLayer === l ? -1 : l)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpenLayer(openLayer === l ? -1 : l);
+          }
+        }}
         onMouseEnter={() => setHover({ kind: "layer", layer: l })}
         onMouseLeave={() => setHover({ kind: "none" })}
       >

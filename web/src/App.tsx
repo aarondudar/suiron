@@ -515,7 +515,7 @@ export default function App() {
       </header>
 
       {demoMiss && (
-        <div className="demo-miss">
+        <div className="demo-miss" role="status">
           not in this recording ·{" "}
           <button className="tour-hint-go" onClick={openGoLive}>
             go live to compute anything
@@ -524,7 +524,7 @@ export default function App() {
       )}
 
       {linkMiss && (
-        <div className="demo-miss">
+        <div className="demo-miss" role="status">
           this link points at a prompt that isn't in the shipped recording ·{" "}
           <button className="tour-hint-go" onClick={openGoLive}>
             go live to run it
