@@ -77,7 +77,11 @@ export function Quantization({
           <div className="q-name">q8</div>
           <div className="q-sub">8-bit blocks read directly</div>
           <div className="q-big">{gib(q8Bytes)} GiB</div>
-          <div className="q-sub">{tps.q8 ? `${tps.q8.toFixed(1)} tok/s` : "run it to measure"}</div>
+          <div className="q-sub">
+            {tps.q8
+              ? `${tps.q8.toFixed(1)} tok/s${trace.demo ? " · recorded on the native engine" : ""}`
+              : "run it to measure"}
+          </div>
         </div>
       </div>
 

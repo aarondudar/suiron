@@ -441,8 +441,7 @@ export const CONCEPTS: Record<string, Concept> = {
               ; here it pointed hardest at {q(win[1])}
             </>
           ) : null}
-          . The attention edges show the earlier tokens that built that direction. Distance is the
-          only thing the position encodes; the angle around the center is just spacing.
+.
         </>
       );
     },
@@ -605,12 +604,9 @@ export const CONCEPTS: Record<string, Concept> = {
     highlight: () => ({ kind: "el", ref: "epilogue" }),
     intro: () => (
       <>
-        Everything in the lab so far is the engine running one sequence on one machine, the simplest
-        correct version of each operation. Production inference keeps these exact operations and
-        changes only how they are scheduled and stored, to serve many requests quickly. The notes
-        below name, for each surface you used, the single change that happens at scale. None of it is
-        implemented in suiron: this is where the verified instrument ends and a description of the
-        wider system begins.
+        Production inference keeps these exact operations and changes only how they are scheduled
+        and stored, to serve many requests quickly. The notes below name, for each surface you
+        used, the single change that happens at scale.
       </>
     ),
   },
@@ -622,16 +618,10 @@ export const CONCEPTS: Record<string, Concept> = {
     intro: () => (
       <>
         A coding agent, including the assistant that may have helped build this, runs the same loop
-        you just watched: score the vocabulary, draw one token, append it, and repeat. What makes it
-        feel like more is a wrapper around that loop, all of it outside the model. A <b>chat
-        template</b> formats the conversation into tokens with role markers; the control tokens it
-        inserts, such as <code>{"<|im_start|>"}</code> and <code>{"<|im_end|>"}</code>, are ordinary
-        vocabulary entries with their own token IDs, drawn by the same sampling step as any word. A{" "}
-        <b>harness</b>, which is plain code around the model, watches the token stream, and when the
-        model predicts a token it recognizes as a tool call it pauses generation, runs the tool
-        itself, writes the result back into the context as more tokens, and resumes. The model never
-        runs a tool. It predicts a token; external code reads that token and acts. Using a tool is
-        next-token prediction plus a wrapper.
+        you just watched: score the vocabulary, draw one token, append it, and repeat. Everything
+        that makes it feel like more is a wrapper around that loop, outside the model; the list
+        below names the wrapper's two pieces, and you can watch the first one live by switching the
+        prompt box to chat.
       </>
     ),
   },
@@ -654,7 +644,13 @@ export const CONCEPTS: Record<string, Concept> = {
           passes through memory for every token, while <b>q8</b> multiplies the 8-bit blocks directly
           and moves only {q8} GiB. Speed here is limited by how fast weights can be read from memory,
           so moving fewer bytes is most of why q8 is faster.{" "}
-          {tps.f32 && tps.q8 ? (
+          {c.trace.demo ? (
+            <>
+              This page is currently a recording of one native run
+              {tps.q8 ? <> (it noted <b>{tps.q8.toFixed(1)}</b> tok/s on that machine)</> : null};
+              go live to measure the q8 path in your own browser.
+            </>
+          ) : tps.f32 && tps.q8 ? (
             <>
               Measured on this machine: <b>{tps.f32.toFixed(1)}</b> vs <b>{tps.q8.toFixed(1)}</b>{" "}
               tok/s.

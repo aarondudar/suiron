@@ -100,7 +100,7 @@ export function Controls({
               title="this build booted on a recording; going live downloads the model once"
               onClick={onGoLive}
             >
-              ▶ go live to run your own prompts
+              ▶ go live
             </button>
           ) : busy ? (
             <button onClick={() => void stop()}>stop</button>

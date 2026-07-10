@@ -777,6 +777,18 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 .empty-hint { display: block; color: var(--faint); font-size: var(--t-tiny); margin-top: var(--sp-3); }
 
+/* demo landing: the one obvious action — play the recording */
+.demo-cta { margin-bottom: var(--sp-5); }
+.demo-play {
+  display: flex; flex-direction: column; gap: 5px; align-items: center;
+  margin: 0 auto; padding: var(--sp-3) var(--sp-5);
+  border: 1px solid var(--red); color: var(--red); background: none; cursor: pointer;
+  text-transform: none; /* the quoted prompt is verbatim model input */
+}
+.demo-play:hover { background: rgba(215, 25, 33, 0.08); }
+.demo-play-act { font-size: var(--t-md); letter-spacing: 0.1em; }
+.demo-play-what { color: var(--dim); font-size: var(--t-tiny); }
+
 /* the experiments gallery (docs/21): each card is a phenomenon, not a sentence */
 .exp-grid {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -786,6 +798,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   display: flex; flex-direction: column; gap: 4px; text-align: left;
   padding: var(--sp-3); border: 1px solid var(--hair); background: none;
   cursor: pointer;
+  text-transform: none; /* hooks and quoted prompts read verbatim */
 }
 .exp-card:hover { border-color: var(--hair-lit); }
 .exp-card:hover .exp-title { color: var(--red); }

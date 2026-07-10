@@ -44,7 +44,6 @@ export function LayerStack({
   dim?: boolean;
 }) {
   const litLayer = focus.kind === "layer" ? focus.layer : null;
-  const group = trace.heads / trace.kv_heads;
   const tokAt = (p: number) => q(trace.tokens[p]?.t ?? "");
 
   // the logit lens for this position, gated on the lens concept being open
@@ -65,8 +64,7 @@ export function LayerStack({
     step.attn[l] && (
       <div className="detail" key={`d${l}`}>
         <div className="label">
-          layer {l}, its {trace.heads} heads. each head reads the sentence its own way; groups of{" "}
-          {group} share one set of cached keys and values
+          layer {l}, its {trace.heads} heads. each head reads the sentence its own way
         </div>
         <div className="stage-crumb">
           this layer's math: <Explain of="norm" label="normalize" /> →{" "}

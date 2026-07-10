@@ -14,6 +14,12 @@ const WASM = import.meta.env.VITE_BACKEND === "wasm";
  *  native lab (the f32 reference toggle) checks this and stays honest. */
 export const IS_WASM = WASM;
 
+/** demo mode only: replay the shipped recording from its first token
+ *  (no-op on the native lab, which is always live) */
+export function playDemo(): void {
+  if (WASM) wasm.playDemo();
+}
+
 export async function getTrace(): Promise<Trace> {
   if (WASM) return wasm.trace();
   const r = await fetch("/api/v1/trace");

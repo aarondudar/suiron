@@ -5,7 +5,7 @@ export const WELCOME_SEEN_KEY = 'suiron.welcome.seen'
 /** The project's story, single-source: the overlay tells it on a native first
  *  visit; the static build's gate tells it while the model downloads (one front
  *  door, not two — docs/17). */
-export function WelcomeStory() {
+export function WelcomeStory({ demo }: { demo?: boolean } = {}) {
   return (
     <>
       <p className="welcome-lead">
@@ -14,9 +14,20 @@ export function WelcomeStory() {
       </p>
       <p className="welcome-body">
         I built it to understand how text prediction actually works, and to show it by
-        demonstration rather than description. Every number you see here is computed live by the
-        engine and verified token-for-token against <b>llama.cpp</b>; nothing is mocked. It is an
-        educational tool, not a product.
+        demonstration rather than description.{' '}
+        {demo ? (
+          <>
+            Every number you see comes from a real run of the engine, verified token-for-token
+            against <b>llama.cpp</b>; nothing is mocked. This page opens on a recording of one such
+            run, and one click goes live to compute in your browser.
+          </>
+        ) : (
+          <>
+            Every number you see here is computed live by the engine and verified token-for-token
+            against <b>llama.cpp</b>; nothing is mocked.
+          </>
+        )}{' '}
+        It is an educational tool, not a product.
       </p>
       <p className="welcome-orient">
         To start: type a prompt, step through a token, and open any stage to go deeper.
@@ -25,7 +36,16 @@ export function WelcomeStory() {
   )
 }
 
-export function Welcome({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function Welcome({
+  open,
+  onClose,
+  demo,
+}: {
+  open: boolean;
+  onClose: () => void;
+  /** the page booted on the shipped recording: say so instead of claiming live */
+  demo?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null)
   const prevFocus = useRef<HTMLElement | null>(null)
   // read onClose through a ref so the trap effect depends only on `open`
@@ -88,7 +108,7 @@ export function Welcome({ open, onClose }: { open: boolean; onClose: () => void 
         <div className="welcome-brand">
           suiron<span className="jp">推論</span>
         </div>
-        <WelcomeStory />
+        <WelcomeStory demo={demo} />
         <button className="welcome-enter" onClick={() => onClose()}>
           enter the lab
         </button>

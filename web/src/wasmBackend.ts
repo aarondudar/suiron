@@ -30,6 +30,34 @@ const CANON = { prompt: "The capital of France is", n: 1, temp: 0, top_k: 40, to
 
 let demoTrace: Trace | null = null;
 
+/* The recording does not render on landing: the page boots to an empty lab and
+   `playDemo()` replays it from the first token through the same polling path a
+   live generation uses (busy while revealing, seq bump per token), so the view
+   follows the frontier exactly as if the model were generating. 0 = not
+   started. Deep links skip the replay: they point at a moment, not a movie. */
+let revealN = 0;
+let revealSeq = 0;
+let revealTimer: number | undefined;
+
+/** Start the recorded replay (no-op outside demo mode or once started).
+ *  Honors prefers-reduced-motion by revealing the whole run at once. */
+export function playDemo(): void {
+  if (mode !== "demo" || !demoTrace || revealN > 0) return;
+  const total = demoTrace.tokens.length;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    revealN = total;
+    revealSeq++;
+    return;
+  }
+  revealN = 1;
+  revealSeq++;
+  revealTimer = window.setInterval(() => {
+    revealN++;
+    revealSeq++;
+    if (revealN >= total) window.clearInterval(revealTimer);
+  }, 280);
+}
+
 function demoMiss(): never {
   window.dispatchEvent(new CustomEvent("suiron-demo-miss"));
   throw new Error("not in this recording — go live to compute it");
@@ -53,6 +81,8 @@ export async function bootDemo(): Promise<boolean> {
     if (!r.ok) return false;
     demoTrace = (await r.json()) as Trace;
     mode = "demo";
+    // a deep link lands on its moment directly — no replay gate
+    if (window.location.hash.includes("v=1")) revealN = demoTrace.tokens.length;
     return true;
   } catch {
     return false;
@@ -193,7 +223,21 @@ export async function boot(onProgress: (msg: string, frac: number | null) => voi
 // ---- the lab API, same shapes as the HTTP endpoints ----
 
 export async function trace(): Promise<Trace> {
-  if (mode === "demo") return { ...(demoTrace as Trace), demo: true };
+  if (mode === "demo") {
+    const t = demoTrace as Trace;
+    const seq = (t.seq ?? 0) + revealSeq;
+    if (revealN >= t.tokens.length) return { ...t, demo: true, seq };
+    // mid-replay: the run up to the reveal frontier, busy like a live run
+    return {
+      ...t,
+      demo: true,
+      seq,
+      busy: revealN > 0,
+      tokens: t.tokens.slice(0, revealN),
+      steps: t.steps.slice(0, revealN),
+      n_prompt: Math.min(t.n_prompt, revealN),
+    };
+  }
   return JSON.parse(await rpc<string>("trace", [])) as Trace;
 }
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { generate, getTrace, stop } from "./api";
+import { generate, getTrace, playDemo, stop } from "./api";
 import { Controls } from "./components/Controls";
 import { ConceptCard } from "./components/ConceptCard";
 import { EmptyState } from "./components/EmptyState";
@@ -518,16 +518,16 @@ export default function App() {
         <div className="demo-miss" role="status">
           not in this recording ·{" "}
           <button className="tour-hint-go" onClick={openGoLive}>
-            go live to compute anything
+            go live
           </button>
         </div>
       )}
 
       {linkMiss && (
         <div className="demo-miss" role="status">
-          this link points at a prompt that isn't in the shipped recording ·{" "}
+          this link's prompt isn't in the recording ·{" "}
           <button className="tour-hint-go" onClick={openGoLive}>
-            go live to run it
+            go live
           </button>
           <button className="tour-hint-x" onClick={() => setLinkMiss(false)} aria-label="dismiss">
             ×
@@ -559,7 +559,17 @@ export default function App() {
         canWalk={hasTokens && safeCur >= trace.n_prompt}
       />
 
-      {!hasTokens && <EmptyState onRun={runExperiment} />}
+      {!hasTokens && (
+        <EmptyState
+          onRun={runExperiment}
+          demo={!!trace.demo}
+          onPlayDemo={() => {
+            jumpRef.current = true; // follow the replay's frontier
+            setPendingTour(true); // then offer the tour, like any first run
+            playDemo();
+          }}
+        />
+      )}
 
       {hasTokens && safeCur >= trace.n_prompt && walk === null && !hintDone && (
         <div className="tour-hint">
@@ -582,8 +592,8 @@ export default function App() {
           )}
           {prodStep && (
             <div className="lifecycle-lead">
-              how this token was produced, top to bottom: the read head (the token before it) reads
-              the context → the prediction forms → the draw picks it
+              how this token was produced, top to bottom: the read head reads the context → the
+              prediction forms → the draw picks it
             </div>
           )}
           <TokenStrip
@@ -642,9 +652,8 @@ export default function App() {
             </>
           ) : (
             <div className="seed-note">
-              This is the first token in the sequence. The model did not predict it; generation
-              starts from the tokens you provide. Move right (→) to a token the model produced to
-              see how it was made.
+              The model did not predict this first token; generation starts from the tokens you
+              provide. Move right (→) to a produced token to see how it was made.
             </div>
           )}
           <div className="aside-divider">the same model, faster · an aside, not a step</div>
@@ -689,7 +698,7 @@ export default function App() {
           onExit={exitWalk}
         />
       )}
-      <Welcome open={welcomeOpen} onClose={closeWelcome} />
+      <Welcome open={welcomeOpen} onClose={closeWelcome} demo={!!trace.demo} />
     </ExplainerProvider>
   );
 }

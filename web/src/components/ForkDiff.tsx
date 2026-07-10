@@ -94,8 +94,7 @@ export function ForkDiff({
   return (
     <section className={"forkdiff" + (dim ? " dimmed" : "")}>
       <div className="fd-head">
-        ⑂ the fork at position {pos} · both futures, one different choice. The rows below share
-        every token before the fork; the model then continued each history for real.
+        ⑂ forked at {pos} · both futures, one different choice; the model continued each for real.
       </div>
 
       <div className="fd-lanes">
@@ -125,8 +124,7 @@ export function ForkDiff({
 
       {at === null ? (
         <div className="fd-hint">
-          inspect a token at or after the fork (click a token above, or →) to compare what each
-          run predicted there
+          click a token at or after the fork to compare what each run predicted
         </div>
       ) : sEnded ? (
         <div className="fd-hint">the original run had already ended at position {at}</div>

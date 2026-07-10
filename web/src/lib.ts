@@ -53,7 +53,9 @@ export const DEFAULT_PARAMS: GenParams = {
   top_p: 0.95,
   seed: 7,
   chat: false,
-  backend: 'f32',
+  // the wasm build has exactly one compute path (q8); defaulting to it keeps
+  // every backend read on the page (header chip, module 06 highlight) honest
+  backend: import.meta.env.VITE_BACKEND === 'wasm' ? 'q8' : 'f32',
 }
 
 /** The settings the in-lab chat locks to: the q8 backend, the chat template on,

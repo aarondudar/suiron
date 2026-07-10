@@ -75,9 +75,10 @@ export function Epilogue({
             block.
           </ScaleEntry>
           <ScaleEntry term="continuous batching">
-            Each token here is one step of the <Explain of="loop">loop</Explain>. Rather than run a
-            fixed batch to the end, a server adds and removes sequences from the batch every step, so
-            a finished request frees its slot at once and a new one starts without waiting.
+            Each token here is one step of the <Explain of="loop">loop</Explain>. Servers push many
+            sequences through each pass together (batching), and rather than run a fixed batch to
+            the end they add and remove sequences every step, so a finished request frees its slot
+            at once and a new one starts without waiting.
           </ScaleEntry>
           <ScaleEntry term="FlashAttention">
             The attention score you stepped out by hand,{' '}
@@ -94,11 +95,6 @@ export function Epilogue({
             The <Explain of="feedforward">feed-forward step</Explain>, one gate, up, and down per
             layer, becomes many feed-forward blocks per layer with each token routed to only a few,
             so total parameters grow while the work per token does not.
-          </ScaleEntry>
-          <ScaleEntry term="batching">
-            Each token here is one <Explain of="loop">forward pass</Explain>. Servers run many
-            sequences through a single pass together; batching is the throughput technique they
-            depend on.
           </ScaleEntry>
           <ScaleEntry term="speculative decoding">
             The <Explain of="draw">random draw</Explain>, and how sure the model was, is where
@@ -139,7 +135,7 @@ export function Epilogue({
         </p>
 
         <button className="chat-open" onClick={onTryChat}>
-          ↑ try it yourself: switch the prompt box to chat
+          ↑ try it: chat with the model
         </button>
       </div>
 
