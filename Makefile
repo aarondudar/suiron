@@ -40,6 +40,19 @@ static: build web/node_modules model ## static WASM lab -> web/dist (self-contai
 	@echo "✓ static lab in web/dist-static — serve it with the model alongside:"
 	@echo "  cp $(MODEL) web/dist-static/model.gguf && python3 -m http.server -d web/dist-static 8080"
 
+PORTFOLIO ?= ../portfolio
+portfolio: build web/node_modules model ## build the lab for aarondudar.dev/suiron-lab (go-live streams the model from Hugging Face)
+	wasm-pack build crates/suiron-wasm --target web --release --out-dir pkg
+	mkdir -p web/public/wasm
+	cp crates/suiron-wasm/pkg/suiron_wasm.js crates/suiron-wasm/pkg/suiron_wasm_bg.wasm web/public/wasm/
+	cd web && VITE_BACKEND=wasm \
+		VITE_MODEL_URL=https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf \
+		npx vite build --outDir dist-portfolio --base /suiron-lab/
+	rm -rf $(PORTFOLIO)/public/suiron-lab
+	mkdir -p $(PORTFOLIO)/public/suiron-lab
+	cp -R web/dist-portfolio/. $(PORTFOLIO)/public/suiron-lab/
+	@echo "✓ lab copied into $(PORTFOLIO)/public/suiron-lab — commit the portfolio repo to publish"
+
 test: ## full test suite (release: model-loading tests are slow in debug)
 	cargo test --workspace --release
 
