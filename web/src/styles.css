@@ -723,6 +723,9 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 .seg-opt:not(:last-child) { border-right: 1px solid var(--hair); }
 .seg-opt.on { color: var(--bg); background: var(--red); }
+/* the generic button:hover paints text red — on the red active chip that made
+   the label vanish (red on red). The active chip's ink stays put. */
+.seg-opt.on:hover { color: var(--bg); }
 .seg-opt:hover:not(.on):not(:disabled) { color: var(--ink); }
 
 /* ---------- quantization band ---------- */
