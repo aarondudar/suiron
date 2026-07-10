@@ -47,17 +47,16 @@ export function getNeighbors(id: number, n = 12): Promise<Neighbor[]> {
   const key = `${id}:${n}`;
   let p = neighborCache.get(key);
   if (!p) {
-    p = WASM
-      ? Promise.resolve().then(() => wasm.neighbors(id, n))
-      : fetch(`/api/v1/neighbors?id=${id}&n=${n}`)
-          .then((r) => {
-            if (!r.ok) throw new Error(`neighbors: ${r.status}`);
-            return r.json() as Promise<Neighbor[]>;
-          })
-          .catch((e) => {
-            neighborCache.delete(key); // let a failure be retried
-            throw e;
-          });
+    p = (WASM
+      ? wasm.neighbors(id, n)
+      : fetch(`/api/v1/neighbors?id=${id}&n=${n}`).then((r) => {
+          if (!r.ok) throw new Error(`neighbors: ${r.status}`);
+          return r.json() as Promise<Neighbor[]>;
+        })
+    ).catch((e) => {
+      neighborCache.delete(key); // let a failure be retried
+      throw e;
+    });
     neighborCache.set(key, p);
   }
   return p;
@@ -72,17 +71,16 @@ export function getLens(pos: number, k = 5): Promise<Lens> {
   const key = `${pos}:${k}`;
   let p = lensCache.get(key);
   if (!p) {
-    p = WASM
-      ? Promise.resolve().then(() => wasm.lens(pos, k))
-      : fetch(`/api/v1/lens?pos=${pos}&k=${k}`)
-          .then((r) => {
-            if (!r.ok) throw new Error(`lens: ${r.status}`);
-            return r.json() as Promise<Lens>;
-          })
-          .catch((e) => {
-            lensCache.delete(key); // let a failure be retried
-            throw e;
-          });
+    p = (WASM
+      ? wasm.lens(pos, k)
+      : fetch(`/api/v1/lens?pos=${pos}&k=${k}`).then((r) => {
+          if (!r.ok) throw new Error(`lens: ${r.status}`);
+          return r.json() as Promise<Lens>;
+        })
+    ).catch((e) => {
+      lensCache.delete(key); // let a failure be retried
+      throw e;
+    });
     lensCache.set(key, p);
   }
   return p;
@@ -105,21 +103,18 @@ export function getInspect<T>(
   const key = `${pos}:${layer}:${head ?? ""}:${src ?? ""}`;
   let p = inspectCache.get(key);
   if (!p) {
-    if (WASM) {
-      p = Promise.resolve().then(() => wasm.inspect(pos, layer, head, src));
-    } else {
-      const hp = head === undefined ? "" : `&head=${head}`;
-      const sp = src == null ? "" : `&src=${src}`;
-      p = fetch(`/api/v1/inspect?pos=${pos}&layer=${layer}${hp}${sp}`)
-        .then((r) => {
+    const hp = head === undefined ? "" : `&head=${head}`;
+    const sp = src == null ? "" : `&src=${src}`;
+    p = (WASM
+      ? wasm.inspect(pos, layer, head, src)
+      : fetch(`/api/v1/inspect?pos=${pos}&layer=${layer}${hp}${sp}`).then((r) => {
           if (!r.ok) throw new Error(`inspect: ${r.status}`);
           return r.json() as Promise<unknown>;
         })
-        .catch((e) => {
-          inspectCache.delete(key); // let a failure be retried
-          throw e;
-        });
-    }
+    ).catch((e) => {
+      inspectCache.delete(key); // let a failure be retried
+      throw e;
+    });
     inspectCache.set(key, p);
   }
   return p as Promise<T>;
