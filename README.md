@@ -4,6 +4,8 @@
 number on screen is computed live by a from-scratch engine and verified
 token-for-token against `llama.cpp`.
 
+**[Open the live lab](https://aarondudar.dev/suiron-lab/)** · **[read the writeup](https://aarondudar.dev/suiron)**
+
 suiron is an LLM inference engine for Apple Silicon, written from scratch in Rust —
 a GGUF parser, a byte-level BPE tokenizer, attention, RoPE, SwiGLU, and hand-rolled
 Metal kernels, with **no ML dependencies** — paired with a browser "microscope" that
