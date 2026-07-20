@@ -55,6 +55,9 @@ export function LensClimb({
   const lensTop = lens.layers[last].top[0];
   const engineTop = prodStep.top?.[0];
   const agrees = !!lensTop && !!engineTop && lensTop[0] === engineTop[0];
+  // the decision moment: the first layer whose top guess is the final winner
+  const leadIdx = lensTop ? lens.layers.findIndex((L) => L.top[0]?.[0] === lensTop[0]) : -1;
+  const leadLayer = leadIdx >= 0 ? lens.layers[leadIdx].layer : null;
 
   return (
     <div className="fl-climb">
@@ -86,7 +89,9 @@ export function LensClimb({
       {done && (
         <div className="fl-note" role="status">
           {agrees
-            ? `settled on “${esc(lensTop[1])}” — the engine's real prediction ✓`
+            ? `“${esc(lensTop[1])}”${
+                leadLayer !== null ? ` takes the lead at layer ${leadLayer}` : ""
+              } — the engine's real prediction ✓`
             : "the last layer differs from the engine's prediction — inspect in the expert view"}
         </div>
       )}

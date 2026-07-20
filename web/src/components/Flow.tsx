@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { fork, generate, getTrace, step as stepMore } from "../api";
-import { DEFAULT_PARAMS, esc } from "../lib";
+import { DEFAULT_PARAMS, esc, moments } from "../lib";
 import { AttentionInteractive } from "./AttentionInteractive";
 import { Drawer } from "./Drawer";
 import { Epilogue } from "./Epilogue";
@@ -258,6 +258,19 @@ export function Flow() {
     if (hasRun || busy) setPhase(n);
   };
 
+  // the token's story: real trace-derived moments (attention lock, induction,
+  // runaway/near-tie). A marker no real value supports does not render —
+  // moments()'s own contract. The decision marker lives in LensClimb.
+  const marks = trace && hasRun && prod >= 0 ? moments(trace, prod) : [];
+  const mark = (kinds: string[]) =>
+    marks
+      .filter((m) => kinds.includes(m.kind))
+      .map((m) => (
+        <div className="fl-mark" key={m.kind}>
+          {m.label}
+        </div>
+      ));
+
   // the same context shape the expert stack builds (App.tsx) — the re-homed
   // module keeps its props and engine calls untouched
   const flowCtx: ExplainCtx | null =
@@ -367,6 +380,7 @@ export function Flow() {
               to guess what comes next, it <em>looks back</em> over everything written so far.
             </p>
             <Sentence trace={trace} n={cur} dim readHead onPick={setInspect} />
+            {mark(["attention", "induction"])}
             {dive(2)}
           </>
         );
@@ -421,6 +435,7 @@ export function Flow() {
                   : `the draw landed at r = ${sel.r.toFixed(3)}`
                 : "prompt token — you supplied it, the model did not draw it"}
             </div>
+            {mark(["output"])}
             {dive(4)}
           </>
         );
