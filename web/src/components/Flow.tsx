@@ -19,6 +19,8 @@ import { TemperatureDemo } from "./TemperatureDemo";
 import { TokenizeDemo } from "./TokenizeDemo";
 import { TopKDemo } from "./TopKDemo";
 import { TopPDemo } from "./TopPDemo";
+import { UnderHood } from "./UnderHood";
+import { UnembedDemo } from "./UnembedDemo";
 import { EXPERIMENTS, type Experiment } from "../experiments";
 import type { Trace } from "../types";
 
@@ -197,10 +199,12 @@ const DIVES: Record<number, { id: string; label: string }[]> = {
     { id: "rope", label: "how it knows word order" },
   ],
   3: [
+    { id: "ffn", label: "read, then think: the other half of a layer" },
     { id: "rmsnorm", label: "the reset before every layer" },
     { id: "residual", label: "the signal, layer by layer" },
   ],
   4: [
+    { id: "unembed", label: "how a direction becomes scores" },
     { id: "sampling", label: "bend the odds: temperature, top-k, top-p" },
     { id: "fork", label: "what if it had picked differently?" },
   ],
@@ -224,6 +228,8 @@ export function Flow() {
   const [exp, setExp] = useState<Experiment | null>(null);
   /** the meaning drawer's picked token; null = the current token */
   const [pickTok, setPickTok] = useState<number | null>(null);
+  /** the ffn drawer's inspected layer; -1 = the default (mid-stack) */
+  const [ffnLayer, setFfnLayer] = useState(-1);
   /** a restored link brings its own sampler params; otherwise the defaults */
   const params = FLOW_LINK
     ? {
@@ -439,6 +445,7 @@ export function Flow() {
             onClick={() => {
               setKnob("temperature"); // a fresh open starts at the first knob
               setPickTok(null); // …and at the current token
+              setFfnLayer(-1); // …and at the default layer
               setDrawer(d.id);
             }}
             disabled={!hasRun}
@@ -823,6 +830,44 @@ export function Flow() {
         </>
       );
     }
+    if (drawer === "ffn" && flowCtx) {
+      const nL = flowCtx.trace.layers;
+      const at = ffnLayer >= 0 ? Math.min(ffnLayer, nL - 1) : flowCtx.layer;
+      return (
+        <>
+          <div className="fl-drawer-note">
+            every layer is read (attention), then <em>think</em>: two-thirds of the model's
+            weights live in this block. the engine's real source, with this pass's real numbers
+            threaded in — hover a name to see its value. change the layer: the code never
+            changes, the numbers always do.
+          </div>
+          <div className="attn-controls">
+            <label className="uh-sel">
+              layer{" "}
+              <input
+                type="number"
+                min={0}
+                max={nL - 1}
+                value={at}
+                onChange={(e) => setFfnLayer(Math.min(nL - 1, Math.max(0, +e.target.value)))}
+              />
+            </label>
+          </div>
+          <UnderHood ctx={flowCtx} stage="feedforward" layer={at} head={0} />
+        </>
+      );
+    }
+    if (drawer === "unembed" && flowCtx)
+      return (
+        <>
+          <div className="fl-drawer-note">
+            the last vector is scored against the same table the words came in through — tied
+            embeddings: reading and writing share one matrix. each dot product below IS the
+            engine's logit.
+          </div>
+          <UnembedDemo ctx={flowCtx} />
+        </>
+      );
     if (drawer === "rmsnorm" && flowCtx)
       return (
         <>
