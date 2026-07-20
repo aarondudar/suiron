@@ -1352,6 +1352,24 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 /* staggered arrival on the tokens step (a capped delay; off under reduced motion) */
 .fl-sentence.stagger .fl-chip { animation: fl-in 0.3s ease backwards; }
 @media (prefers-reduced-motion: reduce) { .fl-sentence.stagger .fl-chip { animation: none; } }
+/* inspectable chips: any word opens its own production (design-08) */
+.fl-chip.pick { cursor: pointer; transition: border-color 0.15s; }
+.fl-chip.pick:hover { border-color: var(--dim); }
+@media (prefers-reduced-motion: reduce) { .fl-chip.pick { transition: none; } }
+
+/* which prediction you are inside, and the one way home */
+.fl-inspect-bar {
+  display: flex; align-items: baseline; justify-content: center; gap: var(--sp-2);
+  color: var(--dim); font-size: var(--t-tiny); letter-spacing: 0.06em;
+  margin-bottom: var(--sp-4); flex-wrap: wrap;
+}
+.fl-inspect-bar b { color: var(--ink); font-weight: normal; white-space: pre; }
+.fl-inspect-bar button {
+  background: none; border: 1px solid var(--hair); color: var(--dim); cursor: pointer;
+  font-family: var(--mono); font-size: var(--t-tiny); padding: 1px 8px; letter-spacing: 0.06em;
+}
+.fl-inspect-bar button:hover { border-color: var(--hair-lit); color: var(--ink); }
+
 /* the tokens step surfaces each chip's real id on hover — the same ids the
    merges drawer ends on, so the agreement can be seen, not trusted */
 .fl-ids .fl-chip::after {

@@ -83,21 +83,41 @@ function Chip({
   pos,
   tone,
   delay,
+  onPick,
 }: {
   trace: Trace;
   pos: number;
   tone?: "dim" | "read" | "new";
   /** staggered-arrival delay in seconds (tokens step only) */
   delay?: number;
+  /** inspect this token (absent = not a pick surface; pos 0 has no producer) */
+  onPick?: (pos: number) => void;
 }) {
   const tok = trace.tokens[pos];
   if (!tok) return null;
+  const pickable = !!onPick && pos > 0;
   return (
     <span
-      className={"fl-chip" + (tone ? " " + tone : "")}
+      className={"fl-chip" + (tone ? " " + tone : "") + (pickable ? " pick" : "")}
       style={delay !== undefined ? { animationDelay: `${delay}s` } : undefined}
       data-id={tok.id}
-      title={`id ${tok.id} · pos ${pos}`}
+      title={
+        `id ${tok.id} · pos ${pos}` +
+        (onPick ? (pos === 0 ? " · the seed — nothing produced it" : " · click to inspect") : "")
+      }
+      role={pickable ? "button" : undefined}
+      tabIndex={pickable ? 0 : undefined}
+      onClick={pickable ? () => onPick(pos) : undefined}
+      onKeyDown={
+        pickable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onPick(pos);
+              }
+            }
+          : undefined
+      }
     >
       {tone === "read" && <i className="fl-readhead">reading from here</i>}
       {esc(tok.t)}
@@ -115,6 +135,7 @@ function Sentence({
   lastNew,
   stagger,
   showIds,
+  onPick,
 }: {
   trace: Trace;
   n: number;
@@ -124,6 +145,8 @@ function Sentence({
   stagger?: boolean;
   /** surface each chip's token id on hover (the tokens step) */
   showIds?: boolean;
+  /** chips become inspect targets (pos 0 excluded) */
+  onPick?: (pos: number) => void;
 }) {
   return (
     <div className={"fl-sentence" + (stagger ? " stagger" : "") + (showIds ? " fl-ids" : "")}>
@@ -132,6 +155,7 @@ function Sentence({
           key={i}
           trace={trace}
           pos={i}
+          onPick={onPick}
           delay={stagger ? Math.min(i, 16) * 0.07 : undefined}
           tone={
             lastNew && i === n - 1
@@ -176,13 +200,17 @@ export function Flow() {
    *  single-drawer rule: opening another replaces this one. */
   const [drawer, setDrawer] = useState<string | null>(null);
   const [knob, setKnob] = useState<Knob>("temperature");
+  /** which token is under the microscope; null = follow the frontier */
+  const [inspect, setInspect] = useState<number | null>(null);
   const params = DEFAULT_PARAMS;
 
   // moving to another step always returns to the spine first
   useEffect(() => setDrawer(null), [phase]);
 
-  // the flow always walks the frontier: the production of the newest token
-  const cur = trace ? trace.tokens.length - 1 : -1;
+  // the flow walks the frontier by default; an inspected token re-anchors
+  // steps 2–4 to ITS production (clamped — a fork can shrink the run)
+  const frontier = trace ? trace.tokens.length - 1 : -1;
+  const cur = inspect === null ? frontier : Math.max(0, Math.min(inspect, frontier));
   const prod = cur - 1;
   const busy = !!trace?.busy;
   const hasRun = !!trace && trace.tokens.length > trace.n_prompt && prod >= 0;
@@ -206,11 +234,13 @@ export function Flow() {
   const begin = () => {
     const text = prompt.trim();
     if (!text || busy) return;
+    setInspect(null); // a new run walks its own frontier
     void generate(text, params);
     setPhase(1);
   };
   const runAgain = () => {
     if (!trace || busy) return;
+    setInspect(null);
     void stepMore(1, params);
     setPhase(1);
   };
@@ -218,6 +248,7 @@ export function Flow() {
    *  the learner back into the spine (same param merge as the expert view) */
   const runExperiment = (e: Experiment) => {
     if (busy) return;
+    setInspect(null);
     setPrompt(e.prompt);
     void generate(e.prompt, { ...params, ...e.params });
     setPhase(1);
@@ -335,7 +366,7 @@ export function Flow() {
             <p className="fl-line">
               to guess what comes next, it <em>looks back</em> over everything written so far.
             </p>
-            <Sentence trace={trace} n={cur} dim readHead />
+            <Sentence trace={trace} n={cur} dim readHead onPick={setInspect} />
             {dive(2)}
           </>
         );
@@ -396,9 +427,21 @@ export function Flow() {
       }
       case 5:
         if (!hasRun) return waiting;
+        // the loop step always shows the WHOLE run (the frontier sentence);
+        // clicking a word opens its story back on "looks back"
         return (
           <>
-            <Sentence trace={trace} n={cur + 1} dim lastNew />
+            <Sentence
+              trace={trace}
+              n={frontier + 1}
+              dim
+              lastNew
+              onPick={(i) => {
+                setInspect(i);
+                setPhase(2);
+              }}
+            />
+            <div className="fl-note">click any word to see how it was made</div>
             <p className="fl-line">
               that word joins the sentence — and it does the <em>whole thing again</em>.
             </p>
@@ -519,6 +562,7 @@ export function Flow() {
                 disabled={id === chosenId || busy}
                 onClick={() => {
                   void fork(cur, id, params);
+                  setInspect(null); // the fork makes a new frontier — walk it
                   setDrawer(null);
                   setPhase(5); // the changed sentence is the payoff
                 }}
@@ -603,6 +647,12 @@ export function Flow() {
         </div>
 
         <div className="fl-stage" key={phase}>
+          {phase >= 1 && phase <= 4 && trace && hasRun && cur !== frontier && (
+            <div className="fl-inspect-bar">
+              under the microscope: <b>{esc(trace.tokens[cur]?.t ?? "")}</b> · position {cur}
+              <button onClick={() => setInspect(null)}>⨯ back to the newest</button>
+            </div>
+          )}
           {stage}
         </div>
 
