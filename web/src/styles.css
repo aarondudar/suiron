@@ -1454,8 +1454,11 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 @media (prefers-reduced-motion: reduce) { .fl-live-dot { animation: none; } }
 
-/* the dive affordance: one labelled way down per step */
-.fl-dive { text-align: center; margin-top: var(--sp-5); }
+/* the dive affordances: one labelled way down per docked drawer, stacked */
+.fl-dive {
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
+  margin-top: var(--sp-5);
+}
 .fl-dive button {
   background: none; border: 1px solid var(--hair); color: var(--dim); cursor: pointer;
   font-family: var(--mono); font-size: var(--t-body); letter-spacing: 0.06em; padding: 5px 14px;

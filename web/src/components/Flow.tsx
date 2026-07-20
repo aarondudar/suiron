@@ -6,6 +6,7 @@ import { Drawer } from "./Drawer";
 import { KvCacheDemo } from "./KvCacheDemo";
 import type { ExplainCtx } from "./Explanations";
 import { LensClimb } from "./LensClimb";
+import { RopeDemo } from "./RopeDemo";
 import { TemperatureDemo } from "./TemperatureDemo";
 import { TokenizeDemo } from "./TokenizeDemo";
 import { TopKDemo } from "./TopKDemo";
@@ -132,14 +133,17 @@ function Sentence({
   );
 }
 
-/** the dive points: which drawer docks to which step. Only the worked dot
- *  product is live in this pass; the rest are stubs until their re-homing
- *  plans land (docs/design.md, "order"). */
-const DIVES: Record<number, { id: string; label: string }> = {
-  1: { id: "merges", label: "watch the text become tokens" },
-  2: { id: "dot", label: "watch one score compute" },
-  4: { id: "sampling", label: "bend the odds: temperature, top-k, top-p" },
-  5: { id: "cache", label: "the cache that makes the loop fast" },
+/** the dive points: which drawers dock to which step (docs/design.md's map).
+ *  A step may dock several; the single-drawer rule still holds — opening one
+ *  closes any other. */
+const DIVES: Record<number, { id: string; label: string }[]> = {
+  1: [{ id: "merges", label: "watch the text become tokens" }],
+  2: [
+    { id: "dot", label: "watch one score compute" },
+    { id: "rope", label: "how it knows word order" },
+  ],
+  4: [{ id: "sampling", label: "bend the odds: temperature, top-k, top-p" }],
+  5: [{ id: "cache", label: "the cache that makes the loop fast" }],
 };
 
 export function Flow() {
@@ -208,21 +212,24 @@ export function Flow() {
         }
       : null;
 
-  /** the dive affordance under a step: opens that step's one drawer */
+  /** the dive affordances under a step: one quiet button per docked drawer */
   const dive = (n: number) => {
-    const d = DIVES[n];
-    if (!d) return null;
+    const ds = DIVES[n];
+    if (!ds) return null;
     return (
       <div className="fl-dive">
-        <button
-          onClick={() => {
-            setKnob("temperature"); // a fresh open starts at the first knob
-            setDrawer(d.id);
-          }}
-          disabled={!hasRun}
-        >
-          ↓ {d.label}
-        </button>
+        {ds.map((d) => (
+          <button
+            key={d.id}
+            onClick={() => {
+              setKnob("temperature"); // a fresh open starts at the first knob
+              setDrawer(d.id);
+            }}
+            disabled={!hasRun}
+          >
+            ↓ {d.label}
+          </button>
+        ))}
       </div>
     );
   };
@@ -383,7 +390,11 @@ export function Flow() {
 
   // the open drawer's content: the ONE live proof (the worked dot product on
   // "looks back") plus stubs awaiting their re-homing passes
-  const openDive = drawer ? Object.values(DIVES).find((d) => d.id === drawer) : undefined;
+  const openDive = drawer
+    ? Object.values(DIVES)
+        .flat()
+        .find((d) => d.id === drawer)
+    : undefined;
   const drawerBody = (() => {
     if (drawer === "dot" && flowCtx) return <AttentionInteractive ctx={flowCtx} />;
     if (drawer === "merges" && flowCtx)
@@ -431,6 +442,16 @@ export function Flow() {
     }
     if (drawer === "sampling")
       return <div className="fl-stub">no recorded draw at this position — run a step first.</div>;
+    if (drawer === "rope" && flowCtx)
+      return (
+        <>
+          <div className="fl-drawer-note">
+            before comparing two tokens, attention spins each one's vector by its position — that
+            spin is how word order enters the math.
+          </div>
+          <RopeDemo ctx={flowCtx} />
+        </>
+      );
     if (drawer === "cache" && flowCtx)
       return (
         <>
