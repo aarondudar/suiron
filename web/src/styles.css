@@ -1352,6 +1352,15 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 /* staggered arrival on the tokens step (a capped delay; off under reduced motion) */
 .fl-sentence.stagger .fl-chip { animation: fl-in 0.3s ease backwards; }
 @media (prefers-reduced-motion: reduce) { .fl-sentence.stagger .fl-chip { animation: none; } }
+/* the tokens step surfaces each chip's real id on hover — the same ids the
+   merges drawer ends on, so the agreement can be seen, not trusted */
+.fl-ids .fl-chip::after {
+  content: attr(data-id);
+  position: absolute; top: -12px; right: 0;
+  color: var(--faint); font-size: var(--t-micro); letter-spacing: 0;
+  font-variant-numeric: tabular-nums; opacity: 0; pointer-events: none;
+}
+.fl-ids .fl-chip:hover::after { opacity: 1; }
 
 /* step 0: the prompt row */
 .fl-prompt-row { display: flex; gap: var(--sp-2); justify-content: center; margin: 0 auto; width: 100%; max-width: 440px; }
@@ -1366,6 +1375,14 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 .fl-begin:hover:not(:disabled) { filter: brightness(1.12); }
 .fl-begin:disabled { opacity: 0.4; cursor: default; }
+
+/* step 0: what this is — the live-or-nothing claim, stated where users land */
+.fl-about {
+  color: var(--faint); font-size: var(--t-tiny); line-height: 1.7;
+  text-align: center; max-width: 52ch; margin: var(--sp-6) auto 0;
+}
+.fl-about a { color: var(--faint); border-bottom: 1px dotted var(--faint); text-decoration: none; }
+.fl-about a:hover { color: var(--ink); border-bottom-color: var(--ink); }
 
 /* step 3: the inline lens climb — the signature moment, full real estate */
 .fl-climb { width: 100%; max-width: 400px; margin: 0 auto; }
@@ -1476,6 +1493,11 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .fl-stub { color: var(--dim); font-size: var(--t-base); line-height: 1.7; max-width: 52ch; }
 .fl-stub a { color: var(--dim); border-bottom: 1px dotted var(--faint); text-decoration: none; }
 .fl-stub a:hover { color: var(--ink); border-bottom-color: var(--ink); }
+/* the flow-side framing line above a re-homed module */
+.fl-drawer-note {
+  color: var(--dim); font-size: var(--t-body); line-height: 1.6;
+  max-width: 52ch; margin-bottom: var(--sp-4);
+}
 @media (max-width: 640px) { .fl-drawer { padding: var(--sp-4); } }
 
 /* the quiet route to the old everything-at-once stack */

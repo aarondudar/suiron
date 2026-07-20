@@ -5,6 +5,7 @@ import { AttentionInteractive } from "./AttentionInteractive";
 import { Drawer } from "./Drawer";
 import type { ExplainCtx } from "./Explanations";
 import { LensClimb } from "./LensClimb";
+import { TokenizeDemo } from "./TokenizeDemo";
 import type { Trace } from "../types";
 
 /* The guided flow — the app's spine (docs/design.md). Five steps walk one real
@@ -70,6 +71,7 @@ function Chip({
     <span
       className={"fl-chip" + (tone ? " " + tone : "")}
       style={delay !== undefined ? { animationDelay: `${delay}s` } : undefined}
+      data-id={tok.id}
       title={`id ${tok.id} · pos ${pos}`}
     >
       {tone === "read" && <i className="fl-readhead">reading from here</i>}
@@ -87,6 +89,7 @@ function Sentence({
   readHead,
   lastNew,
   stagger,
+  showIds,
 }: {
   trace: Trace;
   n: number;
@@ -94,9 +97,11 @@ function Sentence({
   readHead?: boolean;
   lastNew?: boolean;
   stagger?: boolean;
+  /** surface each chip's token id on hover (the tokens step) */
+  showIds?: boolean;
 }) {
   return (
-    <div className={"fl-sentence" + (stagger ? " stagger" : "")}>
+    <div className={"fl-sentence" + (stagger ? " stagger" : "") + (showIds ? " fl-ids" : "")}>
       {trace.tokens.slice(0, n).map((_, i) => (
         <Chip
           key={i}
@@ -232,6 +237,11 @@ export function Flow() {
                 a run is already loaded — continue walks it; begin starts fresh.
               </div>
             )}
+            <div className="fl-about">
+              a from-scratch inference engine in Rust — every number in this walkthrough is
+              computed live by it, nothing is canned.{" "}
+              <a href="?view=expert">more in the expert view</a>
+            </div>
           </>
         );
       case 1: {
@@ -242,7 +252,7 @@ export function Flow() {
             <p className="fl-line">
               first, your words become <em>tokens</em> — the pieces the model actually reads.
             </p>
-            <Sentence trace={trace} n={n} stagger />
+            <Sentence trace={trace} n={n} stagger showIds />
             <div className="fl-note">
               {n} piece{n === 1 ? "" : "s"} · ids from the engine's tokenizer
             </div>
@@ -342,6 +352,16 @@ export function Flow() {
   const drawerBody =
     drawer === "dot" && flowCtx ? (
       <AttentionInteractive ctx={flowCtx} />
+    ) : drawer === "merges" && flowCtx ? (
+      <>
+        {/* /api/v1/merges walks the PROMPT: generated tokens were drawn whole
+            and never went through the byte-pair walk — say so up front */}
+        <div className="fl-drawer-note">
+          your prompt, piece by piece. tokens the model generated were drawn whole — they never
+          merged.
+        </div>
+        <TokenizeDemo ctx={flowCtx} />
+      </>
     ) : (
       <div className="fl-stub">
         this deep-dive re-homes an existing module here — coming soon, one pass at a time. until
@@ -363,6 +383,7 @@ export function Flow() {
                 key={n}
                 className={"fl-dot" + (phase >= n ? " on" : "") + (phase === n ? " cur" : "")}
                 aria-label={`step ${n} · ${STEPS[n]}`}
+                title={`step ${n} · ${STEPS[n]}`}
                 aria-current={phase === n}
                 onClick={() => railTo(n)}
               />
