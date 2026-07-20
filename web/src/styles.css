@@ -1416,6 +1416,19 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .fl-begin:hover:not(:disabled) { filter: brightness(1.12); }
 .fl-begin:disabled { opacity: 0.4; cursor: default; }
 
+/* step 0: the curated experiments — real prompts, one click each */
+.fl-ex {
+  display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: baseline;
+  justify-content: center; margin-top: var(--sp-4);
+}
+.fl-ex-label { color: var(--faint); font-size: var(--t-tiny); letter-spacing: 0.08em; }
+.fl-ex button {
+  background: none; border: 1px solid var(--hair); color: var(--dim); cursor: pointer;
+  font-family: var(--mono); font-size: var(--t-tiny); letter-spacing: 0.06em; padding: 3px 10px;
+}
+.fl-ex button:hover:not(:disabled) { border-color: var(--hair-lit); color: var(--ink); }
+.fl-ex button:disabled { opacity: 0.4; cursor: default; }
+
 /* step 0: what this is — the live-or-nothing claim, stated where users land */
 .fl-about {
   color: var(--faint); font-size: var(--t-tiny); line-height: 1.7;

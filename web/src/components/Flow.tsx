@@ -16,7 +16,7 @@ import { TemperatureDemo } from "./TemperatureDemo";
 import { TokenizeDemo } from "./TokenizeDemo";
 import { TopKDemo } from "./TopKDemo";
 import { TopPDemo } from "./TopPDemo";
-import type { Experiment } from "../experiments";
+import { EXPERIMENTS, type Experiment } from "../experiments";
 import type { Trace } from "../types";
 
 /* The guided flow — the app's spine (docs/design.md). Five steps walk one real
@@ -213,6 +213,8 @@ export function Flow() {
   const [knob, setKnob] = useState<Knob>("temperature");
   /** which token is under the microscope; null = follow the frontier */
   const [inspect, setInspect] = useState<number | null>(null);
+  /** the running curated experiment; its hook frames the run on step 1 */
+  const [exp, setExp] = useState<Experiment | null>(null);
   /** a restored link brings its own sampler params; otherwise the defaults */
   const params = FLOW_LINK
     ? {
@@ -261,6 +263,7 @@ export function Flow() {
     const text = prompt.trim();
     if (!text || busy) return;
     setInspect(null); // a new run walks its own frontier
+    setExp(null); // a run of your own retires the experiment framing
     void generate(text, { ...params, n: 1 });
     goPhase(1);
   };
@@ -275,6 +278,7 @@ export function Flow() {
   const runExperiment = (e: Experiment) => {
     if (busy) return;
     setInspect(null);
+    setExp(e);
     setPrompt(e.prompt);
     void generate(e.prompt, { ...params, ...e.params });
     goPhase(1);
@@ -459,6 +463,14 @@ export function Flow() {
                 ▶ begin
               </button>
             </div>
+            <div className="fl-ex">
+              <span className="fl-ex-label">or try:</span>
+              {EXPERIMENTS.map((e) => (
+                <button key={e.id} title={e.hook} disabled={busy} onClick={() => runExperiment(e)}>
+                  {e.title}
+                </button>
+              ))}
+            </div>
             {hasRun && (
               <div className="fl-note">
                 a run is already loaded — continue walks it; begin starts fresh.
@@ -483,6 +495,11 @@ export function Flow() {
             <div className="fl-note">
               {n} piece{n === 1 ? "" : "s"} · ids from the engine's tokenizer
             </div>
+            {exp && (
+              <div className="fl-mark">
+                experiment · {exp.title} — {exp.hook}
+              </div>
+            )}
             {dive(1)}
           </>
         );
