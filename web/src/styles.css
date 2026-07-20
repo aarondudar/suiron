@@ -1521,6 +1521,15 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .fl-fork-tag { font-size: var(--t-micro); letter-spacing: 0.08em; text-transform: uppercase; }
 @media (max-width: 640px) { .fl-drawer { padding: var(--sp-4); } }
 
+/* step 5 → the finale, and the finale itself (the unchanged epilogue) */
+.fl-end-link {
+  background: none; border: none; cursor: pointer; margin-top: var(--sp-4);
+  color: var(--faint); font-family: var(--mono); font-size: var(--t-tiny);
+  letter-spacing: 0.08em; text-decoration: underline; text-underline-offset: 3px;
+}
+.fl-end-link:hover { color: var(--ink); }
+.fl-finale { width: 100%; text-align: left; }
+
 /* the quiet route to the old everything-at-once stack */
 .fl-alt { text-align: center; margin-top: var(--sp-3); }
 .fl-alt a {

@@ -3,6 +3,8 @@ import { fork, generate, getTrace, step as stepMore } from "../api";
 import { DEFAULT_PARAMS, esc } from "../lib";
 import { AttentionInteractive } from "./AttentionInteractive";
 import { Drawer } from "./Drawer";
+import { Epilogue } from "./Epilogue";
+import { ExplainerProvider } from "./Explainer";
 import { KvCacheDemo } from "./KvCacheDemo";
 import type { ExplainCtx } from "./Explanations";
 import { LensClimb } from "./LensClimb";
@@ -13,6 +15,7 @@ import { TemperatureDemo } from "./TemperatureDemo";
 import { TokenizeDemo } from "./TokenizeDemo";
 import { TopKDemo } from "./TopKDemo";
 import { TopPDemo } from "./TopPDemo";
+import type { Experiment } from "../experiments";
 import type { Trace } from "../types";
 
 /* The guided flow — the app's spine (docs/design.md). Five steps walk one real
@@ -23,8 +26,18 @@ import type { Trace } from "../types";
    the prototype (docs/prototype/core-loop.html) is the shape and pacing to
    match, never a data source. */
 
-/** step vocabulary from docs/design.md — fix it there first */
-const STEPS = ["begin", "tokens", "looks back", "sharpens", "draws one", "loops"] as const;
+/** step vocabulary from docs/design.md — fix it there first (6 = the finale) */
+const STEPS = ["begin", "tokens", "looks back", "sharpens", "draws one", "loops", "the end"] as const;
+
+/** The finale hosts the unchanged Epilogue, whose <Explain> anchors need an
+ *  Explainer context. The flow has no concept cards, so they quietly no-op. */
+const NOOP_EXPLAINER = {
+  active: null,
+  walk: null,
+  open: () => {},
+  close: () => {},
+  setProgramFocus: () => {},
+};
 
 /** the sampling drawer shows one knob at a time — the flow's own law applied
  *  inside the drawer (three stacked demos would bury the idea) */
@@ -199,6 +212,14 @@ export function Flow() {
   const runAgain = () => {
     if (!trace || busy) return;
     void stepMore(1, params);
+    setPhase(1);
+  };
+  /** the finale's experiments run live in the flow: a curated prompt loops
+   *  the learner back into the spine (same param merge as the expert view) */
+  const runExperiment = (e: Experiment) => {
+    if (busy) return;
+    setPrompt(e.prompt);
+    void generate(e.prompt, { ...params, ...e.params });
     setPhase(1);
   };
 
@@ -400,7 +421,27 @@ export function Flow() {
               </div>
             )}
             {dive(5)}
+            <div className="fl-center">
+              <button className="fl-end-link" onClick={() => setPhase(6)}>
+                → the end: what you just watched
+              </button>
+            </div>
           </>
+        );
+      case 6:
+        // the finale: the unchanged epilogue, opt-in after the loop closes.
+        // chat lives in the expert view; experiments run right here.
+        return (
+          <ExplainerProvider value={NOOP_EXPLAINER}>
+            <div className="fl-finale">
+              <Epilogue
+                onTryChat={() => {
+                  window.location.href = "?view=expert";
+                }}
+                onRun={runExperiment}
+              />
+            </div>
+          </ExplainerProvider>
         );
       default:
         return null;
@@ -578,6 +619,8 @@ export function Flow() {
               <>
                 <span className="fl-live-dot" /> running
               </>
+            ) : phase === 6 ? (
+              STEPS[6]
             ) : phase > 0 ? (
               `${phase} / 5 · ${STEPS[phase]}`
             ) : (
