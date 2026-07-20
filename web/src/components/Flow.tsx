@@ -4,8 +4,10 @@ import { DEFAULT_PARAMS, esc, litToken, moments, shadowTrace } from "../lib";
 import { currentLink, decodeLink, encodeLink, matchesResident, residentPrompt } from "../link";
 import { AttentionInteractive } from "./AttentionInteractive";
 import { Drawer } from "./Drawer";
+import { EmbeddingRow } from "./EmbeddingRow";
 import { Epilogue } from "./Epilogue";
 import { ExplainerProvider } from "./Explainer";
+import { GeometryCard } from "./Geometry";
 import { KvCacheDemo } from "./KvCacheDemo";
 import type { ExplainCtx } from "./Explanations";
 import { LensClimb } from "./LensClimb";
@@ -184,7 +186,10 @@ function Sentence({
  *  A step may dock several; the single-drawer rule still holds — opening one
  *  closes any other. */
 const DIVES: Record<number, { id: string; label: string }[]> = {
-  1: [{ id: "merges", label: "watch the text become tokens" }],
+  1: [
+    { id: "merges", label: "watch the text become tokens" },
+    { id: "meaning", label: "what a word means to the model" },
+  ],
   2: [
     { id: "dot", label: "watch one score compute" },
     { id: "rope", label: "how it knows word order" },
@@ -215,6 +220,8 @@ export function Flow() {
   const [inspect, setInspect] = useState<number | null>(null);
   /** the running curated experiment; its hook frames the run on step 1 */
   const [exp, setExp] = useState<Experiment | null>(null);
+  /** the meaning drawer's picked token; null = the current token */
+  const [pickTok, setPickTok] = useState<number | null>(null);
   /** a restored link brings its own sampler params; otherwise the defaults */
   const params = FLOW_LINK
     ? {
@@ -429,6 +436,7 @@ export function Flow() {
             key={d.id}
             onClick={() => {
               setKnob("temperature"); // a fresh open starts at the first knob
+              setPickTok(null); // …and at the current token
               setDrawer(d.id);
             }}
             disabled={!hasRun}
@@ -678,6 +686,32 @@ export function Flow() {
           <TokenizeDemo ctx={flowCtx} />
         </>
       );
+    if (drawer === "meaning" && flowCtx) {
+      const mPos = Math.max(0, Math.min(pickTok ?? cur, frontier));
+      const mCtx = { ...flowCtx, cur: mPos };
+      return (
+        <ExplainerProvider value={NOOP_EXPLAINER}>
+          <div className="fl-drawer-note">
+            every token is a row in the model's 151,936 × 1,024 embedding table — a direction with
+            real geometry. pick a word; its row and its nearest real neighbors recompute.
+          </div>
+          <div className="fl-pick-row">
+            {flowCtx.trace.tokens.map((tok, i) => (
+              <button
+                key={i}
+                className={"fl-chip pickable" + (i === mPos ? " on" : "")}
+                title={`id ${tok.id} · pos ${i}`}
+                onClick={() => setPickTok(i)}
+              >
+                {esc(tok.t)}
+              </button>
+            ))}
+          </div>
+          <EmbeddingRow ctx={mCtx} />
+          <GeometryCard ctx={mCtx} read="meaning" />
+        </ExplainerProvider>
+      );
+    }
     if (drawer === "sampling" && flowCtx?.sel) {
       const sel = flowCtx.sel;
       return (

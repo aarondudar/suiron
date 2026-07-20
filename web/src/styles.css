@@ -1568,6 +1568,12 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 /* the sampling drawer's one-knob-at-a-time toggle (reuses the shared .seg) */
 .fl-knob-seg { display: inline-flex; margin-bottom: var(--sp-4); }
 
+/* the meaning drawer's token picker: pick a word, its geometry recomputes */
+.fl-pick-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: var(--sp-4); }
+.fl-chip.pickable { cursor: pointer; background: var(--surface); font-family: var(--mono); }
+.fl-chip.pickable:hover { border-color: var(--dim); }
+.fl-chip.pickable.on { border-color: var(--ink); color: var(--ink); background: rgba(232, 232, 232, 0.08); }
+
 /* the fork drawer: the real candidates, one click forces one */
 .fl-fork-opts { display: flex; flex-direction: column; gap: var(--sp-2); max-width: 360px; }
 .fl-fork-opt {
