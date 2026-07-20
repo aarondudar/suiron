@@ -366,8 +366,12 @@ export function Flow() {
             </p>
             <div className="fl-center">
               <button className="fl-again" onClick={runAgain} disabled={busy}>
-                ↻ run it again
+                {busy ? "↻ running…" : "↻ run it again"}
               </button>
+            </div>
+            <div className="fl-note">
+              the loop so far: {trace.n_prompt} of your tokens +{" "}
+              {trace.tokens.length - trace.n_prompt} drawn
             </div>
             {dive(5)}
           </>
