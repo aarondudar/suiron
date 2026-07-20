@@ -1363,6 +1363,16 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .fl-chip.pick:hover { border-color: var(--dim); }
 @media (prefers-reduced-motion: reduce) { .fl-chip.pick { transition: none; } }
 
+/* the two worlds (design-11): both runs, divergence marked */
+.fl-world { margin-bottom: var(--sp-5); }
+.fl-world-label {
+  color: var(--faint); font-size: var(--t-micro); letter-spacing: 0.1em;
+  text-transform: uppercase; margin-bottom: var(--sp-2);
+}
+.fl-world-chips { display: flex; flex-wrap: wrap; gap: 5px; row-gap: 16px; }
+/* the token a human forced: emphasized in ink, never red (red = the model's choice) */
+.fl-chip.forced { color: var(--ink); border-color: var(--ink); background: rgba(232, 232, 232, 0.06); }
+
 /* a computed story caption: every clause cites a real trace value */
 .fl-mark {
   color: var(--dim); font-size: var(--t-body); text-align: center;

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fork, generate, getTrace, step as stepMore } from "../api";
-import { DEFAULT_PARAMS, esc, moments } from "../lib";
+import { DEFAULT_PARAMS, esc, litToken, moments, shadowTrace } from "../lib";
 import { currentLink, decodeLink, encodeLink, matchesResident } from "../link";
 import { AttentionInteractive } from "./AttentionInteractive";
 import { Drawer } from "./Drawer";
@@ -197,7 +197,10 @@ const DIVES: Record<number, { id: string; label: string }[]> = {
     { id: "sampling", label: "bend the odds: temperature, top-k, top-p" },
     { id: "fork", label: "what if it had picked differently?" },
   ],
-  5: [{ id: "cache", label: "the cache that makes the loop fast" }],
+  5: [
+    { id: "cache", label: "the cache that makes the loop fast" },
+    { id: "worlds", label: "the two worlds" },
+  ],
 };
 
 export function Flow() {
@@ -397,10 +400,11 @@ export function Flow() {
         }
       : null;
 
-  /** the dive affordances under a step: one quiet button per docked drawer */
+  /** the dive affordances under a step: one quiet button per docked drawer.
+   *  "the two worlds" only exists while a fork is resident. */
   const dive = (n: number) => {
-    const ds = DIVES[n];
-    if (!ds) return null;
+    const ds = DIVES[n]?.filter((d) => d.id !== "worlds" || !!trace?.fork);
+    if (!ds?.length) return null;
     return (
       <div className="fl-dive">
         {ds.map((d) => (
@@ -699,6 +703,51 @@ export function Flow() {
               </button>
             ))}
           </div>
+        </>
+      );
+    }
+    if (drawer === "worlds" && trace?.fork) {
+      const shadow = shadowTrace(trace);
+      const at = trace.fork.pos;
+      if (!shadow)
+        return (
+          <div className="fl-stub">
+            this run's replaced tail wasn't recorded, so the other world can't be shown — fork
+            again to compare.
+          </div>
+        );
+      const world = (tr: Trace, label: string, tag: string, model: boolean) => (
+        <div className="fl-world">
+          <div className="fl-world-label">{label}</div>
+          <div className="fl-world-chips">
+            {tr.tokens.map((tok, i) => (
+              <span
+                key={i}
+                className={
+                  "fl-chip" +
+                  (i < at ? " dim" : "") +
+                  (i === at ? (model ? " new" : " forced") : "")
+                }
+                title={`id ${tok.id} · pos ${i}`}
+              >
+                {i === at && <i className="fl-readhead">{tag}</i>}
+                {/* the divergence token must be legible even when it is pure
+                    whitespace — show it the way the geometry labels do */}
+                {i === at ? litToken(tok.t).text : esc(tok.t)}
+              </span>
+            ))}
+          </div>
+        </div>
+      );
+      return (
+        <>
+          <div className="fl-drawer-note">
+            one draw, two histories. the shared prefix is dim; everything after position {at}{" "}
+            belongs to its own world. red marks the model's own choice — the token you forced is
+            tagged, not red.
+          </div>
+          {world(trace, "this world", "you forced", false)}
+          {world(shadow, "the other world", "the model chose", true)}
         </>
       );
     }
