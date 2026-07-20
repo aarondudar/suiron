@@ -5,7 +5,10 @@ import { AttentionInteractive } from "./AttentionInteractive";
 import { Drawer } from "./Drawer";
 import type { ExplainCtx } from "./Explanations";
 import { LensClimb } from "./LensClimb";
+import { TemperatureDemo } from "./TemperatureDemo";
 import { TokenizeDemo } from "./TokenizeDemo";
+import { TopKDemo } from "./TopKDemo";
+import { TopPDemo } from "./TopPDemo";
 import type { Trace } from "../types";
 
 /* The guided flow — the app's spine (docs/design.md). Five steps walk one real
@@ -18,6 +21,11 @@ import type { Trace } from "../types";
 
 /** step vocabulary from docs/design.md — fix it there first */
 const STEPS = ["begin", "tokens", "looks back", "sharpens", "draws one", "loops"] as const;
+
+/** the sampling drawer shows one knob at a time — the flow's own law applied
+ *  inside the drawer (three stacked demos would bury the idea) */
+const KNOBS = ["temperature", "top-k", "top-p"] as const;
+type Knob = (typeof KNOBS)[number];
 
 /** The flow's own trace poll — the same rhythm as the expert stack's
  *  (App.tsx), scoped here so the expert view stays untouched. Also reacts to
@@ -140,6 +148,7 @@ export function Flow() {
   /** the ONE open drawer (a DIVES id), or null. A single slot is the
    *  single-drawer rule: opening another replaces this one. */
   const [drawer, setDrawer] = useState<string | null>(null);
+  const [knob, setKnob] = useState<Knob>("temperature");
   const params = DEFAULT_PARAMS;
 
   // moving to another step always returns to the spine first
@@ -189,7 +198,13 @@ export function Flow() {
     if (!d) return null;
     return (
       <div className="fl-dive">
-        <button onClick={() => setDrawer(d.id)} disabled={!hasRun}>
+        <button
+          onClick={() => {
+            setKnob("temperature"); // a fresh open starts at the first knob
+            setDrawer(d.id);
+          }}
+          disabled={!hasRun}
+        >
           ↓ {d.label}
         </button>
       </div>
@@ -349,25 +364,60 @@ export function Flow() {
   // the open drawer's content: the ONE live proof (the worked dot product on
   // "looks back") plus stubs awaiting their re-homing passes
   const openDive = drawer ? Object.values(DIVES).find((d) => d.id === drawer) : undefined;
-  const drawerBody =
-    drawer === "dot" && flowCtx ? (
-      <AttentionInteractive ctx={flowCtx} />
-    ) : drawer === "merges" && flowCtx ? (
-      <>
-        {/* /api/v1/merges walks the PROMPT: generated tokens were drawn whole
-            and never went through the byte-pair walk — say so up front */}
-        <div className="fl-drawer-note">
-          your prompt, piece by piece. tokens the model generated were drawn whole — they never
-          merged.
-        </div>
-        <TokenizeDemo ctx={flowCtx} />
-      </>
-    ) : (
+  const drawerBody = (() => {
+    if (drawer === "dot" && flowCtx) return <AttentionInteractive ctx={flowCtx} />;
+    if (drawer === "merges" && flowCtx)
+      return (
+        <>
+          {/* /api/v1/merges walks the PROMPT: generated tokens were drawn whole
+              and never went through the byte-pair walk — say so up front */}
+          <div className="fl-drawer-note">
+            your prompt, piece by piece. tokens the model generated were drawn whole — they never
+            merged.
+          </div>
+          <TokenizeDemo ctx={flowCtx} />
+        </>
+      );
+    if (drawer === "sampling" && flowCtx?.sel) {
+      const sel = flowCtx.sel;
+      return (
+        <>
+          <div className="fl-drawer-note">
+            the same real options as the bar behind — each knob recomputes from this draw's
+            recorded logits; nothing re-runs the model.
+          </div>
+          <div className="seg fl-knob-seg">
+            {KNOBS.map((k) => (
+              <button
+                key={k}
+                className={"seg-opt" + (knob === k ? " on" : "")}
+                onClick={() => setKnob(k)}
+              >
+                {k}
+              </button>
+            ))}
+          </div>
+          {knob === "temperature" && (
+            <TemperatureDemo cand={sel.cand} temp={sel.temp} chosen={sel.chosen} />
+          )}
+          {knob === "top-k" && (
+            <TopKDemo cand={sel.cand} k={sel.top_k} temp={sel.temp} chosen={sel.chosen} />
+          )}
+          {knob === "top-p" && (
+            <TopPDemo cand={sel.cand} p={sel.top_p} temp={sel.temp} chosen={sel.chosen} />
+          )}
+        </>
+      );
+    }
+    if (drawer === "sampling")
+      return <div className="fl-stub">no recorded draw at this position — run a step first.</div>;
+    return (
       <div className="fl-stub">
         this deep-dive re-homes an existing module here — coming soon, one pass at a time. until
         then it lives in the <a href="?view=expert">expert view</a>.
       </div>
     );
+  })();
 
   return (
     <div className="flow-wrap">

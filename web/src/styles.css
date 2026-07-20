@@ -1498,6 +1498,8 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   color: var(--dim); font-size: var(--t-body); line-height: 1.6;
   max-width: 52ch; margin-bottom: var(--sp-4);
 }
+/* the sampling drawer's one-knob-at-a-time toggle (reuses the shared .seg) */
+.fl-knob-seg { display: inline-flex; margin-bottom: var(--sp-4); }
 @media (max-width: 640px) { .fl-drawer { padding: var(--sp-4); } }
 
 /* the quiet route to the old everything-at-once stack */
