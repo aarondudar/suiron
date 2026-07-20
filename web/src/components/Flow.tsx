@@ -161,6 +161,21 @@ export function Flow() {
   const hasRun = !!trace && trace.tokens.length > trace.n_prompt && prod >= 0;
   const prodStep = trace && hasRun ? trace.steps[prod] : undefined;
 
+  // ←/→ walk the steps when the spine has the floor (no drawer, not typing).
+  // Mirrors the continue button's gate: leaving step 0 needs a run.
+  const canAdvance = hasRun || busy;
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (drawer !== null) return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.key === "ArrowRight") setPhase((p) => (p < 5 && (p > 0 || canAdvance) ? p + 1 : p));
+      if (e.key === "ArrowLeft") setPhase((p) => Math.max(0, p - 1));
+    };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [drawer, canAdvance]);
+
   const begin = () => {
     const text = prompt.trim();
     if (!text || busy) return;

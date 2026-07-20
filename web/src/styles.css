@@ -1515,6 +1515,10 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   .fl-head, .fl-foot { padding-left: var(--sp-4); padding-right: var(--sp-4); }
   .fl-prompt-row { flex-direction: column; }
 }
+/* very narrow: the rail already says where you are; give the buttons the room */
+@media (max-width: 400px) {
+  .fl-meta { display: none; }
+}
 
 /* ---------- scrollbar ---------- */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
