@@ -1288,6 +1288,210 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   border-top: 1px solid var(--hair); padding-top: var(--sp-4);
 }
 
+/* ---------- the guided flow (docs/design.md): the spine + the drawer ----------
+   One idea per screen. The frame, pacing, and open/return drawer rhythm match
+   docs/prototype/core-loop.html; every number on screen is live. */
+.flow-wrap { max-width: 700px; margin: 0 auto; }
+.flow {
+  position: relative; overflow: hidden;
+  background: var(--bg);
+  background-image: radial-gradient(circle, #141414 1px, transparent 1px);
+  background-size: 24px 24px;
+  border: 1px solid var(--hair); border-top: 2px solid var(--red);
+  min-height: 560px; display: flex; flex-direction: column;
+}
+.fl-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: var(--sp-4) 22px; border-bottom: 1px solid #1c1c1c;
+}
+.fl-brand { font-family: var(--dot); font-size: 18px; font-weight: 700; letter-spacing: 0.14em; }
+.fl-brand .jp { color: var(--dim); font-size: var(--t-base); margin-left: var(--sp-2); letter-spacing: 0.3em; font-family: var(--mono); font-weight: normal; }
+
+/* the step rail: five dots, the reached ones red, the current one stretched */
+.fl-rail { display: flex; gap: 7px; align-items: center; }
+.fl-dot {
+  width: 7px; height: 7px; border-radius: 4px; border: none; padding: 0;
+  background: var(--hair); cursor: pointer; transition: width 0.2s, background 0.2s;
+}
+.fl-dot.on { background: var(--red); }
+.fl-dot.cur { width: 16px; }
+@media (prefers-reduced-motion: reduce) { .fl-dot { transition: none; } }
+
+/* the stage: one step at a time, centered; keyed remount fades the new step in */
+.fl-stage {
+  flex: 1; display: flex; flex-direction: column; justify-content: center;
+  padding: 34px var(--sp-6); min-height: 360px; animation: fl-in 0.25s ease;
+}
+@keyframes fl-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .fl-stage { animation: none; } }
+
+.fl-line {
+  color: var(--ink); font-size: var(--t-lg); line-height: 1.55;
+  max-width: 44ch; margin: 0 auto 20px; text-align: center;
+}
+.fl-line em { font-style: normal; border-bottom: 1px solid #444; }
+.fl-status, .fl-note { color: var(--faint); font-size: var(--t-body); text-align: center; margin-top: var(--sp-3); }
+.fl-center { text-align: center; }
+
+/* the sentence so far: real resident tokens as chips */
+.fl-sentence {
+  display: flex; flex-wrap: wrap; gap: 5px; align-items: center; justify-content: center;
+  margin-bottom: var(--sp-5); row-gap: 14px;
+}
+.fl-chip {
+  position: relative; border: 1px solid var(--hair); background: var(--surface);
+  color: var(--ink); padding: 2px 7px; white-space: pre; font-size: var(--t-md);
+}
+.fl-chip.dim { color: var(--dim); background: transparent; }
+.fl-chip.read { color: var(--ink); border-color: var(--dim); background: rgba(232, 232, 232, 0.06); }
+.fl-chip.new { color: var(--red); border-color: var(--red); background: rgba(215, 25, 33, 0.1); }
+.fl-readhead {
+  position: absolute; top: -14px; left: 0; font-style: normal; white-space: nowrap;
+  color: var(--faint); font-size: var(--t-micro); letter-spacing: 0.06em;
+}
+/* staggered arrival on the tokens step (a capped delay; off under reduced motion) */
+.fl-sentence.stagger .fl-chip { animation: fl-in 0.3s ease backwards; }
+@media (prefers-reduced-motion: reduce) { .fl-sentence.stagger .fl-chip { animation: none; } }
+
+/* step 0: the prompt row */
+.fl-prompt-row { display: flex; gap: var(--sp-2); justify-content: center; margin: 0 auto; width: 100%; max-width: 440px; }
+.fl-prompt-row input {
+  flex: 1; background: var(--surface); border: 1px solid var(--hair); color: var(--ink);
+  font-family: var(--mono); font-size: var(--t-md); padding: 7px 10px; letter-spacing: 0.02em;
+}
+.fl-prompt-row input:focus { outline: none; border-color: var(--dim); }
+.fl-begin {
+  background: var(--red); color: #fff; border: none; cursor: pointer;
+  font-family: var(--mono); font-size: var(--t-md); letter-spacing: 0.05em; padding: 8px 22px;
+}
+.fl-begin:hover:not(:disabled) { filter: brightness(1.12); }
+.fl-begin:disabled { opacity: 0.4; cursor: default; }
+
+/* step 3: the inline lens climb — the signature moment, full real estate */
+.fl-climb { width: 100%; max-width: 400px; margin: 0 auto; }
+.fl-climb-row { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: 5px; }
+.fl-climb-tok {
+  width: 9ch; text-align: right; color: var(--dim); font-size: var(--t-base);
+  white-space: pre; overflow: hidden; text-overflow: ellipsis;
+}
+.fl-climb-tok.win { color: var(--red); }
+.fl-climb-bar { flex: 1; height: 7px; background: #101010; }
+.fl-climb-fill { height: 100%; background: #4a4a4a; transition: width 0.12s linear; }
+.fl-climb-fill.win { background: var(--red); }
+@media (prefers-reduced-motion: reduce) { .fl-climb-fill { transition: none; } }
+.fl-climb-p {
+  width: 4ch; color: var(--faint); font-size: var(--t-tiny); text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.fl-climb-foot {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin: var(--sp-3) 0 var(--sp-1); gap: var(--sp-3);
+}
+.fl-climb-layer {
+  font-family: var(--dot); font-size: var(--t-md); font-weight: 700; color: var(--ink);
+  letter-spacing: 0.08em; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.fl-climb-guess { color: var(--dim); font-size: var(--t-body); white-space: pre; }
+/* the Doto counter above already reads "layer N / max" — hide the shared
+   Stepper's duplicate readout here only (the control itself is untouched) */
+.fl-climb .stepper-where { display: none; }
+
+/* step 4: the real distribution bar; red = the drawn token, nothing else */
+.fl-dist { width: 100%; max-width: 360px; height: 22px; display: flex; border: 1px solid var(--hair); margin: 0 auto 10px; }
+.fl-seg { background: #3a3a3a; border-right: 1px solid var(--bg); min-width: 1px; }
+.fl-seg.chosen { background: var(--red); }
+.fl-seg.rest { background: #161616; border-right: none; }
+.fl-dist-legend {
+  display: flex; justify-content: space-between; width: 100%; max-width: 360px; margin: 0 auto;
+  color: var(--dim); font-size: var(--t-body); font-variant-numeric: tabular-nums;
+}
+.fl-dist-legend .fl-win { color: var(--red); white-space: pre; }
+
+/* step 5: run it again */
+.fl-again {
+  background: none; border: 1px solid var(--red); color: var(--red); cursor: pointer;
+  font-family: var(--mono); font-size: var(--t-base); letter-spacing: 0.05em; padding: 7px 18px;
+}
+.fl-again:hover:not(:disabled) { background: rgba(215, 25, 33, 0.1); }
+.fl-again:disabled { opacity: 0.4; cursor: default; }
+
+/* the foot: back / status / continue */
+.fl-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 13px 22px; border-top: 1px solid #1c1c1c;
+}
+.fl-nav {
+  background: none; border: 1px solid var(--hair); color: var(--dim); cursor: pointer;
+  font-family: var(--mono); font-size: var(--t-body); letter-spacing: 0.1em; padding: 5px 13px;
+}
+.fl-nav:hover { border-color: var(--hair-lit); color: var(--ink); }
+.fl-nav.primary { border-color: var(--red); color: var(--red); padding: 5px 15px; }
+.fl-nav.primary:hover { background: rgba(215, 25, 33, 0.1); color: var(--red); }
+.fl-meta {
+  color: var(--faint); font-size: var(--t-tiny); letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 6px;
+}
+.fl-live-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--red);
+  animation: pulse 1.1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) { .fl-live-dot { animation: none; } }
+
+/* the dive affordance: one labelled way down per step */
+.fl-dive { text-align: center; margin-top: var(--sp-5); }
+.fl-dive button {
+  background: none; border: 1px solid var(--hair); color: var(--dim); cursor: pointer;
+  font-family: var(--mono); font-size: var(--t-body); letter-spacing: 0.06em; padding: 5px 14px;
+}
+.fl-dive button:hover:not(:disabled) { border-color: var(--hair-lit); color: var(--ink); }
+.fl-dive button:disabled { opacity: 0.4; cursor: default; }
+
+/* the single drawer: over the step, the step recedes underneath (inert, still
+   mounted); closing returns to the exact step. one at a time, by construction. */
+.fl-under { display: contents; }
+.fl-drawer {
+  position: absolute; inset: 0; z-index: 5;
+  background: rgba(5, 5, 5, 0.97);
+  display: flex; flex-direction: column;
+  padding: 22px 26px; overflow-y: auto;
+  animation: fl-drawer-in 0.18s ease;
+}
+@keyframes fl-drawer-in { from { opacity: 0; transform: translateY(10px); } }
+@media (prefers-reduced-motion: reduce) { .fl-drawer { animation: none; } }
+.fl-drawer-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: var(--sp-3); margin-bottom: var(--sp-4);
+}
+.fl-drawer-title { color: var(--ink); font-size: var(--t-md); letter-spacing: 0.08em; }
+.fl-drawer-close {
+  background: none; border: 1px solid var(--hair); color: var(--dim); cursor: pointer;
+  font-family: var(--mono); font-size: var(--t-base); padding: 3px 11px; white-space: nowrap;
+}
+.fl-drawer-close:hover { border-color: var(--hair-lit); color: var(--ink); }
+.fl-drawer-body { flex: 1; }
+.fl-drawer-foot {
+  color: var(--faint); font-size: var(--t-tiny); letter-spacing: 0.06em;
+  border-top: 1px solid var(--hair); margin-top: var(--sp-4); padding-top: 10px;
+}
+.fl-stub { color: var(--dim); font-size: var(--t-base); line-height: 1.7; max-width: 52ch; }
+.fl-stub a { color: var(--dim); border-bottom: 1px dotted var(--faint); text-decoration: none; }
+.fl-stub a:hover { color: var(--ink); border-bottom-color: var(--ink); }
+@media (max-width: 640px) { .fl-drawer { padding: var(--sp-4); } }
+
+/* the quiet route to the old everything-at-once stack */
+.fl-alt { text-align: center; margin-top: var(--sp-3); }
+.fl-alt a {
+  color: var(--faint); font-size: var(--t-tiny); letter-spacing: 0.06em;
+  text-decoration: none; border-bottom: 1px dotted var(--faint);
+}
+.fl-alt a:hover { color: var(--ink); border-bottom-color: var(--ink); }
+
+@media (max-width: 640px) {
+  .fl-stage { padding: var(--sp-5) var(--sp-4); }
+  .fl-head, .fl-foot { padding-left: var(--sp-4); padding-right: var(--sp-4); }
+  .fl-prompt-row { flex-direction: column; }
+}
+
 /* ---------- scrollbar ---------- */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--hair); }

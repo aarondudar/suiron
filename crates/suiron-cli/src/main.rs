@@ -214,6 +214,9 @@ fn run(path: &str, rest: &[String]) -> Result<(), Box<dyn std::error::Error>> {
         pending.extend(tok.token_bytes(id));
         flush_utf8(&mut pending, &mut out);
     };
+    // Metal is macOS-only (its dependency is cfg-gated in Cargo.toml); other
+    // hosts refuse --gpu at runtime and keep the CPU paths identical.
+    #[cfg(target_os = "macos")]
     let stats = if gpu {
         let gm = suiron_metal::GpuModel::new(&model)?;
         generate_with(
@@ -222,6 +225,12 @@ fn run(path: &str, rest: &[String]) -> Result<(), Box<dyn std::error::Error>> {
         )
     } else {
         suiron_core::generate(&model, &ids, &mut sampler, max_tokens, &stop, backend, on_token)
+    };
+    #[cfg(not(target_os = "macos"))]
+    let stats = if gpu {
+        return Err("--gpu needs Metal, which is macOS-only".into());
+    } else {
+        suiron_core::generate(&model, &ids, &mut sampler, max_tokens, &stop, backend, &mut on_token)
     };
     println!();
     eprintln!(
@@ -236,6 +245,7 @@ fn run(path: &str, rest: &[String]) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// generate() over an arbitrary forward implementation (GPU path).
+#[cfg(target_os = "macos")]
 fn generate_with(
     fwd: impl Fn(&mut suiron_core::KvCache, u32) -> Vec<f32>,
     model: &suiron_core::Model,

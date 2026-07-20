@@ -5,6 +5,7 @@ import { ConceptCard } from "./components/ConceptCard";
 import { EmptyState } from "./components/EmptyState";
 import { Epilogue } from "./components/Epilogue";
 import { Explain, ExplainerProvider } from "./components/Explainer";
+import { Flow } from "./components/Flow";
 import { ForkDiff } from "./components/ForkDiff";
 import { CARD_HOME, CONCEPTS, type ExplainCtx } from "./components/Explanations";
 import { Geometry } from "./components/Geometry";
@@ -27,7 +28,18 @@ const INITIAL_LINK = decodeLink(window.location.hash);
 const NONE: FocusTarget = { kind: "none" };
 const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+/** The guided flow is the default experience (docs/design.md). The old
+ *  everything-at-once stack stays reachable at ?view=expert — and deep links
+ *  (which encode expert-view moments) land there too, so shared links keep
+ *  working. */
+const EXPERT =
+  new URLSearchParams(window.location.search).get("view") === "expert" || INITIAL_LINK !== null;
+
 export default function App() {
+  return EXPERT ? <ExpertLab /> : <Flow />;
+}
+
+function ExpertLab() {
   const [trace, setTrace] = useState<Trace | null>(null);
   const [cur, setCur] = useState(0);
   const [openLayer, setOpenLayer] = useState(-1);
