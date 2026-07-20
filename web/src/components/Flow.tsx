@@ -187,30 +187,31 @@ function Sentence({
 
 /** the dive points: which drawers dock to which step (docs/design.md's map).
  *  A step may dock several; the single-drawer rule still holds — opening one
- *  closes any other. */
-const DIVES: Record<number, { id: string; label: string }[]> = {
+ *  closes any other. `tab` is the dock handle; `label` stays the tooltip and
+ *  the open drawer's title. */
+const DIVES: Record<number, { id: string; tab: string; label: string }[]> = {
   1: [
-    { id: "merges", label: "watch the text become tokens" },
-    { id: "meaning", label: "what a word means to the model" },
+    { id: "merges", tab: "merges", label: "watch the text become tokens" },
+    { id: "meaning", tab: "meaning", label: "what a word means to the model" },
   ],
   2: [
-    { id: "dot", label: "watch one score compute" },
-    { id: "heads", label: "the sixteen readers" },
-    { id: "rope", label: "how it knows word order" },
+    { id: "dot", tab: "one score", label: "watch one score compute" },
+    { id: "heads", tab: "16 readers", label: "the sixteen readers" },
+    { id: "rope", tab: "word order", label: "how it knows word order" },
   ],
   3: [
-    { id: "ffn", label: "read, then think: the other half of a layer" },
-    { id: "rmsnorm", label: "the reset before every layer" },
-    { id: "residual", label: "the signal, layer by layer" },
+    { id: "ffn", tab: "think", label: "read, then think: the other half of a layer" },
+    { id: "rmsnorm", tab: "the reset", label: "the reset before every layer" },
+    { id: "residual", tab: "the signal", label: "the signal, layer by layer" },
   ],
   4: [
-    { id: "unembed", label: "how a direction becomes scores" },
-    { id: "sampling", label: "bend the odds: temperature, top-k, top-p" },
-    { id: "fork", label: "what if it had picked differently?" },
+    { id: "unembed", tab: "the scores", label: "how a direction becomes scores" },
+    { id: "sampling", tab: "the knobs", label: "bend the odds: temperature, top-k, top-p" },
+    { id: "fork", tab: "what if?", label: "what if it had picked differently?" },
   ],
   5: [
-    { id: "cache", label: "the cache that makes the loop fast" },
-    { id: "worlds", label: "the two worlds" },
+    { id: "cache", tab: "the cache", label: "the cache that makes the loop fast" },
+    { id: "worlds", tab: "two worlds", label: "the two worlds" },
   ],
 };
 
@@ -264,15 +265,21 @@ export function Flow() {
   const canAdvance = hasRun || busy;
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (drawer !== null) return;
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
-      if (e.key === "ArrowRight") setPhase((p) => (p < 5 && (p > 0 || canAdvance) ? p + 1 : p));
-      if (e.key === "ArrowLeft") setPhase((p) => Math.max(0, p - 1));
+      // navigating with a drawer open closes it (goPhase semantics)
+      if (e.key === "ArrowRight") {
+        setDrawer(null);
+        setPhase((p) => (p < 5 && (p > 0 || canAdvance) ? p + 1 : p));
+      }
+      if (e.key === "ArrowLeft") {
+        setDrawer(null);
+        setPhase((p) => Math.max(0, p - 1));
+      }
     };
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
-  }, [drawer, canAdvance]);
+  }, [canAdvance]);
 
   const begin = () => {
     const text = prompt.trim();
@@ -432,30 +439,39 @@ export function Flow() {
         }
       : null;
 
-  /** the dive affordances under a step: one quiet button per docked drawer.
-   *  "the two worlds" only exists while a fork is resident. */
-  const dive = (n: number) => {
-    const ds = DIVES[n]?.filter((d) => d.id !== "worlds" || !!trace?.fork);
-    if (!ds?.length) return null;
-    return (
-      <div className="fl-dive">
-        {ds.map((d) => (
-          <button
-            key={d.id}
-            onClick={() => {
-              setKnob("temperature"); // a fresh open starts at the first knob
-              setPickTok(null); // …and at the current token
-              setFfnLayer(-1); // …and at the default layer
-              setDrawer(d.id);
-            }}
-            disabled={!hasRun}
-          >
-            ↓ {d.label}
-          </button>
-        ))}
-      </div>
-    );
-  };
+  /** the drawer dock (design-18): handles on the frame's bottom edge, one
+   *  per docked drawer. Stays live while a drawer is open — the active
+   *  handle closes it, another handle switches in place (the single-drawer
+   *  rule as visible mechanics). "the two worlds" needs a resident fork. */
+  const dives =
+    hasRun && phase >= 1 && phase <= 5
+      ? (DIVES[phase] ?? []).filter((d) => d.id !== "worlds" || !!trace?.fork)
+      : [];
+  const dock = dives.length > 0 && (
+    <div className="fl-dock">
+      <span className="fl-dock-label">go deeper</span>
+      {dives.map((d) => (
+        <button
+          key={d.id}
+          className={"fl-handle" + (drawer === d.id ? " on" : "")}
+          title={d.label}
+          onClick={() => {
+            if (drawer === d.id) {
+              setDrawer(null); // the active handle closes its drawer
+              return;
+            }
+            setKnob("temperature"); // a fresh open starts at the first knob
+            setPickTok(null); // …and at the current token
+            setFfnLayer(-1); // …and at the default layer
+            setDrawer(d.id);
+          }}
+        >
+          {d.tab}
+          {drawer === d.id && " ×"}
+        </button>
+      ))}
+    </div>
+  );
 
   if (!trace)
     return (
@@ -530,7 +546,6 @@ export function Flow() {
                 experiment · {exp.title} — {exp.hook}
               </div>
             )}
-            {dive(1)}
           </>
         );
       }
@@ -543,7 +558,6 @@ export function Flow() {
             </p>
             <Sentence trace={trace} n={cur} dim readHead onPick={setInspect} />
             {mark(["attention", "induction"])}
-            {dive(2)}
           </>
         );
       case 3:
@@ -555,7 +569,6 @@ export function Flow() {
               {trace.layers} layers.
             </p>
             <LensClimb trace={trace} prod={prod} prodStep={prodStep} />
-            {dive(3)}
           </>
         );
       case 4: {
@@ -598,7 +611,6 @@ export function Flow() {
                 : "prompt token — you supplied it, the model did not draw it"}
             </div>
             {mark(["output"])}
-            {dive(4)}
           </>
         );
       }
@@ -640,7 +652,6 @@ export function Flow() {
                 ”
               </div>
             )}
-            {dive(5)}
             <div className="fl-center">
               <button className="fl-end-link" onClick={() => setPhase(6)}>
                 → the end: what you just watched
@@ -930,7 +941,6 @@ export function Flow() {
   return (
     <div className="flow-wrap">
       <div className="flow">
-        <div className="fl-under" inert={drawer !== null}>
         <div className="fl-head">
           <div className="fl-brand">
             suiron<span className="jp">推論</span>
@@ -954,7 +964,8 @@ export function Flow() {
           </div>
         </div>
 
-        <div className="fl-stage" key={phase}>
+        <div className="fl-stagewrap">
+        <div className="fl-stage" key={phase} inert={drawer !== null}>
           {phase >= 1 && phase <= 4 && trace && hasRun && cur !== frontier && (
             <div className="fl-inspect-bar">
               under the microscope: <b>{esc(trace.tokens[cur]?.t ?? "")}</b> · position {cur}
@@ -964,11 +975,20 @@ export function Flow() {
           {stage}
         </div>
 
+        {drawer && openDive && (
+          <Drawer label={openDive.label} onClose={() => setDrawer(null)}>
+            {drawerBody}
+          </Drawer>
+        )}
+        </div>
+
+        {dock}
+
         <div className="fl-foot">
           <button
             className="fl-nav"
             style={{ visibility: phase > 0 ? "visible" : "hidden" }}
-            onClick={() => setPhase((p) => Math.max(0, p - 1))}
+            onClick={() => goPhase(phase - 1)}
           >
             back
           </button>
@@ -988,18 +1008,11 @@ export function Flow() {
           <button
             className="fl-nav primary"
             style={{ visibility: phase < 5 && (phase > 0 || hasRun || busy) ? "visible" : "hidden" }}
-            onClick={() => setPhase((p) => Math.min(5, p + 1))}
+            onClick={() => goPhase(Math.min(5, phase + 1))}
           >
             continue
           </button>
         </div>
-        </div>
-
-        {drawer && openDive && (
-          <Drawer label={openDive.label} onClose={() => setDrawer(null)}>
-            {drawerBody}
-          </Drawer>
-        )}
       </div>
 
       <div className="fl-alt">

@@ -1550,21 +1550,33 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 @media (prefers-reduced-motion: reduce) { .fl-live-dot { animation: none; } }
 
-/* the dive affordances: one labelled way down per docked drawer, stacked */
-.fl-dive {
-  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
-  margin-top: var(--sp-5);
+/* the drawer dock (design-18): handles on the frame's bottom edge. the metaphor
+   made literal — drawers pull up from here; the active handle closes, another
+   switches in place (the single-drawer rule as visible mechanics). */
+.fl-dock {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px;
+  padding: 10px 22px 0; border-top: 1px solid #1c1c1c;
 }
-.fl-dive button {
-  background: none; border: 1px solid var(--hair); color: var(--dim); cursor: pointer;
-  font-family: var(--mono); font-size: var(--t-body); letter-spacing: 0.06em; padding: 5px 14px;
+.fl-dock-label {
+  color: var(--faint); font-size: var(--t-micro); letter-spacing: 0.1em;
+  align-self: center; margin-right: var(--sp-2); white-space: nowrap;
 }
-.fl-dive button:hover:not(:disabled) { border-color: var(--hair-lit); color: var(--ink); }
-.fl-dive button:disabled { opacity: 0.4; cursor: default; }
+.fl-handle {
+  background: var(--surface); border: 1px solid var(--hair); border-bottom: none;
+  color: var(--dim); cursor: pointer; font-family: var(--mono);
+  font-size: var(--t-tiny); letter-spacing: 0.06em; padding: 5px 12px 6px;
+}
+.fl-handle:hover { border-color: var(--hair-lit); color: var(--ink); }
+/* the ACTIVE handle is a selection, not the model's choice: ink, even under
+   the app-wide red button hover (higher specificity on purpose) */
+.fl-dock .fl-handle.on,
+.fl-dock .fl-handle.on:hover:not(:disabled) { border-color: var(--ink); color: var(--ink); }
+@media (max-width: 640px) { .fl-dock { padding-left: var(--sp-4); padding-right: var(--sp-4); } }
 
-/* the single drawer: over the step, the step recedes underneath (inert, still
-   mounted); closing returns to the exact step. one at a time, by construction. */
-.fl-under { display: contents; }
+/* the single drawer: over the STAGE only (the chrome — rail, dock, nav — stays
+   live); the step recedes underneath (inert, still mounted). it rises from the
+   dock edge; one at a time, by construction. */
+.fl-stagewrap { position: relative; flex: 1; display: flex; flex-direction: column; }
 .fl-drawer {
   position: absolute; inset: 0; z-index: 5;
   background: rgba(5, 5, 5, 0.97);
@@ -1572,7 +1584,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   padding: 22px 26px; overflow-y: auto;
   animation: fl-drawer-in 0.18s ease;
 }
-@keyframes fl-drawer-in { from { opacity: 0; transform: translateY(10px); } }
+@keyframes fl-drawer-in { from { opacity: 0; transform: translateY(18px); } }
 @media (prefers-reduced-motion: reduce) { .fl-drawer { animation: none; } }
 .fl-drawer-head {
   display: flex; justify-content: space-between; align-items: baseline;
@@ -1585,10 +1597,6 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 .fl-drawer-close:hover { border-color: var(--hair-lit); color: var(--ink); }
 .fl-drawer-body { flex: 1; }
-.fl-drawer-foot {
-  color: var(--faint); font-size: var(--t-tiny); letter-spacing: 0.06em;
-  border-top: 1px solid var(--hair); margin-top: var(--sp-4); padding-top: 10px;
-}
 .fl-stub { color: var(--dim); font-size: var(--t-base); line-height: 1.7; max-width: 52ch; }
 .fl-stub a { color: var(--dim); border-bottom: 1px dotted var(--faint); text-decoration: none; }
 .fl-stub a:hover { color: var(--ink); border-bottom-color: var(--ink); }

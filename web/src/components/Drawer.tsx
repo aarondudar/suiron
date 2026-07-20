@@ -41,7 +41,6 @@ export function Drawer({
         </button>
       </div>
       <div className="fl-drawer-body">{children}</div>
-      <div className="fl-drawer-foot">one drawer at a time · closing returns you to the step</div>
     </div>
   );
 }
