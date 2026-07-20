@@ -1300,14 +1300,20 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 /* ---------- the guided flow (docs/design.md): the spine + the drawer ----------
    One idea per screen. The frame, pacing, and open/return drawer rhythm match
    docs/prototype/core-loop.html; every number on screen is live. */
-.flow-wrap { max-width: 700px; margin: 0 auto; }
+/* the spine stays intimate at 700px; the frame OPENS UP while a drawer is
+   open (940px) — dense instruments get the room, the lesson keeps its measure */
+.flow-wrap { max-width: 700px; margin: 0 auto; transition: max-width 0.25s ease; }
+.flow-wrap.wide { max-width: 940px; }
+@media (prefers-reduced-motion: reduce) { .flow-wrap { transition: none; } }
 .flow {
   position: relative; overflow: hidden;
   background: var(--bg);
   background-image: radial-gradient(circle, #141414 1px, transparent 1px);
   background-size: 24px 24px;
   border: 1px solid var(--hair); border-top: 2px solid var(--red);
-  min-height: 560px; display: flex; flex-direction: column;
+  min-height: 560px;
+  min-height: clamp(560px, 100svh - 200px, 800px);
+  display: flex; flex-direction: column;
 }
 .fl-head {
   display: flex; justify-content: space-between; align-items: baseline;
@@ -1375,7 +1381,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 @media (prefers-reduced-motion: reduce) { .fl-chip.pick { transition: none; } }
 
 /* the sixteen readers (design-15): one cell per head, scrubbed by layer */
-.hg { width: 100%; max-width: 560px; }
+.hg { width: 100%; }
 .hg-grid {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-2);
 }

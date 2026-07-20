@@ -939,7 +939,7 @@ export function Flow() {
   })();
 
   return (
-    <div className="flow-wrap">
+    <div className={"flow-wrap" + (drawer ? " wide" : "")}>
       <div className="flow">
         <div className="fl-head">
           <div className="fl-brand">
