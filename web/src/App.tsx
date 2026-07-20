@@ -30,10 +30,11 @@ const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** The guided flow is the default experience (docs/design.md). The old
  *  everything-at-once stack stays reachable at ?view=expert — and deep links
- *  (which encode expert-view moments) land there too, so shared links keep
- *  working. */
+ *  without a `view` field (every pre-flow link) land there too, so shared
+ *  links keep working. Flow links (`view=flow`) restore inside the flow. */
 const EXPERT =
-  new URLSearchParams(window.location.search).get("view") === "expert" || INITIAL_LINK !== null;
+  new URLSearchParams(window.location.search).get("view") === "expert" ||
+  (INITIAL_LINK !== null && INITIAL_LINK.view !== "flow");
 
 export default function App() {
   return EXPERT ? <ExpertLab /> : <Flow />;

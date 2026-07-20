@@ -33,6 +33,16 @@ describe("deep links", () => {
     expect(decodeLink("#" + encodeLink(LINK))).toEqual(LINK);
   });
 
+  it("round-trips the flow fields (design-10)", () => {
+    const flow = { ...LINK, c: undefined, walk: undefined, layer: undefined, view: "flow" as const, step: 3, d: "dot" };
+    const back = decodeLink("#" + encodeLink(flow));
+    expect(back).toMatchObject({ view: "flow", step: 3, d: "dot", cur: 5, p: LINK.p });
+  });
+
+  it("pre-flow links carry no view field", () => {
+    expect(decodeLink("#" + encodeLink(LINK))?.view).toBeUndefined();
+  });
+
   it("round-trips without the optional view fields", () => {
     const bare = { p: "hello world", n: 3, temp: 0.8, top_k: 40, top_p: 0.95, seed: 42 };
     const back = decodeLink(encodeLink(bare));

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fork, generate, getTrace, step as stepMore } from "../api";
 import { DEFAULT_PARAMS, esc, moments } from "../lib";
+import { currentLink, decodeLink, encodeLink, matchesResident } from "../link";
 import { AttentionInteractive } from "./AttentionInteractive";
 import { Drawer } from "./Drawer";
 import { Epilogue } from "./Epilogue";
@@ -28,6 +29,13 @@ import type { Trace } from "../types";
 
 /** step vocabulary from docs/design.md — fix it there first (6 = the finale) */
 const STEPS = ["begin", "tokens", "looks back", "sharpens", "draws one", "loops", "the end"] as const;
+
+/** a flow deep link parsed once at load (design-10); the restore effect below
+ *  rebuilds the run and reassembles the moment */
+const FLOW_LINK = (() => {
+  const l = decodeLink(window.location.hash);
+  return l?.view === "flow" ? l : null;
+})();
 
 /** The finale hosts the unchanged Epilogue, whose <Explain> anchors need an
  *  Explainer context. The flow has no concept cards, so they quietly no-op. */
@@ -195,17 +203,32 @@ const DIVES: Record<number, { id: string; label: string }[]> = {
 export function Flow() {
   const trace = useTrace();
   const [phase, setPhase] = useState(0);
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(FLOW_LINK?.p ?? "");
   /** the ONE open drawer (a DIVES id), or null. A single slot is the
    *  single-drawer rule: opening another replaces this one. */
   const [drawer, setDrawer] = useState<string | null>(null);
   const [knob, setKnob] = useState<Knob>("temperature");
   /** which token is under the microscope; null = follow the frontier */
   const [inspect, setInspect] = useState<number | null>(null);
-  const params = DEFAULT_PARAMS;
+  /** a restored link brings its own sampler params; otherwise the defaults */
+  const params = FLOW_LINK
+    ? {
+        ...DEFAULT_PARAMS,
+        n: FLOW_LINK.n,
+        temp: FLOW_LINK.temp,
+        top_k: FLOW_LINK.top_k,
+        top_p: FLOW_LINK.top_p,
+        seed: FLOW_LINK.seed,
+      }
+    : DEFAULT_PARAMS;
 
-  // moving to another step always returns to the spine first
-  useEffect(() => setDrawer(null), [phase]);
+  /** moving to another step always returns to the spine first — expressed in
+   *  the nav itself (not an effect) so a restored link can land on a step
+   *  WITH its drawer open */
+  const goPhase = (n: number) => {
+    setDrawer(null);
+    setPhase(Math.max(0, Math.min(6, n)));
+  };
 
   // the flow walks the frontier by default; an inspected token re-anchors
   // steps 2–4 to ITS production (clamped — a fork can shrink the run)
@@ -235,14 +258,14 @@ export function Flow() {
     const text = prompt.trim();
     if (!text || busy) return;
     setInspect(null); // a new run walks its own frontier
-    void generate(text, params);
-    setPhase(1);
+    void generate(text, { ...params, n: 1 });
+    goPhase(1);
   };
   const runAgain = () => {
     if (!trace || busy) return;
     setInspect(null);
     void stepMore(1, params);
-    setPhase(1);
+    goPhase(1);
   };
   /** the finale's experiments run live in the flow: a curated prompt loops
    *  the learner back into the spine (same param merge as the expert view) */
@@ -251,11 +274,99 @@ export function Flow() {
     setInspect(null);
     setPrompt(e.prompt);
     void generate(e.prompt, { ...params, ...e.params });
-    setPhase(1);
+    goPhase(1);
   };
 
   const railTo = (n: number) => {
-    if (hasRun || busy) setPhase(n);
+    if (hasRun || busy) goPhase(n);
+  };
+
+  // ---- flow deep links (design-10): restore the linked moment, keep the URL current ----
+  const pendingLink = useRef(FLOW_LINK);
+  /** trace.seq when the restore re-run was fired; null = not fired */
+  const linkFiredAt = useRef<number | null>(null);
+  useEffect(() => {
+    const link = pendingLink.current;
+    if (!link || !trace || trace.busy) return;
+    const apply = () => {
+      pendingLink.current = null;
+      const last = trace.tokens.length - 1;
+      if (link.cur !== undefined && link.cur < last) setInspect(Math.max(1, link.cur));
+      if (link.step !== undefined) setPhase(Math.max(0, Math.min(6, link.step)));
+      if (link.d && Object.values(DIVES).flat().some((dd) => dd.id === link.d)) setDrawer(link.d);
+    };
+    // the resident run already is this link (a reload, or our re-run settling)
+    if (matchesResident(link, trace)) {
+      apply();
+      return;
+    }
+    if (linkFiredAt.current !== null) {
+      // our re-run settled on something else (engine truth wins): show it as-is
+      if (trace.seq !== linkFiredAt.current && trace.tokens.length > trace.n_prompt) apply();
+      return;
+    }
+    if (trace.demo) {
+      // the recording can't rebuild arbitrary prompts; drop the restore honestly
+      pendingLink.current = null;
+      return;
+    }
+    linkFiredAt.current = trace.seq ?? 0;
+    generate(link.p, {
+      ...DEFAULT_PARAMS,
+      n: link.n,
+      temp: link.temp,
+      top_k: link.top_k,
+      top_p: link.top_p,
+      seed: link.seed,
+    }).catch(() => {
+      pendingLink.current = null;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trace]);
+
+  // keep the hash mirroring the current moment (replace, never push); silent
+  // while a restore is pending so we don't clobber the incoming link
+  useEffect(() => {
+    if (pendingLink.current || !trace || trace.busy) return;
+    const l = currentLink(trace, {
+      cur,
+      c: null,
+      walk: null,
+      layer: -1,
+      flow: { step: phase, d: drawer },
+    });
+    if (!l && !window.location.hash) return;
+    const timer = window.setTimeout(() => {
+      history.replaceState(
+        null,
+        "",
+        l ? "#" + encodeLink(l) : window.location.pathname + window.location.search,
+      );
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [trace, cur, phase, drawer]);
+
+  // copy a link to this exact moment, built from live state so it is never stale
+  const [copied, setCopied] = useState(false);
+  const copyLink = () => {
+    if (!trace) return;
+    const l = currentLink(trace, {
+      cur,
+      c: null,
+      walk: null,
+      layer: -1,
+      flow: { step: phase, d: drawer },
+    });
+    if (!l) return;
+    const url =
+      window.location.origin + window.location.pathname + window.location.search + "#" + encodeLink(l);
+    navigator.clipboard
+      .writeText(url)
+      .then(() => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1500);
+      })
+      .catch(() => {});
   };
 
   // the token's story: real trace-derived moments (attention lock, induction,
@@ -646,6 +757,11 @@ export function Flow() {
         <div className="fl-head">
           <div className="fl-brand">
             suiron<span className="jp">推論</span>
+            {hasRun && (
+              <button className="fl-share" onClick={copyLink} title="copy a link to this exact moment">
+                {copied ? "copied ✓" : "share"}
+              </button>
+            )}
           </div>
           <div className="fl-rail" role="tablist" aria-label="steps">
             {[1, 2, 3, 4, 5].map((n) => (

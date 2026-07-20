@@ -20,6 +20,12 @@ export interface LinkState {
   c?: string;
   walk?: number;
   layer?: number;
+  /** which surface the link points into; absent = the expert stack (all
+   *  pre-flow links), "flow" = the guided flow */
+  view?: "flow";
+  /** guided flow only: the step (0–6) and the open drawer id */
+  step?: number;
+  d?: string;
 }
 
 export function encodeLink(s: LinkState): string {
@@ -35,6 +41,9 @@ export function encodeLink(s: LinkState): string {
   if (s.c) q.set("c", s.c);
   if (s.walk !== undefined) q.set("walk", String(s.walk));
   if (s.layer !== undefined && s.layer >= 0) q.set("layer", String(s.layer));
+  if (s.view) q.set("view", s.view);
+  if (s.step !== undefined) q.set("step", String(s.step));
+  if (s.d) q.set("d", s.d);
   return q.toString();
 }
 
@@ -61,6 +70,9 @@ export function decodeLink(hash: string): LinkState | null {
       c: q.get("c") ?? undefined,
       walk: opt("walk"),
       layer: opt("layer"),
+      view: q.get("view") === "flow" ? "flow" : undefined,
+      step: opt("step"),
+      d: q.get("d") ?? undefined,
     };
   } catch {
     return null;
@@ -94,7 +106,14 @@ export function matchesResident(link: LinkState, trace: Trace): boolean {
  *  (no generated tokens yet, or a chat-wrapped resident) */
 export function currentLink(
   trace: Trace,
-  view: { cur: number; c: string | null; walk: number | null; layer: number },
+  view: {
+    cur: number;
+    c: string | null;
+    walk: number | null;
+    layer: number;
+    /** present when the guided flow is the surface being linked */
+    flow?: { step: number; d: string | null };
+  },
 ): LinkState | null {
   if (trace.tokens.length <= trace.n_prompt) return null;
   const prompt = residentPrompt(trace);
@@ -112,5 +131,8 @@ export function currentLink(
     c: view.c ?? undefined,
     walk: view.walk ?? undefined,
     layer: view.layer >= 0 ? view.layer : undefined,
+    view: view.flow ? "flow" : undefined,
+    step: view.flow?.step,
+    d: view.flow?.d ?? undefined,
   };
 }
