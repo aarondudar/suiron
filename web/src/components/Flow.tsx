@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { generate, getTrace, step as stepMore } from "../api";
+import { fork, generate, getTrace, step as stepMore } from "../api";
 import { DEFAULT_PARAMS, esc } from "../lib";
 import { AttentionInteractive } from "./AttentionInteractive";
 import { Drawer } from "./Drawer";
@@ -148,7 +148,10 @@ const DIVES: Record<number, { id: string; label: string }[]> = {
     { id: "rmsnorm", label: "the reset before every layer" },
     { id: "residual", label: "the signal, layer by layer" },
   ],
-  4: [{ id: "sampling", label: "bend the odds: temperature, top-k, top-p" }],
+  4: [
+    { id: "sampling", label: "bend the odds: temperature, top-k, top-p" },
+    { id: "fork", label: "what if it had picked differently?" },
+  ],
   5: [{ id: "cache", label: "the cache that makes the loop fast" }],
 };
 
@@ -387,6 +390,15 @@ export function Flow() {
               the loop so far: {trace.n_prompt} of your tokens +{" "}
               {trace.tokens.length - trace.n_prompt} drawn
             </div>
+            {trace.fork && (
+              <div className="fl-note">
+                the road not taken: “
+                {trace.fork.prev.length > 60
+                  ? trace.fork.prev.slice(0, 60) + "…"
+                  : trace.fork.prev}
+                ”
+              </div>
+            )}
             {dive(5)}
           </>
         );
@@ -449,6 +461,36 @@ export function Flow() {
     }
     if (drawer === "sampling")
       return <div className="fl-stub">no recorded draw at this position — run a step first.</div>;
+    if (drawer === "fork" && flowCtx) {
+      const top = (flowCtx.step.top ?? []).slice(0, 6);
+      const chosenId = flowCtx.trace.tokens[cur]?.id;
+      return (
+        <>
+          <div className="fl-drawer-note">
+            the draw picked “{esc(flowCtx.trace.tokens[cur]?.t ?? "")}”. force one of the other
+            real candidates and the engine re-runs from there — the sentence you watched changes.
+          </div>
+          <div className="fl-fork-opts">
+            {top.map(([id, t, p]) => (
+              <button
+                key={id}
+                className={"fl-fork-opt" + (id === chosenId ? " picked" : "")}
+                disabled={id === chosenId || busy}
+                onClick={() => {
+                  void fork(cur, id, params);
+                  setDrawer(null);
+                  setPhase(5); // the changed sentence is the payoff
+                }}
+              >
+                <span className="fl-fork-tok">{esc(t)}</span>
+                <span className="fl-fork-p">{(p * 100).toFixed(1)}%</span>
+                {id === chosenId && <span className="fl-fork-tag">picked</span>}
+              </button>
+            ))}
+          </div>
+        </>
+      );
+    }
     if (drawer === "rmsnorm" && flowCtx)
       return (
         <>

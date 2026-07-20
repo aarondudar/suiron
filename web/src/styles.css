@@ -1503,6 +1503,22 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 /* the sampling drawer's one-knob-at-a-time toggle (reuses the shared .seg) */
 .fl-knob-seg { display: inline-flex; margin-bottom: var(--sp-4); }
+
+/* the fork drawer: the real candidates, one click forces one */
+.fl-fork-opts { display: flex; flex-direction: column; gap: var(--sp-2); max-width: 360px; }
+.fl-fork-opt {
+  display: flex; align-items: baseline; gap: var(--sp-3);
+  background: var(--surface); border: 1px solid var(--hair); color: var(--ink);
+  font-family: var(--mono); font-size: var(--t-base); padding: 6px 12px; cursor: pointer;
+  text-align: left;
+}
+.fl-fork-opt:hover:not(:disabled) { border-color: var(--red); }
+.fl-fork-opt:disabled { cursor: default; }
+.fl-fork-opt.picked { border-color: var(--red); color: var(--red); }
+.fl-fork-tok { white-space: pre; }
+.fl-fork-p { margin-left: auto; color: var(--dim); font-size: var(--t-body); font-variant-numeric: tabular-nums; }
+.fl-fork-opt.picked .fl-fork-p { color: var(--red); }
+.fl-fork-tag { font-size: var(--t-micro); letter-spacing: 0.08em; text-transform: uppercase; }
 @media (max-width: 640px) { .fl-drawer { padding: var(--sp-4); } }
 
 /* the quiet route to the old everything-at-once stack */
