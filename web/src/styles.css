@@ -126,6 +126,11 @@ section:hover { border-color: var(--hair-lit); }
   font-family: var(--dot); font-size: var(--t-body); font-weight: 700;
   color: var(--faint); letter-spacing: 0.06em;
 }
+/* the vocabulary bridge: which guided-flow step this band deepens */
+.band-step {
+  color: var(--faint); font-size: var(--t-micro); letter-spacing: 0.1em;
+  border: 1px solid var(--hair); padding: 0 5px; white-space: nowrap;
+}
 section:hover .label .idx { color: var(--red); transition: color 0.18s; }
 
 canvas { display: block; }
@@ -366,9 +371,13 @@ button.busy { border-color: var(--red); color: var(--red); }
   transition: border-color 0.12s, color 0.12s, background 0.12s;
 }
 .tok.gen { border-color: #454545; }
-.tok.cur { border-color: var(--red); color: var(--red); background: rgba(215, 25, 33, 0.08); }
+/* the inspected token: an ink emphasis, deliberately NOT red — red means the
+   model's choice/attended and nothing else (a prompt token can be inspected
+   without ever having been chosen). Matches .fd-tok.cur and the flow. */
+.tok.cur { border-color: var(--ink); color: var(--ink); background: rgba(232, 232, 232, 0.08); }
 /* the producing edge: prod is the read-head whose forward pass produced cur.
-   Non-red (red is reserved for cur / strongest): a dashed dim outline + a label. */
+   Non-red (red is reserved for the strongest source / the picked candidate):
+   a dashed dim outline + a label. */
 .tok.prod { border-color: var(--dim); border-style: dashed; }
 .tok-readhead {
   position: absolute; left: 0; top: -16px; font-size: var(--t-micro);
@@ -378,7 +387,7 @@ button.busy { border-color: var(--red); color: var(--red); }
 /* confidence under-bar — only on generated tokens; width ∝ how sure the model
    was. its presence (vs none on a prompt token) is itself the gen marker. */
 .conf-bar { position: absolute; left: 0; bottom: -1px; height: 2px; background: var(--dim); }
-.tok.cur .conf-bar { background: var(--red); }
+.tok.cur .conf-bar { background: var(--ink); }
 
 /* linked highlighting (B1) — background/border only, never color, so the
    confidence brightness (inline style) is preserved. */
@@ -1337,6 +1346,8 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 .fl-line em { font-style: normal; border-bottom: 1px solid #444; }
 .fl-status, .fl-note { color: var(--faint); font-size: var(--t-body); text-align: center; margin-top: var(--sp-3); }
+.fl-note a { color: var(--faint); border-bottom: 1px dotted var(--faint); text-decoration: none; }
+.fl-note a:hover { color: var(--ink); border-bottom-color: var(--ink); }
 .fl-center { text-align: center; }
 
 /* the sentence so far: real resident tokens as chips */

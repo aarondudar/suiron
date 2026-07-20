@@ -343,6 +343,7 @@ export function Geometry({
       <BandHeader
         idx="04"
         title={<Explain of="geometry">the geometry of one prediction</Explain>}
+        step="sharpens"
         sub={SUB.geometry}
       >
         <RoleTag

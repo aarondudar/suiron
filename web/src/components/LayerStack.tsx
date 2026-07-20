@@ -162,6 +162,7 @@ export function LayerStack({
       <BandHeader
         idx="02"
         title={<Explain of="attention">inside the {trace.layers} layers</Explain>}
+        step="looks back · sharpens"
         sub={SUB.layers}
       >
         <Explain of="embedding" label="embedding" />

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { fork, generate, getTrace, step as stepMore } from "../api";
 import { DEFAULT_PARAMS, esc, litToken, moments, shadowTrace } from "../lib";
-import { currentLink, decodeLink, encodeLink, matchesResident } from "../link";
+import { currentLink, decodeLink, encodeLink, matchesResident, residentPrompt } from "../link";
 import { AttentionInteractive } from "./AttentionInteractive";
 import { Drawer } from "./Drawer";
 import { Epilogue } from "./Epilogue";
@@ -287,6 +287,19 @@ export function Flow() {
   const railTo = (n: number) => {
     if (hasRun || busy) goPhase(n);
   };
+
+  // the box reflects the resident run (design-13): prefill once when loading
+  // over an existing run, never clobbering typed or link-restored text
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current || !trace || !trace.tokens.length) return;
+    prefilled.current = true;
+    setPrompt((p) => {
+      if (p) return p;
+      const rp = residentPrompt(trace);
+      return rp && !rp.startsWith("<|im_start|>") ? rp : p;
+    });
+  }, [trace]);
 
   // ---- flow deep links (design-10): restore the linked moment, keep the URL current ----
   const pendingLink = useRef(FLOW_LINK);
@@ -624,6 +637,12 @@ export function Flow() {
         return (
           <ExplainerProvider value={NOOP_EXPLAINER}>
             <div className="fl-finale">
+              {/* the epilogue's copy was written beside the full instrument;
+                  keep its "above" references honest from here (design-13) */}
+              <div className="fl-note">
+                written beside the full instrument — where it says “above”, it means the{" "}
+                <a href="?view=expert">expert view</a>.
+              </div>
               <Epilogue
                 onTryChat={() => {
                   window.location.href = "?view=expert";

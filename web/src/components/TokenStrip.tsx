@@ -76,6 +76,7 @@ export function TokenStrip({
       <BandHeader
         idx="01"
         title={<Explain of="tokenization">tokens</Explain>}
+        step="tokens"
         sub={SUB.tokens}
       >
         <Explain of="confidence" label="confidence" />

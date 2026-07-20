@@ -71,6 +71,7 @@ export function Selection({
       <BandHeader
         idx="05"
         title={<Explain of="draw">how this token was chosen</Explain>}
+        step="draws one"
         sub={SUB.selection}
       >
         <RoleTag trace={trace} pos={cur} kind="cur" />

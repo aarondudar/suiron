@@ -154,6 +154,20 @@ function ExpertLab() {
     );
   }, [toggleChat]);
 
+  // the box reflects the resident run (design-13): prefill once from the
+  // resident prompt when loading over an existing run, never clobbering
+  // typed or link-restored text, never from a chat-wrapped resident
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current || !trace || !trace.tokens.length) return;
+    prefilled.current = true;
+    setPrompt((p) => {
+      if (p) return p;
+      const rp = residentPrompt(trace);
+      return rp && !rp.startsWith("<|im_start|>") ? rp : p;
+    });
+  }, [trace]);
+
   const lastSeq = useRef(-1);
   const curRef = useRef(cur);
   curRef.current = cur;
@@ -481,12 +495,18 @@ function ExpertLab() {
           <div className="spec" data-explain-el="spec">
             <Explain of="model">
               {trace.model.toLowerCase()} · {trace.quant} · {trace.layers} layers · {trace.heads}h/
-              {trace.kv_heads}kv · {trace.n_prompt} prompt +{" "}
-              {Math.max(0, trace.tokens.length - trace.n_prompt)} generated
+              {trace.kv_heads}kv ·{" "}
+              <span style={{ whiteSpace: "nowrap" }}>
+                {trace.n_prompt} prompt + {Math.max(0, trace.tokens.length - trace.n_prompt)}{" "}
+                generated
+              </span>
             </Explain>
             <button className="about-link" onClick={() => setWelcomeOpen(true)}>
               about
             </button>
+            <a className="about-link" href={window.location.pathname} title="the guided five-step walkthrough">
+              guided view
+            </a>
             {hasTokens &&
               currentLink(trace, { cur: safeCur, c: active, walk, layer: openLayer }) && (
                 <button
@@ -665,8 +685,8 @@ function ExpertLab() {
             </>
           ) : (
             <div className="seed-note">
-              The model did not predict this first token; generation starts from the tokens you
-              provide. Move right (→) to a produced token to see how it was made.
+              the model did not predict this first token; generation starts from the tokens you
+              provide. move right (→) to a produced token to see how it was made.
             </div>
           )}
           <div className="aside-divider">the same model, faster · an aside, not a step</div>

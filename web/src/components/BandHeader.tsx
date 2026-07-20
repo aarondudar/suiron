@@ -8,11 +8,15 @@ import type { ReactNode } from "react";
 export function BandHeader({
   idx,
   title,
+  step,
   sub,
   children,
 }: {
   idx: string;
   title: ReactNode;
+  /** the guided flow's step word this band deepens (the vocabulary bridge:
+   *  design.md's five steps are the app's spine vocabulary) */
+  step?: string;
   sub: ReactNode;
   children?: ReactNode;
 }) {
@@ -21,6 +25,7 @@ export function BandHeader({
       <div className="label">
         <span className="idx">{idx}</span>
         <span className="band-title">{title}</span>
+        {step && <span className="band-step">{step}</span>}
         {children && <span className="band-ctl">{children}</span>}
       </div>
       <div className="band-sub">{sub}</div>

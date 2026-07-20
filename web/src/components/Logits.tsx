@@ -43,6 +43,7 @@ export function Logits({
       <BandHeader
         idx="03"
         title={<Explain of="logits">what the model predicted here</Explain>}
+        step="sharpens"
         sub={SUB.logits}
       >
         <RoleTag trace={trace} pos={cur - 1} kind="prod" />
