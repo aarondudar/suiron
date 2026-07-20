@@ -3,6 +3,7 @@ import { generate, getTrace, step as stepMore } from "../api";
 import { DEFAULT_PARAMS, esc } from "../lib";
 import { AttentionInteractive } from "./AttentionInteractive";
 import { Drawer } from "./Drawer";
+import { KvCacheDemo } from "./KvCacheDemo";
 import type { ExplainCtx } from "./Explanations";
 import { LensClimb } from "./LensClimb";
 import { TemperatureDemo } from "./TemperatureDemo";
@@ -426,6 +427,16 @@ export function Flow() {
     }
     if (drawer === "sampling")
       return <div className="fl-stub">no recorded draw at this position — run a step first.</div>;
+    if (drawer === "cache" && flowCtx)
+      return (
+        <>
+          <div className="fl-drawer-note">
+            why running it again is cheap: every earlier token's keys and values are already
+            sitting here — the pass only computes the newest column.
+          </div>
+          <KvCacheDemo ctx={flowCtx} />
+        </>
+      );
     return (
       <div className="fl-stub">
         this deep-dive re-homes an existing module here — coming soon, one pass at a time. until
