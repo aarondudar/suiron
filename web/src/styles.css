@@ -1374,6 +1374,38 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .fl-chip.pick:hover { border-color: var(--dim); }
 @media (prefers-reduced-motion: reduce) { .fl-chip.pick { transition: none; } }
 
+/* the sixteen readers (design-15): one cell per head, scrubbed by layer */
+.hg { width: 100%; max-width: 560px; }
+.hg-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-2);
+}
+@media (max-width: 640px) { .hg-grid { grid-template-columns: repeat(2, 1fr); } }
+.hg-cell {
+  border: 1px solid var(--hair); background: var(--surface); padding: 5px 8px;
+  display: flex; align-items: baseline; gap: 6px; min-width: 0;
+}
+.hg-cell.win { border-color: var(--red); }
+.hg-cell.win .hg-tok, .hg-cell.win .hg-p { color: var(--red); }
+.hg-cell.sink .hg-tok { color: var(--faint); }
+.hg-cell.empty .hg-tok { color: var(--faint); }
+.hg-h { color: var(--faint); font-size: var(--t-micro); letter-spacing: 0.06em; flex: none; }
+.hg-tok {
+  color: var(--ink); font-size: var(--t-body); white-space: pre;
+  overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;
+}
+.hg-p { color: var(--dim); font-size: var(--t-tiny); font-variant-numeric: tabular-nums; flex: none; }
+.hg-foot {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: var(--sp-3); margin: var(--sp-3) 0 var(--sp-1);
+}
+.hg-layer {
+  font-family: var(--dot); font-size: var(--t-md); font-weight: 700; color: var(--ink);
+  letter-spacing: 0.08em; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.hg-cap { color: var(--faint); font-size: var(--t-tiny); }
+/* the Doto counter above already reads the layer — hide the Stepper's duplicate */
+.hg .stepper-where { display: none; }
+
 /* the two worlds (design-11): both runs, divergence marked */
 .fl-world { margin-bottom: var(--sp-5); }
 .fl-world-label {

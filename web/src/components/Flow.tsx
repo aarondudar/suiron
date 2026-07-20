@@ -8,6 +8,7 @@ import { EmbeddingRow } from "./EmbeddingRow";
 import { Epilogue } from "./Epilogue";
 import { ExplainerProvider } from "./Explainer";
 import { GeometryCard } from "./Geometry";
+import { HeadGrid } from "./HeadGrid";
 import { KvCacheDemo } from "./KvCacheDemo";
 import type { ExplainCtx } from "./Explanations";
 import { LensClimb } from "./LensClimb";
@@ -192,6 +193,7 @@ const DIVES: Record<number, { id: string; label: string }[]> = {
   ],
   2: [
     { id: "dot", label: "watch one score compute" },
+    { id: "heads", label: "the sixteen readers" },
     { id: "rope", label: "how it knows word order" },
   ],
   3: [
@@ -839,6 +841,17 @@ export function Flow() {
             adjustment to this one running signal.
           </div>
           <RnormSparkline step={flowCtx.step} layer={flowCtx.layer} layers={flowCtx.trace.layers} />
+        </>
+      );
+    if (drawer === "heads" && flowCtx && prodStep)
+      return (
+        <>
+          <div className="fl-drawer-note">
+            attention isn't one spotlight — it's {flowCtx.trace.heads} heads, each reading its own
+            place. scrub the layers and watch them change jobs: local grammar early, the content
+            lock in the middle, the sink when there's nothing to fetch.
+          </div>
+          <HeadGrid trace={flowCtx.trace} step={prodStep} prod={prod} />
         </>
       );
     if (drawer === "rope" && flowCtx)
