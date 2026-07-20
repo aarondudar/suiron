@@ -6,6 +6,8 @@ import { Drawer } from "./Drawer";
 import { KvCacheDemo } from "./KvCacheDemo";
 import type { ExplainCtx } from "./Explanations";
 import { LensClimb } from "./LensClimb";
+import { RmsNormDemo } from "./RmsNormDemo";
+import { RnormSparkline } from "./RnormSparkline";
 import { RopeDemo } from "./RopeDemo";
 import { TemperatureDemo } from "./TemperatureDemo";
 import { TokenizeDemo } from "./TokenizeDemo";
@@ -141,6 +143,10 @@ const DIVES: Record<number, { id: string; label: string }[]> = {
   2: [
     { id: "dot", label: "watch one score compute" },
     { id: "rope", label: "how it knows word order" },
+  ],
+  3: [
+    { id: "rmsnorm", label: "the reset before every layer" },
+    { id: "residual", label: "the signal, layer by layer" },
   ],
   4: [{ id: "sampling", label: "bend the odds: temperature, top-k, top-p" }],
   5: [{ id: "cache", label: "the cache that makes the loop fast" }],
@@ -318,6 +324,7 @@ export function Flow() {
               {trace.layers} layers.
             </p>
             <LensClimb trace={trace} prod={prod} prodStep={prodStep} />
+            {dive(3)}
           </>
         );
       case 4: {
@@ -442,6 +449,26 @@ export function Flow() {
     }
     if (drawer === "sampling")
       return <div className="fl-stub">no recorded draw at this position — run a step first.</div>;
+    if (drawer === "rmsnorm" && flowCtx)
+      return (
+        <>
+          <div className="fl-drawer-note">
+            before each layer reads the vector, it resets it to a standard length — same
+            direction, steadier numbers. this slice is from the current pass.
+          </div>
+          <RmsNormDemo ctx={flowCtx} />
+        </>
+      );
+    if (drawer === "residual" && flowCtx)
+      return (
+        <>
+          <div className="fl-drawer-note">
+            the vector the climb reads, measured after every layer — each layer adds its
+            adjustment to this one running signal.
+          </div>
+          <RnormSparkline step={flowCtx.step} layer={flowCtx.layer} layers={flowCtx.trace.layers} />
+        </>
+      );
     if (drawer === "rope" && flowCtx)
       return (
         <>
