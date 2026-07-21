@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { fork, generate, getTrace, playDemo, step as stepMore } from "../api";
+import { demoPrompt, fork, generate, getTrace, playDemo, step as stepMore } from "../api";
 import { DEFAULT_PARAMS, esc, litToken, moments, shadowTrace } from "../lib";
 import { currentLink, decodeLink, encodeLink, matchesResident, residentPrompt } from "../link";
 import { AttentionInteractive } from "./AttentionInteractive";
@@ -311,13 +311,21 @@ export function Flow() {
   }, []);
 
   const begin = () => {
-    if (demo) {
-      // the recording can't run other prompts
-      openGoLive();
-      return;
-    }
     const text = prompt.trim();
     if (!text || busy) return;
+    // demo boot (docs/19): the recording's own prompt plays instantly;
+    // anything else needs the real engine, so it opens go-live
+    if (demo) {
+      if (text === demoPrompt()) {
+        setInspect(null);
+        setExp(null);
+        playDemo();
+        goPhase(1);
+      } else {
+        openGoLive();
+      }
+      return;
+    }
     setInspect(null); // a new run walks its own frontier
     setExp(null); // a run of your own retires the experiment framing
     void generate(text, { ...params, n: 1 });
@@ -337,13 +345,19 @@ export function Flow() {
    *  the learner back into the spine (same param merge as the expert view) */
   const runExperiment = (e: Experiment) => {
     if (busy) return;
-    if (demo) {
+    // in the demo, only the recording's own experiment can play; the rest go live
+    if (demo && e.prompt !== demoPrompt()) {
       openGoLive();
       return;
     }
     setInspect(null);
     setExp(e);
     setPrompt(e.prompt);
+    if (demo) {
+      playDemo();
+      goPhase(1);
+      return;
+    }
     void generate(e.prompt, { ...params, ...e.params });
     goPhase(1);
   };
@@ -356,7 +370,17 @@ export function Flow() {
   // over an existing run, never clobbering typed or link-restored text
   const prefilled = useRef(false);
   useEffect(() => {
-    if (prefilled.current || !trace || !trace.tokens.length) return;
+    if (prefilled.current || !trace) return;
+    // demo boot: the recording holds its tokens back, so prefill its prompt —
+    // one click on begin then plays it
+    if (!trace.tokens.length) {
+      const dp = trace.demo ? demoPrompt() : null;
+      if (dp) {
+        prefilled.current = true;
+        setPrompt((p) => p || dp);
+      }
+      return;
+    }
     prefilled.current = true;
     setPrompt((p) => {
       if (p) return p;
@@ -577,52 +601,33 @@ export function Flow() {
               the model does one thing: <em>guess the next word</em>. type something, and watch it
               happen — one step at a time.
             </p>
-            {demo && !hasRun ? (
-              // the static build boots on a recording of one real run; playing
-              // it is the front door — running your own prompt needs go-live
-              <>
-                <div className="fl-center">
-                  <button className="fl-begin" onClick={() => { playDemo(); goPhase(1); }}>
-                    ▶ play the recording
-                  </button>
-                </div>
-                <div className="fl-note">
-                  this build boots on a recording of one real run — “The capital of France is” →
-                  “ Paris”.{" "}
-                  <button className="fl-end-link" onClick={openGoLive}>
-                    go live to run your own prompt
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="fl-prompt-row">
-                  <input
-                    type="text"
-                    value={prompt}
-                    placeholder="The capital of France is"
-                    spellCheck={false}
-                    aria-label="prompt"
-                    onChange={(e) => setPrompt(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && begin()}
-                  />
-                  <button
-                    className="fl-begin"
-                    onClick={begin}
-                    disabled={busy || (!demo && !prompt.trim())}
-                  >
-                    ▶ begin
-                  </button>
-                </div>
-                <div className="fl-ex">
-                  <span className="fl-ex-label">or try:</span>
-                  {EXPERIMENTS.map((e) => (
-                    <button key={e.id} title={e.hook} disabled={busy} onClick={() => runExperiment(e)}>
-                      {e.title}
-                    </button>
-                  ))}
-                </div>
-              </>
+            <div className="fl-prompt-row">
+              <input
+                type="text"
+                value={prompt}
+                placeholder="The capital of France is"
+                spellCheck={false}
+                aria-label="prompt"
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && begin()}
+              />
+              <button className="fl-begin" onClick={begin} disabled={busy || !prompt.trim()}>
+                ▶ begin
+              </button>
+            </div>
+            <div className="fl-ex">
+              <span className="fl-ex-label">or try:</span>
+              {EXPERIMENTS.map((e) => (
+                <button key={e.id} title={e.hook} disabled={busy} onClick={() => runExperiment(e)}>
+                  {e.title}
+                </button>
+              ))}
+            </div>
+            {demo && (
+              <div className="fl-note">
+                recorded demo · this prompt plays instantly · anything else goes live (one 640 MB
+                download, cached)
+              </div>
             )}
             {hasRun && (
               <div className="fl-note">
@@ -630,8 +635,10 @@ export function Flow() {
               </div>
             )}
             <div className="fl-about">
-              a from-scratch inference engine in Rust — every number in this walkthrough is
-              computed live by it, nothing is canned.{" "}
+              a from-scratch inference engine in Rust —{" "}
+              {demo
+                ? "every number here is from one real run of it; go live and your browser computes them itself."
+                : "every number in this walkthrough is computed live by it, nothing is canned."}{" "}
               <a href="?view=expert">more in the expert view</a>
             </div>
           </>

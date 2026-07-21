@@ -39,6 +39,12 @@ let revealN = 0;
 let revealSeq = 0;
 let revealTimer: number | undefined;
 
+/** The recording's prompt while in demo mode (null once live): the one
+ *  input that plays instantly without the model. */
+export function demoPrompt(): string | null {
+  return mode === "demo" ? CANON.prompt : null;
+}
+
 /** Start the recorded replay (no-op outside demo mode or once started).
  *  Honors prefers-reduced-motion by revealing the whole run at once. */
 export function playDemo(): void {

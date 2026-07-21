@@ -20,6 +20,12 @@ export function playDemo(): void {
   if (WASM) wasm.playDemo();
 }
 
+/** the recording's prompt while the page is in demo mode (null when live /
+ *  native): the one input that runs without downloading the model */
+export function demoPrompt(): string | null {
+  return WASM ? wasm.demoPrompt() : null;
+}
+
 export async function getTrace(): Promise<Trace> {
   if (WASM) return wasm.trace();
   const r = await fetch("/api/v1/trace");
