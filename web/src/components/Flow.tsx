@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { fork, generate, getTrace, step as stepMore } from "../api";
+import { demoPrompt, fork, generate, getTrace, playDemo, step as stepMore } from "../api";
 import { DEFAULT_PARAMS, esc, litToken, moments, shadowTrace } from "../lib";
 import { currentLink, decodeLink, encodeLink, matchesResident, residentPrompt } from "../link";
 import { AttentionInteractive } from "./AttentionInteractive";
@@ -281,9 +281,25 @@ export function Flow() {
     return () => document.removeEventListener("keydown", h);
   }, [canAdvance]);
 
+  // demo boot (docs/19): the recording's prompt plays instantly; anything
+  // else needs the real engine, so it opens go-live instead of throwing
+  const demo = !!trace?.demo;
+  const openGoLive = () => window.dispatchEvent(new CustomEvent("suiron-open-golive"));
+
   const begin = () => {
     const text = prompt.trim();
     if (!text || busy) return;
+    if (demo) {
+      if (text === demoPrompt()) {
+        setInspect(null);
+        setExp(null);
+        playDemo();
+        goPhase(1);
+      } else {
+        openGoLive();
+      }
+      return;
+    }
     setInspect(null); // a new run walks its own frontier
     setExp(null); // a run of your own retires the experiment framing
     void generate(text, { ...params, n: 1 });
@@ -291,6 +307,10 @@ export function Flow() {
   };
   const runAgain = () => {
     if (!trace || busy) return;
+    if (demo) {
+      openGoLive();
+      return;
+    }
     setInspect(null);
     void stepMore(1, params);
     goPhase(1);
@@ -299,9 +319,18 @@ export function Flow() {
    *  the learner back into the spine (same param merge as the expert view) */
   const runExperiment = (e: Experiment) => {
     if (busy) return;
+    if (demo && e.prompt !== demoPrompt()) {
+      openGoLive();
+      return;
+    }
     setInspect(null);
     setExp(e);
     setPrompt(e.prompt);
+    if (demo) {
+      playDemo();
+      goPhase(1);
+      return;
+    }
     void generate(e.prompt, { ...params, ...e.params });
     goPhase(1);
   };
@@ -314,7 +343,17 @@ export function Flow() {
   // over an existing run, never clobbering typed or link-restored text
   const prefilled = useRef(false);
   useEffect(() => {
-    if (prefilled.current || !trace || !trace.tokens.length) return;
+    if (prefilled.current || !trace) return;
+    // demo boot: the recording holds its tokens back, so prefill its prompt —
+    // one click on begin then plays it
+    if (!trace.tokens.length) {
+      const dp = trace.demo ? demoPrompt() : null;
+      if (dp) {
+        prefilled.current = true;
+        setPrompt((p) => p || dp);
+      }
+      return;
+    }
     prefilled.current = true;
     setPrompt((p) => {
       if (p) return p;
@@ -517,14 +556,22 @@ export function Flow() {
                 </button>
               ))}
             </div>
+            {demo && (
+              <div className="fl-note">
+                recorded demo · this prompt plays instantly · anything else goes live (one 640 MB
+                download, cached)
+              </div>
+            )}
             {hasRun && (
               <div className="fl-note">
                 a run is already loaded — continue walks it; begin starts fresh.
               </div>
             )}
             <div className="fl-about">
-              a from-scratch inference engine in Rust — every number in this walkthrough is
-              computed live by it, nothing is canned.{" "}
+              a from-scratch inference engine in Rust —{" "}
+              {demo
+                ? "every number here is from one real run of it; go live and your browser computes them itself."
+                : "every number in this walkthrough is computed live by it, nothing is canned."}{" "}
               <a href="?view=expert">more in the expert view</a>
             </div>
           </>
