@@ -1346,6 +1346,26 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 @keyframes fl-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .fl-stage { animation: none; } }
 
+/* the machine, at a glance (design-20): structure before machinery. the
+   you-are-here emphasis is ink — red stays the model's choice. */
+.fl-map { margin: 0 auto var(--sp-4); text-align: center; }
+.fl-map-row {
+  display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: baseline;
+  justify-content: center; font-size: var(--t-tiny); color: var(--dim);
+}
+.fl-map-box {
+  border: 1px solid var(--hair); padding: 2px 8px; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.fl-map-box b, .fl-map-x b { font-weight: normal; color: var(--dim); }
+.fl-map-box b.on, .fl-map-x.on { color: var(--ink); }
+.fl-map-box b.on { border-bottom: 1px solid var(--ink); }
+.fl-map-arrow { color: var(--faint); }
+.fl-map-x { color: var(--faint); white-space: nowrap; }
+.fl-map-x.on { border-bottom: 1px solid var(--ink); }
+.fl-map-here { color: var(--faint); font-size: var(--t-micro); letter-spacing: 0.08em; margin-top: 6px; }
+.fl-map-here b { color: var(--ink); font-weight: normal; }
+
 .fl-line {
   color: var(--ink); font-size: var(--t-lg); line-height: 1.55;
   max-width: 44ch; margin: 0 auto 20px; text-align: center;

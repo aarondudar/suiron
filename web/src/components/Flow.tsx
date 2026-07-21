@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { fork, generate, getTrace, step as stepMore } from "../api";
+import { fork, generate, getTrace, playDemo, step as stepMore } from "../api";
 import { DEFAULT_PARAMS, esc, litToken, moments, shadowTrace } from "../lib";
 import { currentLink, decodeLink, encodeLink, matchesResident, residentPrompt } from "../link";
 import { AttentionInteractive } from "./AttentionInteractive";
@@ -88,6 +88,39 @@ function useTrace(): Trace | null {
     };
   }, []);
   return trace;
+}
+
+/** The machine, at a glance (design-20): structure stated at the moment it
+ *  becomes necessary. Live figures — the context size and layer count come
+ *  from the trace; the vocabulary count is the model's real table height
+ *  (the same figure the embedding drawer ships). `at` moves the you-are-here
+ *  emphasis as the steps advance: read (looks back) → the ×N climb
+ *  (sharpens) → scores (draws one). */
+const VOCAB = 151_936;
+function MachineMap({ trace, n, at }: { trace: Trace; n: number; at: "read" | "climb" | "scores" }) {
+  const here = { read: "read", climb: `all ${trace.layers} layers`, scores: "the scores" }[at];
+  return (
+    <div className="fl-map" aria-label={`the machine at a glance — you are here: ${here}`}>
+      <div className="fl-map-row">
+        <span className="fl-map-box">
+          {n} vector{n === 1 ? "" : "s"}
+        </span>
+        <span className="fl-map-arrow">→</span>
+        <span className="fl-map-box">
+          <b className={at === "read" ? "on" : undefined}>read</b>
+          <span className="fl-map-arrow"> → </span>think
+        </span>
+        <span className={"fl-map-x" + (at === "climb" ? " on" : "")}>× {trace.layers} layers</span>
+        <span className="fl-map-arrow">→</span>
+        <span className="fl-map-box">
+          <b className={at === "scores" ? "on" : undefined}>{VOCAB.toLocaleString()} scores</b>
+        </span>
+      </div>
+      <div className="fl-map-here">
+        the machine, at a glance · you are here: <b>{here}</b>
+      </div>
+    </div>
+  );
 }
 
 /** one token as a chip; `tone` is presentation only */
@@ -259,6 +292,10 @@ export function Flow() {
   const busy = !!trace?.busy;
   const hasRun = !!trace && trace.tokens.length > trace.n_prompt && prod >= 0;
   const prodStep = trace && hasRun ? trace.steps[prod] : undefined;
+  /** the static build boots on a recording (docs/19): the flow walks it, but
+   *  running anything new needs go-live (the same gate the expert view uses) */
+  const demo = !!trace?.demo;
+  const openGoLive = () => window.dispatchEvent(new CustomEvent("suiron-open-golive"));
 
   // ←/→ walk the steps when the spine has the floor (no drawer, not typing).
   // Mirrors the continue button's gate: leaving step 0 needs a run.
@@ -282,6 +319,11 @@ export function Flow() {
   }, [canAdvance]);
 
   const begin = () => {
+    if (demo) {
+      // the recording can't run other prompts
+      openGoLive();
+      return;
+    }
     const text = prompt.trim();
     if (!text || busy) return;
     setInspect(null); // a new run walks its own frontier
@@ -291,6 +333,10 @@ export function Flow() {
   };
   const runAgain = () => {
     if (!trace || busy) return;
+    if (demo) {
+      openGoLive();
+      return;
+    }
     setInspect(null);
     void stepMore(1, params);
     goPhase(1);
@@ -299,6 +345,10 @@ export function Flow() {
    *  the learner back into the spine (same param merge as the expert view) */
   const runExperiment = (e: Experiment) => {
     if (busy) return;
+    if (demo) {
+      openGoLive();
+      return;
+    }
     setInspect(null);
     setExp(e);
     setPrompt(e.prompt);
@@ -495,28 +545,53 @@ export function Flow() {
               the model does one thing: <em>guess the next word</em>. type something, and watch it
               happen — one step at a time.
             </p>
-            <div className="fl-prompt-row">
-              <input
-                type="text"
-                value={prompt}
-                placeholder="The capital of France is"
-                spellCheck={false}
-                aria-label="prompt"
-                onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && begin()}
-              />
-              <button className="fl-begin" onClick={begin} disabled={busy || !prompt.trim()}>
-                ▶ begin
-              </button>
-            </div>
-            <div className="fl-ex">
-              <span className="fl-ex-label">or try:</span>
-              {EXPERIMENTS.map((e) => (
-                <button key={e.id} title={e.hook} disabled={busy} onClick={() => runExperiment(e)}>
-                  {e.title}
-                </button>
-              ))}
-            </div>
+            {demo && !hasRun ? (
+              // the static build boots on a recording of one real run; playing
+              // it is the front door — running your own prompt needs go-live
+              <>
+                <div className="fl-center">
+                  <button className="fl-begin" onClick={() => { playDemo(); goPhase(1); }}>
+                    ▶ play the recording
+                  </button>
+                </div>
+                <div className="fl-note">
+                  this build boots on a recording of one real run — “The capital of France is” →
+                  “ Paris”.{" "}
+                  <button className="fl-end-link" onClick={openGoLive}>
+                    go live to run your own prompt
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="fl-prompt-row">
+                  <input
+                    type="text"
+                    value={prompt}
+                    placeholder="The capital of France is"
+                    spellCheck={false}
+                    aria-label="prompt"
+                    onChange={(e) => setPrompt(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && begin()}
+                  />
+                  <button
+                    className="fl-begin"
+                    onClick={begin}
+                    disabled={busy || (!demo && !prompt.trim())}
+                  >
+                    ▶ begin
+                  </button>
+                </div>
+                <div className="fl-ex">
+                  <span className="fl-ex-label">or try:</span>
+                  {EXPERIMENTS.map((e) => (
+                    <button key={e.id} title={e.hook} disabled={busy} onClick={() => runExperiment(e)}>
+                      {e.title}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
             {hasRun && (
               <div className="fl-note">
                 a run is already loaded — continue walks it; begin starts fresh.
@@ -539,7 +614,8 @@ export function Flow() {
             </p>
             <Sentence trace={trace} n={n} stagger showIds />
             <div className="fl-note">
-              {n} piece{n === 1 ? "" : "s"} · ids from the engine's tokenizer
+              {n} piece{n === 1 ? "" : "s"} · ids from the engine's tokenizer · each is looked up
+              as a vector — a long list of numbers, the only thing the machine computes with
             </div>
             {exp && (
               <div className="fl-mark">
@@ -553,8 +629,10 @@ export function Flow() {
         if (!hasRun) return waiting;
         return (
           <>
+            <MachineMap trace={trace} n={cur} at="read" />
             <p className="fl-line">
-              to guess what comes next, it <em>looks back</em> over everything written so far.
+              each layer starts by <em>looking back</em>: every word's vector pulls in what it
+              needs from the words before it.
             </p>
             <Sentence trace={trace} n={cur} dim readHead onPick={setInspect} />
             {mark(["attention", "induction"])}
@@ -564,9 +642,10 @@ export function Flow() {
         if (!hasRun || !prodStep) return waiting;
         return (
           <>
+            <MachineMap trace={trace} n={cur} at="climb" />
             <p className="fl-line">
-              it doesn't decide at once. the guess <em>sharpens</em> as it passes through all{" "}
-              {trace.layers} layers.
+              it doesn't decide at once. the guess <em>sharpens</em> as the vector climbs the{" "}
+              {trace.layers}-layer stack.
             </p>
             <LensClimb trace={trace} prod={prod} prodStep={prodStep} />
           </>
@@ -582,6 +661,7 @@ export function Flow() {
         const sel = trace.steps[cur]?.sel;
         return (
           <>
+            <MachineMap trace={trace} n={cur} at="scores" />
             <p className="fl-line">
               then it <em>draws one</em>. usually the top guess — but temperature leaves room for
               chance.
@@ -781,6 +861,11 @@ export function Flow() {
                 className={"fl-fork-opt" + (id === chosenId ? " picked" : "")}
                 disabled={id === chosenId || busy}
                 onClick={() => {
+                  if (demo) {
+                    // the recording can't rewrite history — that needs the engine
+                    openGoLive();
+                    return;
+                  }
                   void fork(cur, id, params);
                   setInspect(null); // the fork makes a new frontier — walk it
                   setDrawer(null);
