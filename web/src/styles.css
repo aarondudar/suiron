@@ -1370,6 +1370,15 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   color: var(--ink); font-size: var(--t-lg); line-height: 1.55;
   max-width: 44ch; margin: 0 auto 20px; text-align: center;
 }
+
+/* why THIS number (design-22): per-instance findings under the worked demos */
+.dp-insight {
+  color: var(--dim); font-size: var(--t-body); line-height: 1.7;
+  max-width: 62ch; margin-top: var(--sp-3); border-left: 1px solid var(--hair);
+  padding-left: var(--sp-3); font-variant-numeric: tabular-nums;
+}
+.dp-insight div { margin-bottom: 2px; }
+.dp-carry-tag { color: var(--faint); font-size: var(--t-tiny); }
 .fl-line em { font-style: normal; border-bottom: 1px solid #444; }
 .fl-status, .fl-note { color: var(--faint); font-size: var(--t-body); text-align: center; margin-top: var(--sp-3); }
 .fl-note a { color: var(--faint); border-bottom: 1px dotted var(--faint); text-decoration: none; }

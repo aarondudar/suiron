@@ -63,6 +63,72 @@ export function DotProduct({ ctx, layer, head }: { ctx: ExplainCtx; layer: numbe
     .slice(0, 6);
   const srcText = (p: number) => litToken(ctx.trace.tokens[p]?.t ?? "").text;
 
+  // ---- why THIS number (design-22): per-instance, from the values on screen ----
+  // the few signed components that carry at least half the final sum (capped
+  // at 5); an empty list with a positive sum means the match is spread — a
+  // finding in its own right
+  const carry: number[] = [];
+  if (w && fullSum > 0) {
+    const ranked = w.q
+      .map((qv, j) => [qv * w.k[j], j] as [number, number])
+      .sort((a, b) => b[0] - a[0]);
+    let s = 0;
+    for (const [c, j] of ranked) {
+      if (c <= 0 || carry.length >= 5) break;
+      carry.push(j);
+      s += c;
+      if (s >= fullSum * 0.5) break;
+    }
+    if (s < fullSum * 0.5) carry.length = 0; // >5 needed: call it spread instead
+  }
+  const carrySum = w ? carry.reduce((a, j) => a + w.q[j] * w.k[j], 0) : 0;
+
+  // the biggest component's RoPE pair: its real rotation period, from the
+  // model's rope theta (1e6, a GGUF constant — same footing as the vocab count)
+  const jStar = carry[0];
+  let ropeLine: string | null = null;
+  if (w && jStar !== undefined) {
+    const pair = jStar % (hd / 2);
+    const freq = Math.pow(1e6, (-2 * pair) / hd);
+    const period = (2 * Math.PI) / freq;
+    const compact =
+      period >= 1e6 ? `${(period / 1e6).toFixed(1)}M` : period >= 1e3 ? `${(period / 1e3).toFixed(1)}k` : period.toFixed(0);
+    ropeLine =
+      period < 100
+        ? `component ${jStar} rides rotation pair ${pair}, turning once every ~${compact} tokens — a channel position moves hard`
+        : `component ${jStar} rides rotation pair ${pair}, turning once in ~${compact} tokens — position barely touches it; it carries content`;
+  }
+
+  // the discriminator: against the strongest rival source, where did the head
+  // actually tell the two words apart? one extra inspect, cached like the rest
+  const rivalPos = w ? srcOptions.find(([p]) => p !== w.src)?.[0] : undefined;
+  const [rivalK, setRivalK] = useState<number[] | null>(null);
+  useEffect(() => {
+    let dead = false;
+    setRivalK(null);
+    if (!w || rivalPos === undefined || ctx.prod < 0 || seq < 0) return;
+    getInspect<Resp>(ctx.prod, layer, head, rivalPos)
+      .then((d) => !dead && setRivalK(d.worked?.k ?? null))
+      .catch(() => !dead && setRivalK(null));
+    return () => {
+      dead = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [w?.src, rivalPos, layer, head, seq]);
+  let discLine: string | null = null;
+  if (w && rivalK && rivalPos !== undefined && engineScore !== undefined) {
+    const rivalScore = data?.heads[head]?.scores[rivalPos];
+    if (rivalScore !== undefined && engineScore > rivalScore) {
+      const diffs = w.q
+        .map((qv, j) => [qv * (w.k[j] - rivalK[j]), j] as [number, number])
+        .sort((a, b) => b[0] - a[0])
+        .slice(0, 2);
+      if (diffs[0][0] > 0) {
+        discLine = `against ${srcText(rivalPos)} (score ${f(rivalScore)}), the head prefers ${srcText(w.src)} mostly at components ${diffs.map(([, j]) => j).join(" and ")} — where their keys differ most under this query`;
+      }
+    }
+  }
+
   return (
     <div className="dotprod">
       <div className="dp-title">one real attention score, component by component</div>
@@ -100,6 +166,9 @@ export function DotProduct({ ctx, layer, head }: { ctx: ExplainCtx; layer: numbe
               <span className="dp-term">
                 q[{i - 1}] × k[{i - 1}] = {f(w.q[i - 1])} × {f(w.k[i - 1])} ={" "}
                 <span className="dp-prod">{f(w.q[i - 1] * w.k[i - 1])}</span>
+                {carry.includes(i - 1) && (
+                  <span className="dp-carry-tag"> ← one of the few that carry this score</span>
+                )}
               </span>
             ) : (
               <span className="dp-term">pair each of the {hd} components, multiply, sum.</span>
@@ -128,6 +197,18 @@ export function DotProduct({ ctx, layer, head }: { ctx: ExplainCtx; layer: numbe
             </div>
           )}
 
+          {done && fullSum > 0 && (
+            <div className="dp-insight">
+              <div>
+                {carry.length > 0
+                  ? `why this number: components ${carry.join(", ")} alone give ${f(carrySum)} of the ${f(fullSum)} — a few coordinates carry the match.`
+                  : `why this number: no few coordinates dominate — the match is spread across many components.`}
+              </div>
+              {ropeLine && <div>{ropeLine}</div>}
+              {discLine && <div>{discLine}</div>}
+            </div>
+          )}
+
           <Stepper i={i} max={hd} playing={playing} setI={setI} toggle={toggle} unit="component" />
 
           {data.heads[head] && w.v && w.ctx && w.v.length === data.heads[head].weights.length && (
@@ -138,6 +219,15 @@ export function DotProduct({ ctx, layer, head }: { ctx: ExplainCtx; layer: numbe
               ctx={w.ctx}
               srcText={srcText}
             />
+          )}
+
+          {data.heads[head] && (
+            <div className="dp-insight">
+              the forward thread: softmax turned this score into{" "}
+              {((data.heads[head].weights[w.src] ?? 0) * 100).toFixed(0)}% of the head's read; the
+              head's output joins this word's running vector, which every later layer reads — "the
+              signal" shows it travel, and the climb shows what it becomes.
+            </div>
           )}
         </>
       )}
