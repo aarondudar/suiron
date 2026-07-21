@@ -297,26 +297,18 @@ export function Flow() {
   const demo = !!trace?.demo;
   const openGoLive = () => window.dispatchEvent(new CustomEvent("suiron-open-golive"));
 
-  // ←/→ walk the steps when the spine has the floor (no drawer, not typing).
-  // Mirrors the continue button's gate: leaving step 0 needs a run.
-  const canAdvance = hasRun || busy;
+  // ←/→ walk the same sub-step path as continue/back (not while typing)
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
-      // navigating with a drawer open closes it (goPhase semantics)
-      if (e.key === "ArrowRight") {
-        setDrawer(null);
-        setPhase((p) => (p < 5 && (p > 0 || canAdvance) ? p + 1 : p));
-      }
-      if (e.key === "ArrowLeft") {
-        setDrawer(null);
-        setPhase((p) => Math.max(0, p - 1));
-      }
+      // arrows walk the same sub-step path as the continue/back buttons
+      if (e.key === "ArrowRight") advanceRef.current();
+      if (e.key === "ArrowLeft") retreatRef.current();
     };
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
-  }, [canAdvance]);
+  }, []);
 
   const begin = () => {
     if (demo) {
@@ -493,10 +485,50 @@ export function Flow() {
    *  per docked drawer. Stays live while a drawer is open — the active
    *  handle closes it, another handle switches in place (the single-drawer
    *  rule as visible mechanics). "the two worlds" needs a resident fork. */
-  const dives =
-    hasRun && phase >= 1 && phase <= 5
-      ? (DIVES[phase] ?? []).filter((d) => d.id !== "worlds" || !!trace?.fork)
-      : [];
+  const divesFor = (p: number) =>
+    hasRun ? (DIVES[p] ?? []).filter((d) => d.id !== "worlds" || !!trace?.fork) : [];
+  const dives = phase >= 1 && phase <= 5 ? divesFor(phase) : [];
+
+  // the spine's full path (design-21): each step, then its drawers as
+  // SUB-STEPS. continue/back/arrows walk this list end to end, so the depth
+  // is the default path; the dock and the rail remain random access.
+  const path: { phase: number; d: string | null }[] = [];
+  for (let p = 1; p <= 5; p++) {
+    path.push({ phase: p, d: null });
+    for (const dv of divesFor(p)) path.push({ phase: p, d: dv.id });
+  }
+  const pathIdx = path.findIndex((s) => s.phase === phase && s.d === drawer);
+  const applyStop = (s: { phase: number; d: string | null }) => {
+    if (s.d && s.d !== drawer) {
+      setKnob("temperature"); // a fresh open starts at the first knob
+      setPickTok(null); // …and at the current token
+      setFfnLayer(-1); // …and at the default layer
+    }
+    setPhase(s.phase);
+    setDrawer(s.d);
+  };
+  const advance = () => {
+    if (phase === 0) {
+      if (hasRun || busy) goPhase(1);
+      return;
+    }
+    if (pathIdx >= 0 && pathIdx + 1 < path.length) applyStop(path[pathIdx + 1]);
+  };
+  const retreat = () => {
+    if (phase === 0) return;
+    if (phase === 6) {
+      goPhase(5);
+      return;
+    }
+    if (pathIdx > 0) applyStop(path[pathIdx - 1]);
+    else goPhase(0);
+  };
+  const canContinue =
+    phase === 0 ? hasRun || busy : phase <= 5 && pathIdx >= 0 && pathIdx + 1 < path.length;
+  const advanceRef = useRef(advance);
+  advanceRef.current = advance;
+  const retreatRef = useRef(retreat);
+  retreatRef.current = retreat;
   const dock = dives.length > 0 && (
     <div className="fl-dock">
       <span className="fl-dock-label">go deeper</span>
@@ -1073,7 +1105,7 @@ export function Flow() {
           <button
             className="fl-nav"
             style={{ visibility: phase > 0 ? "visible" : "hidden" }}
-            onClick={() => goPhase(phase - 1)}
+            onClick={retreat}
           >
             back
           </button>
@@ -1085,15 +1117,15 @@ export function Flow() {
             ) : phase === 6 ? (
               STEPS[6]
             ) : phase > 0 ? (
-              `${phase} / 5 · ${STEPS[phase]}`
+              `${phase} / 5 · ${STEPS[phase]}${openDive ? " · " + openDive.tab : ""}`
             ) : (
               "one prediction, five steps"
             )}
           </span>
           <button
             className="fl-nav primary"
-            style={{ visibility: phase < 5 && (phase > 0 || hasRun || busy) ? "visible" : "hidden" }}
-            onClick={() => goPhase(Math.min(5, phase + 1))}
+            style={{ visibility: canContinue ? "visible" : "hidden" }}
+            onClick={advance}
           >
             continue
           </button>
