@@ -348,8 +348,21 @@ pub fn inspect_json(pos: usize, layer: usize, head: i32, src: i32) -> Result<Str
         let unembed = (layer == lab.model.config.n_layers)
             .then(|| machine::worked_unembed(&deep, &lab.model, 4))
             .flatten();
+        // what this head's read bought at the finish line (design-23)
+        let attribution = worked
+            .as_ref()
+            .and_then(|_| machine::head_attribution(&deep, &lab.model, head as usize, 4))
+            .map(|a| machine::attribution_json(&a, |cid| lab.tok.decode(&[cid])));
         let text = lab.tok.decode(&[id]);
-        Ok(machine::inspect_json(&deep, pos, (id, &text), worked.as_ref(), norm.as_ref(), unembed.as_ref()))
+        Ok(machine::inspect_json(
+            &deep,
+            pos,
+            (id, &text),
+            worked.as_ref(),
+            norm.as_ref(),
+            unembed.as_ref(),
+            attribution.as_deref(),
+        ))
     })
 }
 

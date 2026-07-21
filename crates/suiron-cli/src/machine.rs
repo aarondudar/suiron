@@ -67,16 +67,36 @@ pub struct DeepObserver {
     pub vectors: Vec<(&'static str, Vec<f32>)>,
     pub scores: Vec<Vec<f32>>,  // per head, pre-softmax
     pub weights: Vec<Vec<f32>>, // per head, post-softmax
+    /// always captured, whatever `layer` (design-23): the final residual (the
+    /// last layer's x_out) and the post-output_norm vector — the frozen scale
+    /// a head attribution folds through, and the logits it is checked against
+    pub final_residual: Option<Vec<f32>>,
+    pub final_norm: Option<Vec<f32>>,
 }
 
 impl DeepObserver {
     pub fn new(layer: usize) -> Self {
-        Self { layer, vectors: Vec::new(), scores: Vec::new(), weights: Vec::new() }
+        Self {
+            layer,
+            vectors: Vec::new(),
+            scores: Vec::new(),
+            weights: Vec::new(),
+            final_residual: None,
+            final_norm: None,
+        }
     }
 }
 
 impl Observer for DeepObserver {
     fn vector(&mut self, layer: usize, name: &'static str, v: &[f32]) {
+        // each layer's x_out overwrites the last, so this ends as the final
+        // residual; final_norm is emitted once after the stack
+        if name == "x_out" {
+            self.final_residual = Some(v.to_vec());
+        }
+        if name == "final_norm" {
+            self.final_norm = Some(v.to_vec());
+        }
         if layer == self.layer {
             self.vectors.push((name, v.to_vec()));
         }
@@ -305,6 +325,98 @@ pub fn worked_unembed(obs: &DeepObserver, model: &Model, k: usize) -> Option<Wor
     Some(WorkedUnembed { x: xn.clone(), len, cands })
 }
 
+/// Direct logit attribution for one head (design-23): what this head's read
+/// bought each final candidate, through the output projection and the final
+/// norm frozen at this pass's real scale:
+///   contribution(c) = row(c) · ((W_O · pad(ctx_head)) / rms_final ⊙ output_norm)
+/// The per-head hidden pushes are exact linear pieces of the layer's recorded
+/// `attn_out` — `sum_ok` reports that reconstruction (max component error
+/// < 1e-2), so the response carries its own check.
+pub struct HeadAttribution {
+    /// per final candidate: (id, this head's logit contribution, the whole
+    /// layer's attention contribution to that logit, the full logit)
+    pub cands: Vec<(u32, f32, f32, f32)>,
+    pub sum_ok: bool,
+}
+
+pub fn head_attribution(
+    obs: &DeepObserver,
+    model: &Model,
+    head: usize,
+    k: usize,
+) -> Option<HeadAttribution> {
+    let cfg = &model.config;
+    let hd = cfg.head_dim;
+    if obs.layer >= cfg.n_layers || head >= cfg.n_heads {
+        return None;
+    }
+    let ctx_full = obs.vectors.iter().find(|kv| kv.0 == "attn_ctx").map(|kv| &kv.1)?;
+    let attn_out = obs.vectors.iter().find(|kv| kv.0 == "attn_out").map(|kv| &kv.1)?;
+    let xn = obs.final_norm.as_ref()?;
+    let xf = obs.final_residual.as_ref()?;
+    if xf.is_empty() || (head + 1) * hd > ctx_full.len() {
+        return None;
+    }
+    let rms = ((xf.iter().map(|v| v * v).sum::<f32>() / xf.len() as f32) + cfg.rms_eps).sqrt();
+    let g = &model.output_norm.data;
+    let wo = &model.layers[obs.layer].wo;
+    // every head's hidden-space push: W_O over the ctx with the other heads
+    // zeroed (reuses the existing matvec — no new kernel). Summing them must
+    // reconstruct the recorded attn_out; that linearity is the check.
+    let mut pushes: Vec<Vec<f32>> = Vec::with_capacity(cfg.n_heads);
+    let mut sum = vec![0.0f32; attn_out.len()];
+    for h in 0..cfg.n_heads {
+        let mut pad = vec![0.0f32; ctx_full.len()];
+        pad[h * hd..(h + 1) * hd].copy_from_slice(&ctx_full[h * hd..(h + 1) * hd]);
+        let push = wo.matvec(&pad, Backend::F32);
+        for (s, v) in sum.iter_mut().zip(&push) {
+            *s += v;
+        }
+        pushes.push(push);
+    }
+    let max_err = sum.iter().zip(attn_out).map(|(a, b)| (a - b).abs()).fold(0.0f32, f32::max);
+    let sum_ok = max_err < 1e-2;
+    // the final candidates, scored exactly as the forward pass scores them
+    let w_out = model.output.as_ref().unwrap_or(&model.token_embd);
+    let logits = w_out.matvec(xn, Backend::F32);
+    let mut order: Vec<usize> = (0..logits.len()).collect();
+    order.sort_unstable_by(|&a, &b| logits[b].total_cmp(&logits[a]));
+    // fold the head's and the layer's pushes through the frozen final norm
+    let fold = |v: &[f32]| -> Vec<f32> {
+        v.iter().zip(g.iter()).map(|(x, gi)| x / rms * gi).collect()
+    };
+    let head_fold = fold(&pushes[head]);
+    let layer_fold = fold(attn_out);
+    let mut buf = Vec::new();
+    let cands = order
+        .into_iter()
+        .take(k)
+        .map(|id| {
+            let row = w_out.row(id, &mut buf);
+            let c_head: f32 = row.iter().zip(&head_fold).map(|(r, f)| r * f).sum();
+            let c_layer: f32 = row.iter().zip(&layer_fold).map(|(r, f)| r * f).sum();
+            (id as u32, c_head, c_layer, logits[id])
+        })
+        .collect();
+    Some(HeadAttribution { cands, sum_ok })
+}
+
+/// Serialize a head attribution (design-23), decoding candidate ids to text.
+pub fn attribution_json(a: &HeadAttribution, decode: impl Fn(u32) -> String) -> String {
+    let mut j = format!("{{\"sum_ok\":{},\"cands\":[", a.sum_ok);
+    for (i, (id, c_head, c_layer, logit)) in a.cands.iter().enumerate() {
+        if i > 0 {
+            j.push(',');
+        }
+        j.push_str(&format!(
+            "[{id},\"{}\",{c_head:.4},{c_layer:.4},{logit:.4}]",
+            escape_json(&decode(*id))
+        ));
+    }
+    j.push_str("]}");
+    j
+}
+
 /// Captures the residual stream after every layer (`x_out`) for the logit lens.
 #[derive(Default)]
 pub struct LensObserver {
@@ -357,6 +469,8 @@ pub fn inspect_json(
     worked: Option<&WorkedDot>,
     norm: Option<&WorkedNorm>,
     unembed: Option<&WorkedUnembed>,
+    // pre-serialized head attribution (design-23), when a head was requested
+    attribution: Option<&str>,
 ) -> String {
     let arr = |out: &mut String, xs: &[f32]| {
         out.push('[');
@@ -464,6 +578,10 @@ pub fn inspect_json(
             j.push_str(&format!(",\"logit\":{:.6},\"prob\":{:.6}}}", c.logit, c.prob));
         }
         j.push_str("]}");
+    }
+    if let Some(a) = attribution {
+        j.push_str(",\"attribution\":");
+        j.push_str(a);
     }
     j.push('}');
     j

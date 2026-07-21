@@ -18,6 +18,10 @@ import type { WorkedDot } from "../types";
 interface Resp {
   heads: { scores: number[]; weights: number[] }[];
   worked?: WorkedDot;
+  /** direct logit attribution (design-23): per final candidate
+   *  [id, text, this head's contribution, the layer's attention contribution,
+   *  the full logit] — absent on recordings made before the field existed */
+  attribution?: { sum_ok: boolean; cands: [number, string, number, number, number][] };
 }
 
 const f = (x: number) => x.toFixed(3);
@@ -227,6 +231,25 @@ export function DotProduct({ ctx, layer, head }: { ctx: ExplainCtx; layer: numbe
               {((data.heads[head].weights[w.src] ?? 0) * 100).toFixed(0)}% of the head's read; the
               head's output joins this word's running vector, which every later layer reads — "the
               signal" shows it travel, and the climb shows what it becomes.
+            </div>
+          )}
+
+          {data.attribution && data.attribution.cands.length > 0 && (
+            <div className="dp-insight">
+              <div>what this head's read bought at the finish line:</div>
+              {data.attribution.cands.slice(0, 2).map(([cid, t, cHead, cLayer, logit]) => (
+                <div key={cid}>
+                  “{litToken(t).text}” — this head{" "}
+                  <b className="dp-attr">{cHead >= 0 ? "+" : ""}{cHead.toFixed(3)}</b>, the layer's
+                  whole attention {cLayer >= 0 ? "+" : ""}
+                  {cLayer.toFixed(3)}, of the full {logit.toFixed(2)} logit
+                </div>
+              ))}
+              <div className="dp-check">
+                {data.attribution.sum_ok
+                  ? `the ${data.heads.length} heads' pushes sum to the layer's recorded output · matches`
+                  : "the head pushes did not reconstruct the layer output — inspect in the expert view"}
+              </div>
             </div>
           )}
         </>

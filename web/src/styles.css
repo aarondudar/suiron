@@ -1379,6 +1379,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 .dp-insight div { margin-bottom: 2px; }
 .dp-carry-tag { color: var(--faint); font-size: var(--t-tiny); }
+.dp-attr { color: var(--ink); font-weight: normal; }
 .fl-line em { font-style: normal; border-bottom: 1px solid #444; }
 .fl-status, .fl-note { color: var(--faint); font-size: var(--t-body); text-align: center; margin-top: var(--sp-3); }
 .fl-note a { color: var(--faint); border-bottom: 1px dotted var(--faint); text-decoration: none; }

@@ -243,6 +243,18 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                         let unembed = (layer == model.config.n_layers)
                             .then(|| suiron_cli::machine::worked_unembed(&deep, &model, 4))
                             .flatten();
+                        // what this head's read bought at the finish line
+                        // (design-23): only when a head was requested, per-layer
+                        let attribution = worked
+                            .as_ref()
+                            .and_then(|_| {
+                                suiron_cli::machine::head_attribution(&deep, &model, head, 4)
+                            })
+                            .map(|a| {
+                                suiron_cli::machine::attribution_json(&a, |cid| {
+                                    tok.decode(&[cid])
+                                })
+                            });
                         let text = tok.decode(&[id]);
                         let json = suiron_cli::machine::inspect_json(
                             &deep,
@@ -251,6 +263,7 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                             worked.as_ref(),
                             norm.as_ref(),
                             unembed.as_ref(),
+                            attribution.as_deref(),
                         );
                         respond(&mut s, "200 OK", "application/json", json.as_bytes());
                     }
