@@ -1624,6 +1624,14 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .fl-spacewrap .stepper-where { display: none; }
 .fl-space.fl-space-tall { height: clamp(300px, 46vh, 420px); }
 .fl-space.fl-space-short { height: clamp(200px, 30vh, 260px); }
+
+/* the worked-calculation drawers keep their real numbers, but sit on the same
+   console-panel ground as the instruments so every drawer reads as one family */
+.dotprod, .rms-demo, .unembed-demo, .tok-demo, .temp-demo {
+  margin-top: var(--sp-3); padding: var(--sp-4);
+  background: radial-gradient(130% 130% at 50% 20%, #0a0b0e 0%, #050506 72%);
+  border: 1px solid var(--hair); border-top: 1px solid var(--hair-lit);
+}
 @media (prefers-reduced-motion: reduce) { .fl-space-lock { transition: none; } }
 
 /* the draw field's temperature dial */
