@@ -1608,6 +1608,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   text-align: center; margin: var(--sp-2) auto var(--sp-1); max-width: 52ch; line-height: 1.5;
 }
 .fl-spacewrap .stepper-where { display: none; }
+.fl-space.fl-space-tall { height: clamp(300px, 46vh, 420px); }
 @media (prefers-reduced-motion: reduce) { .fl-space-lock { transition: none; } }
 
 /* the draw field's temperature dial */

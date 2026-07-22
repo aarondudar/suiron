@@ -8,11 +8,11 @@ import { EmbeddingRow } from "./EmbeddingRow";
 import { Epilogue } from "./Epilogue";
 import { ExplainerProvider } from "./Explainer";
 import { GeometryCard } from "./Geometry";
-import { HeadGrid } from "./HeadGrid";
 import { KvCacheDemo } from "./KvCacheDemo";
 import type { ExplainCtx } from "./Explanations";
 import { AttnSpace } from "./AttnSpace";
 import { DrawField } from "./DrawField";
+import { HeadField } from "./HeadField";
 import { LensSpace } from "./LensSpace";
 import { LoopChain } from "./LoopChain";
 import { TokenSpace } from "./TokenSpace";
@@ -1039,7 +1039,7 @@ export function Flow() {
             settle on the <b>sink</b> — position 0, where a head points when it finds nothing worth
             fetching. red marks the layer's single strongest read.
           </div>
-          <HeadGrid trace={flowCtx.trace} step={prodStep} prod={prod} />
+          <HeadField trace={flowCtx.trace} step={prodStep} prod={prod} />
         </>
       );
     if (drawer === "rope" && flowCtx)
