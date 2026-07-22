@@ -1101,12 +1101,18 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 /* ---------- RoPE rotation demo ---------- */
 .rope-demo { margin-top: var(--sp-3); }
 .rope-status { color: var(--faint); font-size: var(--t-tiny); }
-.rope-plots { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
-.rope-plot { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.rope-plot svg { width: 92px; height: 92px; }
-.rope-ring { fill: none; stroke: var(--hair); }
-.rope-axis { stroke: var(--hair); }
-.rope-arm { stroke: var(--red); stroke-width: 1; opacity: 0.5; }
+/* console panel to match the step instruments (design-31) */
+.rope-plots {
+  display: flex; flex-wrap: wrap; gap: var(--sp-4); justify-content: center;
+  padding: var(--sp-4) var(--sp-3);
+  background: radial-gradient(120% 120% at 50% 40%, #0a0b0e 0%, #050506 70%);
+  border: 1px solid var(--hair); border-top: 1px solid var(--hair-lit);
+}
+.rope-plot { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.rope-plot svg { width: 108px; height: 108px; }
+.rope-ring { fill: none; stroke: #242424; }
+.rope-axis { stroke: #1a1a1a; }
+.rope-arm { stroke: var(--red); stroke-width: 1.6; opacity: 0.85; }
 .rope-pre { fill: var(--dim); }
 .rope-cur { fill: var(--red); }
 .rope-label { color: var(--faint); font-size: var(--t-micro); font-variant-numeric: tabular-nums; }
@@ -1117,7 +1123,11 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .kv-demo { margin-top: var(--sp-3); }
 .kv-status { color: var(--faint); font-size: var(--t-tiny); }
 .kv-title { color: var(--dim); font-size: var(--t-tiny); line-height: 1.5; margin-bottom: var(--sp-2); }
-.kv-rows { display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
+.kv-rows {
+  display: flex; flex-direction: column; gap: 3px; overflow-x: auto;
+  padding: var(--sp-4); background: radial-gradient(120% 120% at 50% 30%, #0a0b0e 0%, #050506 70%);
+  border: 1px solid var(--hair); border-top: 1px solid var(--hair-lit);
+}
 .kv-row { display: flex; align-items: center; gap: var(--sp-2); }
 .kv-row.on .kv-lnum { color: var(--red); }
 .kv-lnum {
@@ -1138,10 +1148,14 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .emb-status { color: var(--faint); font-size: var(--t-tiny); }
 .emb-title { color: var(--dim); font-size: var(--t-tiny); line-height: 1.5; margin-bottom: var(--sp-2); }
 .emb-title b { color: var(--ink); font-family: var(--dot); }
-.emb-cells { display: flex; flex-wrap: wrap; gap: 3px; }
+.emb-cells {
+  display: flex; flex-wrap: wrap; gap: 3px;
+  padding: var(--sp-4); background: radial-gradient(120% 120% at 50% 30%, #0a0b0e 0%, #050506 70%);
+  border: 1px solid var(--hair); border-top: 1px solid var(--hair-lit);
+}
 .emb-cell {
   display: flex; flex-direction: column; align-items: center; gap: 1px;
-  padding: 3px 5px; background: var(--surface); border: 1px solid var(--hair);
+  padding: 3px 5px; background: #101216; border: 1px solid var(--hair);
   font-size: var(--t-micro); font-variant-numeric: tabular-nums;
 }
 .emb-idx { color: var(--faint); }
