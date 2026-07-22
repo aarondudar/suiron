@@ -1583,6 +1583,33 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
    Stepper's duplicate readout here only (the control itself is untouched) */
 .fl-climb .stepper-where { display: none; }
 
+/* step 3 reimagined: the lens SPACE — a pseudo-3D instrument (design-31). The
+   vector's swing is live logit-lens data; only the words' positions illustrate. */
+.fl-spacewrap { width: 100%; max-width: 560px; margin: 0 auto; }
+.fl-space {
+  position: relative; width: 100%;
+  height: clamp(260px, 40vh, 360px);
+  border: 1px solid var(--hair); border-top: 1px solid var(--hair-lit);
+  background: radial-gradient(120% 120% at 50% 40%, #0a0b0e 0%, #050506 70%);
+  overflow: hidden;
+}
+.fl-space canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.fl-space-ov { position: absolute; z-index: 2; pointer-events: none; white-space: nowrap; }
+.fl-space-ctx { top: 9px; left: 11px; color: var(--faint); font-size: var(--t-micro); letter-spacing: 0.14em; }
+.fl-space-lock { top: 9px; right: 11px; color: var(--red); font-size: var(--t-micro); letter-spacing: 0.1em; transition: opacity 0.3s; }
+.fl-space-read {
+  bottom: 10px; left: 0; right: 0; text-align: center; color: var(--dim);
+  font-size: var(--t-tiny); letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
+}
+.fl-space-read .w { color: var(--ink); }
+.fl-space-read .p { color: var(--red); }
+.fl-space-honest {
+  color: var(--faint); font-size: var(--t-micro); letter-spacing: 0.04em;
+  text-align: center; margin: var(--sp-2) auto var(--sp-1); max-width: 52ch; line-height: 1.5;
+}
+.fl-spacewrap .stepper-where { display: none; }
+@media (prefers-reduced-motion: reduce) { .fl-space-lock { transition: none; } }
+
 /* step 4: the real distribution bar; red = the drawn token, nothing else */
 .fl-dist { width: 100%; max-width: 360px; height: 22px; display: flex; border: 1px solid var(--hair); margin: 0 auto 10px; }
 .fl-seg { background: #3a3a3a; border-right: 1px solid var(--bg); min-width: 1px; }

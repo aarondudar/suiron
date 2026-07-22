@@ -11,7 +11,7 @@ import { GeometryCard } from "./Geometry";
 import { HeadGrid } from "./HeadGrid";
 import { KvCacheDemo } from "./KvCacheDemo";
 import type { ExplainCtx } from "./Explanations";
-import { LensClimb } from "./LensClimb";
+import { LensSpace } from "./LensSpace";
 import { RmsNormDemo } from "./RmsNormDemo";
 import { RnormSparkline } from "./RnormSparkline";
 import { RopeDemo } from "./RopeDemo";
@@ -703,7 +703,7 @@ export function Flow() {
               one look back isn't enough. the model repeats it — look back, then think — through
               all {trace.layers} layers, and the guess <em>sharpens</em> at each one.
             </p>
-            <LensClimb trace={trace} prod={prod} prodStep={prodStep} />
+            <LensSpace trace={trace} prod={prod} prodStep={prodStep} />
             <div className="fl-note">
               why it sharpens toward this answer and not another was set earlier, in training — the
               numbers were tuned on enormous amounts of text until predictions like this came out
