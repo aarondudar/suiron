@@ -13,6 +13,7 @@ import { KvCacheDemo } from "./KvCacheDemo";
 import type { ExplainCtx } from "./Explanations";
 import { AttnSpace } from "./AttnSpace";
 import { LensSpace } from "./LensSpace";
+import { TokenSpace } from "./TokenSpace";
 import { RmsNormDemo } from "./RmsNormDemo";
 import { RnormSparkline } from "./RnormSparkline";
 import { RopeDemo } from "./RopeDemo";
@@ -668,9 +669,10 @@ export function Flow() {
             <Sentence trace={trace} n={n} stagger showIds />
             <div className="fl-note">
               {n} piece{n === 1 ? "" : "s"} from the engine's tokenizer · each is then looked up as
-              a <b>vector</b>. vectors are confusing, but ultimately a useful way to represent and traverse lots of data.
-              a machine only does arithmetic, so meaning has to become numbers first.
+              a <b>vector</b> — a position in a space of meaning, where words used alike sit close
+              together.
             </div>
+            <TokenSpace trace={trace} n={n} />
             {exp && (
               <div className="fl-mark">
                 experiment · {exp.title} — {exp.hook}
