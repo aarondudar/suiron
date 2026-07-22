@@ -1610,6 +1610,12 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .fl-spacewrap .stepper-where { display: none; }
 @media (prefers-reduced-motion: reduce) { .fl-space-lock { transition: none; } }
 
+/* the draw field's temperature dial */
+.fl-temp { display: flex; align-items: center; gap: var(--sp-3); margin: var(--sp-3) auto var(--sp-1); max-width: 340px; }
+.fl-temp span { color: var(--dim); font-size: var(--t-tiny); letter-spacing: 0.1em; }
+.fl-temp .fl-temp-v { color: var(--red); font-variant-numeric: tabular-nums; min-width: 3.5ch; text-align: right; }
+.fl-temp input[type="range"] { flex: 1; accent-color: var(--red); height: 3px; }
+
 /* step 4: the real distribution bar; red = the drawn token, nothing else */
 .fl-dist { width: 100%; max-width: 360px; height: 22px; display: flex; border: 1px solid var(--hair); margin: 0 auto 10px; }
 .fl-seg { background: #3a3a3a; border-right: 1px solid var(--bg); min-width: 1px; }

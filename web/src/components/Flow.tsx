@@ -12,6 +12,7 @@ import { HeadGrid } from "./HeadGrid";
 import { KvCacheDemo } from "./KvCacheDemo";
 import type { ExplainCtx } from "./Explanations";
 import { AttnSpace } from "./AttnSpace";
+import { DrawField } from "./DrawField";
 import { LensSpace } from "./LensSpace";
 import { TokenSpace } from "./TokenSpace";
 import { RmsNormDemo } from "./RmsNormDemo";
@@ -717,12 +718,7 @@ export function Flow() {
         );
       case 4: {
         if (!hasRun || !prodStep) return waiting;
-        const top = prodStep.top ?? [];
         const chosenId = trace.tokens[cur].id;
-        const covered = top.reduce((a, [, , p]) => a + p, 0);
-        const winner = top.find(([id]) => id === chosenId);
-        const winP = winner?.[2] ?? 0;
-        const restPct = Math.max(0, 1 - winP) * 100;
         const sel = trace.steps[cur]?.sel;
         return (
           <>
@@ -731,30 +727,13 @@ export function Flow() {
               dial{sel ? ` — ${sel.temp} on this run` : ""}: at 0 it takes the top by rule; turn it
               up and the lower guesses get a real chance.
             </p>
-            <div className="fl-dist" role="img" aria-label="the real next-token distribution">
-              {top.map(([id, t, p]) => (
-                <div
-                  key={id}
-                  className={"fl-seg" + (id === chosenId ? " chosen" : "")}
-                  style={{ width: `${p * 100}%` }}
-                  title={`${esc(t)} · ${(p * 100).toFixed(1)}%`}
-                />
-              ))}
-              <div className="fl-seg rest" style={{ width: `${Math.max(0, 1 - covered) * 100}%` }} />
-            </div>
-            <div className="fl-dist-legend">
-              <span className="fl-win">
-                {esc(trace.tokens[cur].t)} · {winner ? (winP * 100).toFixed(0) : "<1"}%
-              </span>
-              <span>everything else · {restPct < 1 ? "<1" : restPct.toFixed(0)}%</span>
-            </div>
-            <div className="fl-note">
-              {sel
-                ? sel.r == null
-                  ? `temp ${sel.temp} · greedy — the top guess wins by rule`
-                  : `the draw landed at r = ${sel.r.toFixed(3)}`
-                : "prompt token — you supplied it, the model did not draw it"}
-            </div>
+            {sel ? (
+              <DrawField sel={sel} chosenId={chosenId} />
+            ) : (
+              <div className="fl-status" role="status">
+                prompt token — you supplied it, the model did not draw it
+              </div>
+            )}
             {mark(["output"])}
           </>
         );
