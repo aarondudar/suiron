@@ -97,28 +97,31 @@ function useTrace(): Trace | null {
  *  emphasis as the steps advance: read (looks back) → the ×N climb
  *  (sharpens) → scores (draws one). */
 const VOCAB = 151_936;
-function MachineMap({ trace, n, at }: { trace: Trace; n: number; at: "read" | "climb" | "scores" }) {
-  const here = { read: "read", climb: `all ${trace.layers} layers`, scores: "the scores" }[at];
+type MapAt = "vectors" | "read" | "climb" | "scores";
+function MachineMap({ trace, n, at }: { trace: Trace; n: number; at: MapAt }) {
+  const here = {
+    vectors: "the vectors",
+    read: "read",
+    climb: `all ${trace.layers} layers`,
+    scores: "the scores",
+  }[at];
   return (
-    <div className="fl-map" aria-label={`the machine at a glance — you are here: ${here}`}>
-      <div className="fl-map-row">
-        <span className="fl-map-box">
+    <div className="fl-map" aria-label={`the machine, at a glance — you are here: ${here}`}>
+      <span className="fl-map-box">
+        <b className={at === "vectors" ? "on" : undefined}>
           {n} vector{n === 1 ? "" : "s"}
-        </span>
-        <span className="fl-map-arrow">→</span>
-        <span className="fl-map-box">
-          <b className={at === "read" ? "on" : undefined}>read</b>
-          <span className="fl-map-arrow"> → </span>think
-        </span>
-        <span className={"fl-map-x" + (at === "climb" ? " on" : "")}>× {trace.layers} layers</span>
-        <span className="fl-map-arrow">→</span>
-        <span className="fl-map-box">
-          <b className={at === "scores" ? "on" : undefined}>{VOCAB.toLocaleString()} scores</b>
-        </span>
-      </div>
-      <div className="fl-map-here">
-        the machine, at a glance · you are here: <b>{here}</b>
-      </div>
+        </b>
+      </span>
+      <span className="fl-map-arrow">→</span>
+      <span className="fl-map-box">
+        <b className={at === "read" ? "on" : undefined}>read</b>
+        <span className="fl-map-sep"> → </span>think
+      </span>
+      <span className={"fl-map-x" + (at === "climb" ? " on" : "")}>× {trace.layers} layers</span>
+      <span className="fl-map-arrow">→</span>
+      <span className="fl-map-box">
+        <b className={at === "scores" ? "on" : undefined}>{VOCAB.toLocaleString()} scores</b>
+      </span>
     </div>
   );
 }
@@ -549,6 +552,14 @@ export function Flow() {
   };
   const canContinue =
     phase === 0 ? hasRun || busy : phase <= 5 && pathIdx >= 0 && pathIdx + 1 < path.length;
+  // rail sub-progress (design-25): the current step's dot fills as continue
+  // walks its drawers, so the primary progress cue moves even mid-step
+  const subCount = 1 + dives.length;
+  const subPos = drawer ? dives.findIndex((d) => d.id === drawer) + 1 : 0;
+  const subFrac = subCount > 0 ? (subPos + 1) / subCount : 1;
+  // signpost where continue goes: ↓ deeper into a drawer, → on to the next step
+  const nextStop = pathIdx >= 0 ? path[pathIdx + 1] : undefined;
+  const continueArrow = phase === 0 ? "→" : nextStop ? (nextStop.d ? "↓" : "→") : "";
   const advanceRef = useRef(advance);
   advanceRef.current = advance;
   const retreatRef = useRef(retreat);
@@ -598,8 +609,9 @@ export function Flow() {
         return (
           <>
             <p className="fl-line">
-              the model does one thing: <em>guess the next word</em>. type something, and watch it
-              happen — one step at a time.
+              we've all used AI. some of us every day. but what <em>is</em> it? not a metaphor,
+              not magic: a machine that does exactly one thing. <em>guess the next word from the previous context.</em> over and
+              over. type something and watch every step.
             </p>
             <div className="fl-prompt-row">
               <input
@@ -631,7 +643,7 @@ export function Flow() {
             )}
             {hasRun && (
               <div className="fl-note">
-                a run is already loaded — continue walks it; begin starts fresh.
+                press continue to walk the current run; or press begin to start fresh.
               </div>
             )}
             <div className="fl-about">
@@ -649,12 +661,14 @@ export function Flow() {
         return (
           <>
             <p className="fl-line">
-              first, your words become <em>tokens</em> — the pieces the model actually reads.
+              AI models don't read the way you do. they break down text into <em>tokens.</em> often common
+              groupings of letters or entire words.
             </p>
             <Sentence trace={trace} n={n} stagger showIds />
             <div className="fl-note">
-              {n} piece{n === 1 ? "" : "s"} · ids from the engine's tokenizer · each is looked up
-              as a vector — a long list of numbers, the only thing the machine computes with
+              {n} piece{n === 1 ? "" : "s"} from the engine's tokenizer · each is then looked up as
+              a <b>vector</b>. vectors are confusing, but ultimately a useful way to represent and traverse lots of data.
+              a machine only does arithmetic, so meaning has to become numbers first.
             </div>
             {exp && (
               <div className="fl-mark">
@@ -668,12 +682,16 @@ export function Flow() {
         if (!hasRun) return waiting;
         return (
           <>
-            <MachineMap trace={trace} n={cur} at="read" />
             <p className="fl-line">
-              each layer starts by <em>looking back</em>: every word's vector pulls in what it
-              needs from the words before it.
+              a word means different things in different company. so to guess what's next, each
+              word <em>looks back</em> and gathers meaning from the words before it. that
+              gathering is <b>attention</b>.
             </p>
             <Sentence trace={trace} n={cur} dim readHead onPick={setInspect} />
+            <div className="fl-note">
+              a score decides how much each earlier word counts. this happens inside one of the
+              model's {trace.layers} layers.
+            </div>
             {mark(["attention", "induction"])}
           </>
         );
@@ -681,12 +699,16 @@ export function Flow() {
         if (!hasRun || !prodStep) return waiting;
         return (
           <>
-            <MachineMap trace={trace} n={cur} at="climb" />
             <p className="fl-line">
-              it doesn't decide at once. the guess <em>sharpens</em> as the vector climbs the{" "}
-              {trace.layers}-layer stack.
+              one look back isn't enough. the model repeats it — look back, then think — through
+              all {trace.layers} layers, and the guess <em>sharpens</em> at each one.
             </p>
             <LensClimb trace={trace} prod={prod} prodStep={prodStep} />
+            <div className="fl-note">
+              why it sharpens toward this answer and not another was set earlier, in training — the
+              numbers were tuned on enormous amounts of text until predictions like this came out
+              right. you can watch the mechanism here; you can't read the reason off the numbers.
+            </div>
           </>
         );
       case 4: {
@@ -700,10 +722,10 @@ export function Flow() {
         const sel = trace.steps[cur]?.sel;
         return (
           <>
-            <MachineMap trace={trace} n={cur} at="scores" />
             <p className="fl-line">
-              then it <em>draws one</em>. usually the top guess — but temperature leaves room for
-              chance.
+              now it has a ranked list of guesses, and it <em>draws one</em>. temperature is the
+              dial{sel ? ` — ${sel.temp} on this run` : ""}: at 0 it takes the top by rule; turn it
+              up and the lower guesses get a real chance.
             </p>
             <div className="fl-dist" role="img" aria-label="the real next-token distribution">
               {top.map(([id, t, p]) => (
@@ -751,7 +773,8 @@ export function Flow() {
             />
             <div className="fl-note">click any word to see how it was made</div>
             <p className="fl-line">
-              that word joins the sentence — and it does the <em>whole thing again</em>.
+              the drawn word joins the sentence. then, the whole machine runs <em>again</em>. that's
+              all of it. every AI you've used is this loop: guess the next word, add it, repeat.
             </p>
             <div className="fl-center">
               <button className="fl-again" onClick={runAgain} disabled={busy}>
@@ -831,8 +854,9 @@ export function Flow() {
       return (
         <ExplainerProvider value={NOOP_EXPLAINER}>
           <div className="fl-drawer-note">
-            every token is a row in the model's 151,936 × 1,024 embedding table — a direction with
-            real geometry. pick a word; its row and its nearest real neighbors recompute.
+            every token is a row in the model's 151,936 × 1,024 embedding table — not just a list
+            of numbers but a position in a space of meanings, where words used alike sit close
+            together. pick a word: its row, and its nearest neighbors by that closeness, recompute.
           </div>
           <div className="fl-pick-row">
             {flowCtx.trace.tokens.map((tok, i) => (
@@ -856,8 +880,9 @@ export function Flow() {
       return (
         <>
           <div className="fl-drawer-note">
-            the same real options as the bar behind — each knob recomputes from this draw's
-            recorded logits; nothing re-runs the model.
+            these are the model's real scores, already fixed. the knobs change only how one gets
+            picked from them — drag temperature, top-k, or top-p and the odds re-sort live, without
+            the model ever running again.
           </div>
           <div className="seg fl-knob-seg">
             {KNOBS.map((k) => (
@@ -883,7 +908,7 @@ export function Flow() {
       );
     }
     if (drawer === "sampling")
-      return <div className="fl-stub">no recorded draw at this position — run a step first.</div>;
+      return <div className="fl-stub">no recorded draw at this position. run a step first.</div>;
     if (drawer === "fork" && flowCtx) {
       const top = (flowCtx.step.top ?? []).slice(0, 6);
       const chosenId = flowCtx.trace.tokens[cur]?.id;
@@ -891,7 +916,7 @@ export function Flow() {
         <>
           <div className="fl-drawer-note">
             the draw picked “{esc(flowCtx.trace.tokens[cur]?.t ?? "")}”. force one of the other
-            real candidates and the engine re-runs from there — the sentence you watched changes.
+            real candidates and the engine re-runs from there and the sentence changes.
           </div>
           <div className="fl-fork-opts">
             {top.map(([id, t, p]) => (
@@ -926,7 +951,7 @@ export function Flow() {
       if (!shadow)
         return (
           <div className="fl-stub">
-            this run's replaced tail wasn't recorded, so the other world can't be shown — fork
+            this run's replaced tail wasn't recorded, so the other world can't be shown. fork
             again to compare.
           </div>
         );
@@ -996,7 +1021,7 @@ export function Flow() {
       return (
         <>
           <div className="fl-drawer-note">
-            the last vector is scored against the same table the words came in through — tied
+            the last vector is scored against the same table the words came in through. tied
             embeddings: reading and writing share one matrix. each dot product below IS the
             engine's logit.
           </div>
@@ -1007,7 +1032,7 @@ export function Flow() {
       return (
         <>
           <div className="fl-drawer-note">
-            before each layer reads the vector, it resets it to a standard length — same
+            before each layer reads the vector, it resets it to a standard length. same
             direction, steadier numbers. this slice is from the current pass.
           </div>
           <RmsNormDemo ctx={flowCtx} />
@@ -1017,7 +1042,7 @@ export function Flow() {
       return (
         <>
           <div className="fl-drawer-note">
-            the vector the climb reads, measured after every layer — each layer adds its
+            the vector the climb reads, measured after every layer. each layer adds its
             adjustment to this one running signal.
           </div>
           <RnormSparkline step={flowCtx.step} layer={flowCtx.layer} layers={flowCtx.trace.layers} />
@@ -1028,8 +1053,10 @@ export function Flow() {
         <>
           <div className="fl-drawer-note">
             attention isn't one spotlight — it's {flowCtx.trace.heads} heads, each reading its own
-            place. scrub the layers and watch them change jobs: local grammar early, the content
-            lock in the middle, the sink when there's nothing to fetch.
+            place, and their jobs shift with depth. scrub the layers: early heads tend to read
+            nearby words (grammar); deeper, some lock onto the content word that matters; and many
+            settle on the <b>sink</b> — position 0, where a head points when it finds nothing worth
+            fetching. red marks the layer's single strongest read.
           </div>
           <HeadGrid trace={flowCtx.trace} step={prodStep} prod={prod} />
         </>
@@ -1038,7 +1065,7 @@ export function Flow() {
       return (
         <>
           <div className="fl-drawer-note">
-            before comparing two tokens, attention spins each one's vector by its position — that
+            before comparing two tokens, attention spins each one's vector by its position. that
             spin is how word order enters the math.
           </div>
           <RopeDemo ctx={flowCtx} />
@@ -1049,14 +1076,14 @@ export function Flow() {
         <>
           <div className="fl-drawer-note">
             why running it again is cheap: every earlier token's keys and values are already
-            sitting here — the pass only computes the newest column.
+            sitting here. the pass only computes the newest column.
           </div>
           <KvCacheDemo ctx={flowCtx} />
         </>
       );
     return (
       <div className="fl-stub">
-        this deep-dive re-homes an existing module here — coming soon, one pass at a time. until
+        this deep-dive re-homes an existing module here. coming soon, one pass at a time. until
         then it lives in the <a href="?view=expert">expert view</a>.
       </div>
     );
@@ -1066,26 +1093,39 @@ export function Flow() {
     <div className={"flow-wrap" + (drawer ? " wide" : "")}>
       <div className="flow">
         <div className="fl-head">
-          <div className="fl-brand">
-            suiron<span className="jp">推論</span>
-            {hasRun && (
-              <button className="fl-share" onClick={copyLink} title="copy a link to this exact moment">
-                {copied ? "copied ✓" : "share"}
-              </button>
-            )}
+          <div className="fl-head-top">
+            <div className="fl-brand">
+              suiron
+              {hasRun && (
+                <button className="fl-share" onClick={copyLink} title="copy a link to this exact moment">
+                  {copied ? "copied ✓" : "share"}
+                </button>
+              )}
+            </div>
+            <div className="fl-rail" role="tablist" aria-label="steps">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  className={"fl-dot" + (phase >= n ? " on" : "") + (phase === n ? " cur" : "")}
+                  aria-label={`step ${n} · ${STEPS[n]}`}
+                  title={`step ${n} · ${STEPS[n]}`}
+                  aria-current={phase === n}
+                  onClick={() => railTo(n)}
+                >
+                  {phase === n && subCount > 1 && (
+                    <span className="fl-dot-fill" style={{ width: `${subFrac * 100}%` }} />
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="fl-rail" role="tablist" aria-label="steps">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                className={"fl-dot" + (phase >= n ? " on" : "") + (phase === n ? " cur" : "")}
-                aria-label={`step ${n} · ${STEPS[n]}`}
-                title={`step ${n} · ${STEPS[n]}`}
-                aria-current={phase === n}
-                onClick={() => railTo(n)}
-              />
-            ))}
-          </div>
+          {hasRun && phase >= 1 && phase <= 4 && (
+            <MachineMap
+              trace={trace}
+              n={cur}
+              at={phase === 1 ? "vectors" : phase === 2 ? "read" : phase === 3 ? "climb" : "scores"}
+            />
+          )}
         </div>
 
         <div className="fl-stagewrap">
@@ -1134,7 +1174,7 @@ export function Flow() {
             style={{ visibility: canContinue ? "visible" : "hidden" }}
             onClick={advance}
           >
-            continue
+            continue {continueArrow}
           </button>
         </div>
       </div>
