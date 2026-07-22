@@ -11,6 +11,7 @@ import { GeometryCard } from "./Geometry";
 import { HeadGrid } from "./HeadGrid";
 import { KvCacheDemo } from "./KvCacheDemo";
 import type { ExplainCtx } from "./Explanations";
+import { AttnSpace } from "./AttnSpace";
 import { LensSpace } from "./LensSpace";
 import { RmsNormDemo } from "./RmsNormDemo";
 import { RnormSparkline } from "./RnormSparkline";
@@ -687,10 +688,11 @@ export function Flow() {
               word <em>looks back</em> and gathers meaning from the words before it. that
               gathering is <b>attention</b>.
             </p>
-            <Sentence trace={trace} n={cur} dim readHead onPick={setInspect} />
+            <AttnSpace trace={trace} prod={prod} />
             <div className="fl-note">
-              a score decides how much each earlier word counts. this happens inside one of the
-              model's {trace.layers} layers.
+              a score decides how much each earlier word counts — the dot product two words compute.
+              it happens inside every one of the model's {trace.layers} layers. open the worked score
+              below to watch one by hand.
             </div>
             {mark(["attention", "induction"])}
           </>
