@@ -1653,7 +1653,9 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .fl-stagewrap { position: relative; flex: 1; display: flex; flex-direction: column; }
 .fl-drawer {
   position: absolute; inset: 0; z-index: 5;
-  background: rgba(5, 5, 5, 0.97);
+  /* a focus sub-step: fully occlude the step behind it (design-31) — the frame
+     tint keeps it in the console family without letting the step text ghost through */
+  background: #07080b;
   display: flex; flex-direction: column;
   padding: 22px 26px; overflow-y: auto;
   animation: fl-drawer-in 0.18s ease;
