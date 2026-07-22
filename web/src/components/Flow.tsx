@@ -8,13 +8,17 @@ import { EmbeddingRow } from "./EmbeddingRow";
 import { Epilogue } from "./Epilogue";
 import { ExplainerProvider } from "./Explainer";
 import { GeometryCard } from "./Geometry";
-import { HeadGrid } from "./HeadGrid";
 import { KvCacheDemo } from "./KvCacheDemo";
 import type { ExplainCtx } from "./Explanations";
-import { LensClimb } from "./LensClimb";
+import { AttnSpace } from "./AttnSpace";
+import { DrawField } from "./DrawField";
+import { HeadField } from "./HeadField";
+import { LensSpace } from "./LensSpace";
+import { LoopChain } from "./LoopChain";
+import { TokenSpace } from "./TokenSpace";
 import { RmsNormDemo } from "./RmsNormDemo";
-import { RnormSparkline } from "./RnormSparkline";
 import { RopeDemo } from "./RopeDemo";
+import { SignalField } from "./SignalField";
 import { TemperatureDemo } from "./TemperatureDemo";
 import { TokenizeDemo } from "./TokenizeDemo";
 import { TopKDemo } from "./TopKDemo";
@@ -667,9 +671,10 @@ export function Flow() {
             <Sentence trace={trace} n={n} stagger showIds />
             <div className="fl-note">
               {n} piece{n === 1 ? "" : "s"} from the engine's tokenizer · each is then looked up as
-              a <b>vector</b>. vectors are confusing, but ultimately a useful way to represent and traverse lots of data.
-              a machine only does arithmetic, so meaning has to become numbers first.
+              a <b>vector</b> — a position in a space of meaning, where words used alike sit close
+              together.
             </div>
+            <TokenSpace trace={trace} n={n} />
             {exp && (
               <div className="fl-mark">
                 experiment · {exp.title} — {exp.hook}
@@ -687,10 +692,11 @@ export function Flow() {
               word <em>looks back</em> and gathers meaning from the words before it. that
               gathering is <b>attention</b>.
             </p>
-            <Sentence trace={trace} n={cur} dim readHead onPick={setInspect} />
+            <AttnSpace trace={trace} prod={prod} />
             <div className="fl-note">
-              a score decides how much each earlier word counts. this happens inside one of the
-              model's {trace.layers} layers.
+              a score decides how much each earlier word counts — the dot product two words compute.
+              it happens inside every one of the model's {trace.layers} layers. open the worked score
+              below to watch one by hand.
             </div>
             {mark(["attention", "induction"])}
           </>
@@ -703,7 +709,7 @@ export function Flow() {
               one look back isn't enough. the model repeats it — look back, then think — through
               all {trace.layers} layers, and the guess <em>sharpens</em> at each one.
             </p>
-            <LensClimb trace={trace} prod={prod} prodStep={prodStep} />
+            <LensSpace trace={trace} prod={prod} prodStep={prodStep} />
             <div className="fl-note">
               why it sharpens toward this answer and not another was set earlier, in training — the
               numbers were tuned on enormous amounts of text until predictions like this came out
@@ -713,12 +719,7 @@ export function Flow() {
         );
       case 4: {
         if (!hasRun || !prodStep) return waiting;
-        const top = prodStep.top ?? [];
         const chosenId = trace.tokens[cur].id;
-        const covered = top.reduce((a, [, , p]) => a + p, 0);
-        const winner = top.find(([id]) => id === chosenId);
-        const winP = winner?.[2] ?? 0;
-        const restPct = Math.max(0, 1 - winP) * 100;
         const sel = trace.steps[cur]?.sel;
         return (
           <>
@@ -727,30 +728,13 @@ export function Flow() {
               dial{sel ? ` — ${sel.temp} on this run` : ""}: at 0 it takes the top by rule; turn it
               up and the lower guesses get a real chance.
             </p>
-            <div className="fl-dist" role="img" aria-label="the real next-token distribution">
-              {top.map(([id, t, p]) => (
-                <div
-                  key={id}
-                  className={"fl-seg" + (id === chosenId ? " chosen" : "")}
-                  style={{ width: `${p * 100}%` }}
-                  title={`${esc(t)} · ${(p * 100).toFixed(1)}%`}
-                />
-              ))}
-              <div className="fl-seg rest" style={{ width: `${Math.max(0, 1 - covered) * 100}%` }} />
-            </div>
-            <div className="fl-dist-legend">
-              <span className="fl-win">
-                {esc(trace.tokens[cur].t)} · {winner ? (winP * 100).toFixed(0) : "<1"}%
-              </span>
-              <span>everything else · {restPct < 1 ? "<1" : restPct.toFixed(0)}%</span>
-            </div>
-            <div className="fl-note">
-              {sel
-                ? sel.r == null
-                  ? `temp ${sel.temp} · greedy — the top guess wins by rule`
-                  : `the draw landed at r = ${sel.r.toFixed(3)}`
-                : "prompt token — you supplied it, the model did not draw it"}
-            </div>
+            {sel ? (
+              <DrawField sel={sel} chosenId={chosenId} />
+            ) : (
+              <div className="fl-status" role="status">
+                prompt token — you supplied it, the model did not draw it
+              </div>
+            )}
             {mark(["output"])}
           </>
         );
@@ -761,17 +745,14 @@ export function Flow() {
         // clicking a word opens its story back on "looks back"
         return (
           <>
-            <Sentence
+            <LoopChain
               trace={trace}
-              n={frontier + 1}
-              dim
-              lastNew
+              frontier={frontier}
               onPick={(i) => {
                 setInspect(i);
                 setPhase(2);
               }}
             />
-            <div className="fl-note">click any word to see how it was made</div>
             <p className="fl-line">
               the drawn word joins the sentence. then, the whole machine runs <em>again</em>. that's
               all of it. every AI you've used is this loop: guess the next word, add it, repeat.
@@ -1045,7 +1026,7 @@ export function Flow() {
             the vector the climb reads, measured after every layer. each layer adds its
             adjustment to this one running signal.
           </div>
-          <RnormSparkline step={flowCtx.step} layer={flowCtx.layer} layers={flowCtx.trace.layers} />
+          <SignalField step={flowCtx.step} />
         </>
       );
     if (drawer === "heads" && flowCtx && prodStep)
@@ -1058,7 +1039,7 @@ export function Flow() {
             settle on the <b>sink</b> — position 0, where a head points when it finds nothing worth
             fetching. red marks the layer's single strongest read.
           </div>
-          <HeadGrid trace={flowCtx.trace} step={prodStep} prod={prod} />
+          <HeadField trace={flowCtx.trace} step={prodStep} prod={prod} />
         </>
       );
     if (drawer === "rope" && flowCtx)
@@ -1092,6 +1073,12 @@ export function Flow() {
   return (
     <div className={"flow-wrap" + (drawer ? " wide" : "")}>
       <div className="flow">
+        <div className="fl-brackets" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
         <div className="fl-head">
           <div className="fl-head-top">
             <div className="fl-brand">
