@@ -14,6 +14,7 @@ import type { ExplainCtx } from "./Explanations";
 import { AttnSpace } from "./AttnSpace";
 import { DrawField } from "./DrawField";
 import { LensSpace } from "./LensSpace";
+import { LoopChain } from "./LoopChain";
 import { TokenSpace } from "./TokenSpace";
 import { RmsNormDemo } from "./RmsNormDemo";
 import { RnormSparkline } from "./RnormSparkline";
@@ -744,17 +745,14 @@ export function Flow() {
         // clicking a word opens its story back on "looks back"
         return (
           <>
-            <Sentence
+            <LoopChain
               trace={trace}
-              n={frontier + 1}
-              dim
-              lastNew
+              frontier={frontier}
               onPick={(i) => {
                 setInspect(i);
                 setPhase(2);
               }}
             />
-            <div className="fl-note">click any word to see how it was made</div>
             <p className="fl-line">
               the drawn word joins the sentence. then, the whole machine runs <em>again</em>. that's
               all of it. every AI you've used is this loop: guess the next word, add it, repeat.
