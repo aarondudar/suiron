@@ -40,10 +40,9 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  background: var(--bg);
-  /* dot-grid paper, barely there */
-  background-image: radial-gradient(circle, #131313 1px, transparent 1px);
-  background-size: 26px 26px;
+  /* deep space — the shared backdrop for the sci-fi skin (design-31); the
+     starfield canvas paints the texture on top of this */
+  background: #000;
   color: var(--ink);
   font-family: var(--mono);
   font-size: var(--t-base);
@@ -52,7 +51,10 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-#root { max-width: 1200px; margin: 0 auto; padding: 28px var(--sp-5) var(--sp-4); }
+/* the shared drifting starfield, behind everything (design-31) */
+.starfield { position: fixed; inset: 0; z-index: 0; pointer-events: none; display: block; }
+
+#root { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 28px var(--sp-5) var(--sp-4); }
 
 ::selection { background: var(--red); color: var(--bg); }
 
@@ -1307,14 +1309,25 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 @media (prefers-reduced-motion: reduce) { .flow-wrap { transition: none; } }
 .flow {
   position: relative; overflow: hidden;
-  background: var(--bg);
-  background-image: radial-gradient(circle, #141414 1px, transparent 1px);
-  background-size: 24px 24px;
+  /* frosted console panel floating on the starfield (design-31) */
+  background: rgba(7, 8, 11, 0.72);
+  backdrop-filter: blur(3px) saturate(1.1);
+  -webkit-backdrop-filter: blur(3px) saturate(1.1);
   border: 1px solid var(--hair); border-top: 2px solid var(--red);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 24px 60px -30px rgba(0, 0, 0, 0.9);
   min-height: 560px;
   min-height: clamp(560px, 100svh - 200px, 800px);
   display: flex; flex-direction: column;
 }
+/* nav-HUD corner brackets — starship-console framing (design-31) */
+.fl-brackets span {
+  position: absolute; width: 14px; height: 14px; z-index: 6;
+  pointer-events: none; border: 1px solid var(--faint);
+}
+.fl-brackets span:nth-child(1) { top: 7px; left: 7px; border-right: 0; border-bottom: 0; }
+.fl-brackets span:nth-child(2) { top: 7px; right: 7px; border-left: 0; border-bottom: 0; }
+.fl-brackets span:nth-child(3) { bottom: 7px; left: 7px; border-right: 0; border-top: 0; }
+.fl-brackets span:nth-child(4) { bottom: 7px; right: 7px; border-left: 0; border-top: 0; }
 .fl-head {
   display: flex; flex-direction: column; gap: var(--sp-3);
   padding: var(--sp-4) 22px; border-bottom: 1px solid #1c1c1c;

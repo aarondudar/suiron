@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { Starfield } from "./components/Starfield";
 import { WasmGate } from "./components/WasmGate";
 import "@fontsource-variable/doto";
 import "./styles.css";
@@ -12,6 +13,7 @@ const WASM = import.meta.env.VITE_BACKEND === "wasm";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
+    <Starfield />
     {WASM ? (
       <WasmGate>
         <App />

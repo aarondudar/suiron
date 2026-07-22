@@ -1092,6 +1092,12 @@ export function Flow() {
   return (
     <div className={"flow-wrap" + (drawer ? " wide" : "")}>
       <div className="flow">
+        <div className="fl-brackets" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
         <div className="fl-head">
           <div className="fl-head-top">
             <div className="fl-brand">
