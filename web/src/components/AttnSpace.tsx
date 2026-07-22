@@ -76,12 +76,12 @@ export function AttnSpace({ trace, prod }: { trace: Trace; prod: number }) {
       ctx.arc(pos[i].x, pos[i].y, 2.6 + w[i] * 9, 0, 7);
       ctx.fillStyle = hot ? "#d71921" : `rgba(232,232,232,${lit})`;
       ctx.fill();
-      // label leans outward from the centre so it never sits under the ring
-      const outLeft = pos[i].x < cx;
+      // label leans inward (toward centre) so it never clips off the frame edge
+      const left = pos[i].x < cx;
       ctx.font = `${hot ? 600 : 400} 12px ui-monospace, monospace`;
       ctx.fillStyle = hot ? "rgba(215,25,33,0.95)" : `rgba(232,232,232,${0.3 + lit * 0.5})`;
-      ctx.textAlign = outLeft ? "right" : "left";
-      ctx.fillText(lab[i], pos[i].x + (outLeft ? -9 : 9), pos[i].y + 4);
+      ctx.textAlign = left ? "left" : "right";
+      ctx.fillText(lab[i], pos[i].x + (left ? 9 : -9), pos[i].y + 4);
     }
 
     // the current vector, pulled to the centroid
