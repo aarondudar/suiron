@@ -17,8 +17,8 @@ import { LensSpace } from "./LensSpace";
 import { LoopChain } from "./LoopChain";
 import { TokenSpace } from "./TokenSpace";
 import { RmsNormDemo } from "./RmsNormDemo";
-import { RnormSparkline } from "./RnormSparkline";
 import { RopeDemo } from "./RopeDemo";
+import { SignalField } from "./SignalField";
 import { TemperatureDemo } from "./TemperatureDemo";
 import { TokenizeDemo } from "./TokenizeDemo";
 import { TopKDemo } from "./TopKDemo";
@@ -1026,7 +1026,7 @@ export function Flow() {
             the vector the climb reads, measured after every layer. each layer adds its
             adjustment to this one running signal.
           </div>
-          <RnormSparkline step={flowCtx.step} layer={flowCtx.layer} layers={flowCtx.trace.layers} />
+          <SignalField step={flowCtx.step} />
         </>
       );
     if (drawer === "heads" && flowCtx && prodStep)

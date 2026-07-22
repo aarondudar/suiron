@@ -1609,6 +1609,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 .fl-spacewrap .stepper-where { display: none; }
 .fl-space.fl-space-tall { height: clamp(300px, 46vh, 420px); }
+.fl-space.fl-space-short { height: clamp(200px, 30vh, 260px); }
 @media (prefers-reduced-motion: reduce) { .fl-space-lock { transition: none; } }
 
 /* the draw field's temperature dial */
