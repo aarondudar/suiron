@@ -1710,6 +1710,12 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   color: var(--faint); font-size: var(--t-micro); letter-spacing: 0.04em;
   text-align: center; margin: var(--sp-2) auto var(--sp-1); max-width: 52ch; line-height: 1.5;
 }
+/* the meaning-not-spelling note, shown only when the nearest row surprises */
+.fl-space-xnote { color: var(--dim); }
+.geo-xnote {
+  color: var(--dim); font-size: var(--t-tiny); line-height: 1.55;
+  max-width: 58ch; margin-top: var(--sp-2);
+}
 .fl-spacewrap .stepper-where { display: none; }
 .fl-space.fl-space-tall { height: clamp(300px, 46vh, 420px); }
 .fl-space.fl-space-short { height: clamp(200px, 30vh, 260px); }
