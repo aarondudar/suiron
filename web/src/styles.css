@@ -1073,6 +1073,52 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 
 /* context line: the whole prompt as its tokens, the active word lit, clickable */
 .tok-context-cap { color: var(--faint); font-size: var(--t-micro); letter-spacing: 0.04em; margin-bottom: var(--sp-1); }
+/* the accumulating sentence (Aaron's #3): done words hold their tokens, the
+   active word collapses in place, upcoming words wait as ghost text */
+.tok-flow {
+  display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: flex-start;
+  padding: var(--sp-3); margin-bottom: var(--sp-2);
+  background: radial-gradient(130% 130% at 50% 20%, #0a0b0e 0%, #050506 72%);
+  border: 1px solid var(--hair); border-top: 1px solid var(--hair-lit);
+}
+.tok-wgroup {
+  display: inline-flex; gap: 2px; align-items: flex-start;
+  background: none; border: none; padding: 0 0 3px; cursor: pointer;
+  font-family: var(--mono); font-size: inherit; color: inherit;
+  border-bottom: 1px solid transparent;
+}
+.tok-wgroup.active { border-bottom-color: var(--red); }
+.tok-ghost {
+  background: none; border: none; border-bottom: 1px dashed var(--hair-lit);
+  color: var(--faint); font-family: var(--mono); font-size: inherit;
+  padding: 0 2px 3px; cursor: pointer; white-space: pre;
+}
+.tok-ghost:hover { color: var(--dim); }
+
+/* the reset, watchable (Aaron's #12): component bars morphing raw → ÷rms → ×weight */
+.rms-reset { margin: var(--sp-3) 0; }
+.rms-bars {
+  display: flex; gap: 3px; align-items: stretch; height: 96px;
+  padding: var(--sp-2); margin-top: var(--sp-2);
+  background: radial-gradient(130% 130% at 50% 20%, #0a0b0e 0%, #050506 72%);
+  border: 1px solid var(--hair); border-top: 1px solid var(--hair-lit);
+  position: relative;
+}
+.rms-bars::after {
+  /* the zero line */
+  content: ""; position: absolute; left: var(--sp-2); right: var(--sp-2); top: 50%;
+  border-top: 1px solid #1e2126; pointer-events: none;
+}
+.rms-bar { flex: 1; position: relative; min-width: 4px; }
+.rms-bar-fill {
+  position: absolute; left: 15%; right: 15%;
+  background: #cfd6df; transition: height 0.6s ease, top 0.6s ease;
+}
+@media (prefers-reduced-motion: reduce) { .rms-bar-fill { transition: none; } }
+.rms-stage-cap {
+  color: var(--dim); font-size: var(--t-tiny); line-height: 1.55;
+  margin-top: var(--sp-2); min-height: 2.4em; max-width: 60ch;
+}
 .tok-context { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-bottom: var(--sp-3); }
 .tok-word {
   background: none; border: 1px solid transparent; border-bottom-color: var(--hair);

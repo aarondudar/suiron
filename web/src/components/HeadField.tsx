@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAutoplay } from "../autoplay";
 import { headGlance, litToken } from "../lib";
 import { Stepper } from "./Stepper";
@@ -38,27 +39,37 @@ export function HeadField({
   const bestG = best >= 0 ? glances[best] : null;
   const bestTok = bestG ? litToken(trace.tokens[bestG.topPos]?.t ?? "") : null;
 
-  const st = { glances, best, nPos, prod };
+  // tap a dial to read that head (Aaron's #8): the readout names its target
+  const [sel, setSel] = useState<number | null>(null);
+  const selG = sel !== null ? glances[sel] : null;
+  const selSink = !!selG && selG.topPos === 0 && prod > 3;
+  const selTok = selG ? litToken(trace.tokens[selG.topPos]?.t ?? "") : null;
 
-  const canvas = useCanvasLoop(true, ({ ctx, W, H }) => {
-    const { glances: gs, best: bi, nPos: np, prod: pd } = st;
-    const n = gs.length;
-    if (!n) return;
+  const st = { glances, best, nPos, prod, sel };
+
+  // dial grid geometry, shared by the draw loop and the tap hit-test
+  const grid = (n: number, W: number, H: number) => {
     const cols = n <= 4 ? n : n <= 9 ? 3 : 4;
-    const rows = Math.ceil(n / cols);
     const top = 26; // room for the context label
     const bot = 34; // room for the readout
-    const cw = W / cols;
-    const chh = (H - top - bot) / rows;
+    return { cols, rows: Math.ceil(n / cols), top, cw: W / cols, chh: (H - top - bot) / Math.ceil(n / cols) };
+  };
+
+  const canvas = useCanvasLoop(true, ({ ctx, W, H }) => {
+    const { glances: gs, best: bi, nPos: np, prod: pd, sel: si } = st;
+    const n = gs.length;
+    if (!n) return;
+    const { cols, top, cw, chh } = grid(n, W, H);
     const cellR = Math.min(cw, chh) * 0.3;
     for (let h = 0; h < n; h++) {
       const cx = (h % cols + 0.5) * cw;
       const cy = top + (Math.floor(h / cols) + 0.5) * chh;
-      // dial ring
+      const isSel = h === si;
+      // dial ring (lit when tapped)
       ctx.beginPath();
       ctx.arc(cx, cy, cellR, 0, 7);
-      ctx.strokeStyle = "#1b1b1b";
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = isSel ? "#7a7a7a" : "#1b1b1b";
+      ctx.lineWidth = isSel ? 1.4 : 1;
       ctx.stroke();
       const g = gs[h];
       const sink = !!g && g.topPos === 0 && pd > 3;
@@ -70,15 +81,15 @@ export function HeadField({
         const tx = cx + Math.cos(ang) * len;
         const ty = cy + Math.sin(ang) * len;
         const col = isBest ? "215,25,33" : "232,232,232";
-        const a = sink ? 0.16 : isBest ? 0.95 : 0.3 + g.share * 0.55;
+        const a = isSel ? 0.95 : sink ? 0.16 : isBest ? 0.95 : 0.3 + g.share * 0.55;
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.lineTo(tx, ty);
         ctx.strokeStyle = `rgba(${col},${a})`;
-        ctx.lineWidth = isBest ? 2 : 1.2;
+        ctx.lineWidth = isBest || isSel ? 2 : 1.2;
         ctx.stroke();
         ctx.beginPath();
-        ctx.arc(tx, ty, isBest ? 3.4 : 2.2, 0, 7);
+        ctx.arc(tx, ty, isBest || isSel ? 3.4 : 2.2, 0, 7);
         ctx.fillStyle = `rgba(${col},${a})`;
         ctx.fill();
       }
@@ -87,20 +98,46 @@ export function HeadField({
       ctx.arc(cx, cy, 1.6, 0, 7);
       ctx.fillStyle = "#5a5a5a";
       ctx.fill();
-      ctx.font = "400 9px ui-monospace, monospace";
-      ctx.fillStyle = "rgba(122,122,122,0.8)";
+      ctx.font = `${isSel ? 600 : 400} 9px ui-monospace, monospace`;
+      ctx.fillStyle = isSel ? "rgba(232,232,232,0.9)" : "rgba(122,122,122,0.8)";
       ctx.textAlign = "center";
       ctx.fillText(`h${h}`, cx, cy + cellR + 11);
     }
   });
 
+  const tap = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const n = glances.length;
+    if (!n) return;
+    const { cols, rows, top, cw, chh } = grid(n, rect.width, rect.height);
+    const col = Math.floor((e.clientX - rect.left) / cw);
+    const row = Math.floor((e.clientY - rect.top - top) / chh);
+    if (col < 0 || col >= cols || row < 0 || row >= rows) return;
+    const h = row * cols + col;
+    if (h >= n) return;
+    setSel(sel === h ? null : h);
+  };
+
   return (
     <div className="fl-spacewrap">
       <div className="fl-space fl-space-tall">
-        <canvas ref={canvas} />
+        <canvas ref={canvas} onClick={tap} style={{ cursor: "pointer" }} />
         <div className="fl-space-ov fl-space-ctx">suiron · 16 readers · layer {L}</div>
         <div className="fl-space-ov fl-space-read">
-          {bestG && bestTok ? (
+          {sel !== null ? (
+            selG && selTok ? (
+              <>
+                head {sel} → {selSink ? <>the sink — found nothing worth fetching</> : (
+                  <>
+                    <span className="w">“{selTok.text}”</span>{" "}
+                    <span className="p">{(selG.share * 100).toFixed(0)}%</span> of its attention
+                  </>
+                )}
+              </>
+            ) : (
+              <>head {sel} — no recorded read at this layer</>
+            )
+          ) : bestG && bestTok ? (
             <>
               strongest: <span className="w">head {best}</span> →{" "}
               <span className="w">“{bestTok.text}”</span>{" "}
@@ -113,7 +150,7 @@ export function HeadField({
       </div>
       <div className="fl-space-honest">
         each needle points at the position that head reads hardest, its length the head’s real share
-        of attention — dim dials are sinks (found nothing to fetch)
+        of attention — dim dials are sinks (found nothing to fetch). tap a dial to read that head.
       </div>
       <Stepper i={layer} max={lastLayer} playing={playing} setI={setI} toggle={toggle} unit="layer" />
     </div>
