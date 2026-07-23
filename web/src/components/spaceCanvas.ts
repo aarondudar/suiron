@@ -19,7 +19,16 @@ export interface Frame {
   t: number; // seconds since the loop started
 }
 
-export function useCanvasLoop(ready: boolean, draw: (f: Frame) => void) {
+export function useCanvasLoop(
+  ready: boolean,
+  draw: (f: Frame) => void,
+  opts?: {
+    /** drag-to-rotate the space (only for visuals that actually use `spin`);
+     *  leaves scroll/click affordances alone everywhere else */
+    rotatable?: boolean;
+  },
+) {
+  const rotatable = !!opts?.rotatable;
   const cv = useRef<HTMLCanvasElement>(null);
   const drawRef = useRef(draw);
   drawRef.current = draw;
@@ -46,10 +55,48 @@ export function useCanvasLoop(ready: boolean, draw: (f: Frame) => void) {
     };
     resize();
     window.addEventListener("resize", resize);
+
+    // drag to rotate (opt-in): the space follows the pointer, momentum on release.
+    // Only wired where spinning means something — a grab cursor and touch-action
+    // lock on a non-rotating dial grid would mislead and block page scroll.
+    let dragging = false;
+    let lastX = 0;
+    let vel = 0;
+    const down = (e: PointerEvent) => {
+      dragging = true;
+      lastX = e.clientX;
+      vel = 0;
+      canvas.style.cursor = "grabbing";
+      canvas.setPointerCapture?.(e.pointerId);
+    };
+    const move = (e: PointerEvent) => {
+      if (!dragging) return;
+      const dx = e.clientX - lastX;
+      lastX = e.clientX;
+      spin += dx * 0.008;
+      vel = dx * 0.008;
+    };
+    const up = () => {
+      dragging = false;
+      canvas.style.cursor = "grab";
+    };
+    if (rotatable) {
+      canvas.style.touchAction = "none";
+      canvas.style.cursor = "grab";
+      canvas.addEventListener("pointerdown", down);
+      canvas.addEventListener("pointermove", move);
+      canvas.addEventListener("pointerup", up);
+      canvas.addEventListener("pointercancel", up);
+    }
+
     const frame = (ms: number) => {
       if (!t0) t0 = ms;
       if (canvas.clientWidth !== W || canvas.clientHeight !== H) resize();
-      if (!REDUCED) spin += 0.0022;
+      if (!dragging && !REDUCED) {
+        spin += 0.0022; // gentle idle drift
+        spin += vel; // fling momentum (reduced-motion: direct drag only, no coast)
+        vel *= 0.94;
+      }
       ctx.clearRect(0, 0, W, H);
       drawRef.current({ ctx, W, H, cx, cy, spin, t: (ms - t0) / 1000 });
       raf = requestAnimationFrame(frame);
@@ -58,8 +105,14 @@ export function useCanvasLoop(ready: boolean, draw: (f: Frame) => void) {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
+      if (rotatable) {
+        canvas.removeEventListener("pointerdown", down);
+        canvas.removeEventListener("pointermove", move);
+        canvas.removeEventListener("pointerup", up);
+        canvas.removeEventListener("pointercancel", up);
+      }
     };
-  }, [ready]);
+  }, [ready, rotatable]);
   return cv;
 }
 

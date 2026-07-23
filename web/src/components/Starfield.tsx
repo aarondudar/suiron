@@ -30,6 +30,7 @@ export function Starfield() {
         vy: (Math.random() - 0.5) * 0.05,
       }));
     };
+    let lastW = -1;
     const resize = () => {
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       W = window.innerWidth;
@@ -39,7 +40,11 @@ export function Starfield() {
       cv.style.width = W + "px";
       cv.style.height = H + "px";
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      seed();
+      // seed once; only re-seed on a real WIDTH change. mobile browsers fire
+      // resize repeatedly as the address bar shows/hides (height only) during
+      // boot — reseeding there made the whole starfield visibly jump ("flicker").
+      if (stars.length === 0 || W !== lastW) seed();
+      lastW = W;
     };
     resize();
     window.addEventListener("resize", resize);

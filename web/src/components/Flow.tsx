@@ -668,7 +668,7 @@ export function Flow() {
               AI models don't read the way you do. they break down text into <em>tokens.</em> often common
               groupings of letters or entire words.
             </p>
-            <Sentence trace={trace} n={n} stagger showIds />
+            <Sentence trace={trace} n={n} showIds />
             <div className="fl-note">
               {n} piece{n === 1 ? "" : "s"} from the engine's tokenizer · each is then looked up as
               a <b>vector</b> — a position in a space of meaning, where words used alike sit close
@@ -861,9 +861,13 @@ export function Flow() {
       return (
         <>
           <div className="fl-drawer-note">
-            these are the model's real scores, already fixed. the knobs change only how one gets
-            picked from them — drag temperature, top-k, or top-p and the odds re-sort live, without
-            the model ever running again.
+            these scores are fixed — the knob only changes how one gets picked, no re-run.{" "}
+            {knob === "temperature" &&
+              "temperature flattens or sharpens the odds: low lets the top guess dominate, higher gives the also-rans a real chance."}
+            {knob === "top-k" &&
+              "top-k keeps only the k highest guesses and discards the rest before the draw — drag k to widen or narrow the shortlist."}
+            {knob === "top-p" &&
+              "top-p keeps the smallest group of top guesses whose odds add up to p, then draws from just those — drag p to loosen or tighten it."}
           </div>
           <div className="seg fl-knob-seg">
             {KNOBS.map((k) => (
@@ -1003,8 +1007,9 @@ export function Flow() {
         <>
           <div className="fl-drawer-note">
             the last vector is scored against the same table the words came in through. tied
-            embeddings: reading and writing share one matrix. each dot product below IS the
-            engine's logit.
+            embeddings: reading and writing share one matrix. each dot product below is a{" "}
+            <b>logit</b> — one raw score per candidate word. a final step called <b>softmax</b> turns
+            the whole list of logits into percentages that add up to 100%.
           </div>
           <UnembedDemo ctx={flowCtx} />
         </>
@@ -1023,8 +1028,9 @@ export function Flow() {
       return (
         <>
           <div className="fl-drawer-note">
-            the vector the climb reads, measured after every layer. each layer adds its
-            adjustment to this one running signal.
+            the vector the climb reads, measured after every layer. the plot tracks its{" "}
+            <b>RMS</b> — root-mean-square, a single number for how big the vector is overall. each
+            layer adds its adjustment to this one running signal, and you can watch it grow.
           </div>
           <SignalField step={flowCtx.step} />
         </>
@@ -1046,8 +1052,10 @@ export function Flow() {
       return (
         <>
           <div className="fl-drawer-note">
-            before comparing two tokens, attention spins each one's vector by its position. that
-            spin is how word order enters the math.
+            before comparing two tokens, attention spins each one's vector by an angle set by its
+            position. so the same word in slot 2 and slot 9 end up pointing differently — word order
+            rides <em>inside</em> the vector, with no separate "position" number bolted on. each dial
+            below is one pair of the vector's numbers; watch it rotate by this token's position.
           </div>
           <RopeDemo ctx={flowCtx} />
         </>

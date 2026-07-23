@@ -20,6 +20,12 @@ interface BootState {
 
 const IDLE: BootState = { msg: "starting…", frac: null, err: null, done: false };
 
+/* coarse pointer ≈ phone/tablet. Running the full model in-tab needs ~1 GB of
+   working memory; mobile browsers cap tab memory hard and kill the tab instead
+   of erroring, so warn before the ~640 MB commit (the demo needs none of this). */
+const COARSE =
+  typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches;
+
 function markWelcomeSeen() {
   try {
     localStorage.setItem(WELCOME_SEEN_KEY, "1");
@@ -63,6 +69,12 @@ function GateBody({
             the whole model runs in your browser: a one-time ~640 MB download, cached locally, then
             nothing leaves your device.
           </div>
+          {COARSE && (
+            <div className="wasmgate-warn">
+              running the full model in a phone browser needs a lot of memory and may crash the tab —
+              a desktop browser is recommended for the live engine.
+            </div>
+          )}
           <div className="wasmgate-story">
             <WelcomeStory />
           </div>

@@ -71,7 +71,7 @@ export function DrawField({ sel, chosenId }: { sel: Sel; chosenId: number }) {
         ctx.fillText(labels[i], s.x, s.y - rad - 5);
       }
     }
-  });
+  }, { rotatable: true });
 
   if (!ready)
     return (

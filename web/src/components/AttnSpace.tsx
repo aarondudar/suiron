@@ -10,22 +10,27 @@ import type { Trace } from "../types";
    reading-order layout; the pull strengths are the engine's real numbers. */
 
 export function AttnSpace({ trace, prod }: { trace: Trace; prod: number }) {
-  const step = prod > 0 ? trace.steps[prod] : undefined;
+  const step = prod > 1 ? trace.steps[prod] : undefined; // need ≥1 earlier non-sink token
   const ready = !!step && !!step.attn?.length;
 
-  // aggregate attention over all layers + heads → one weight per EARLIER position
-  // (0..prod-1); self-attention is excluded — "looks back" is about the words before
+  // aggregate attention over all layers + heads → one weight per EARLIER content
+  // position (1..prod-1). Two exclusions so the demo actually teaches "gathering
+  // meaning": self-attention (looks BACK), and the first-token sink — the spare
+  // attention every model parks on token 0, which otherwise drowns out the real
+  // semantic pulls. The sink is called out in the caption, not hidden.
   let weights: number[] = [];
   let labels: string[] = [];
   let strongest = { i: -1, w: 0 };
   const curTok = step ? esc(trace.tokens[prod].t) : "";
   if (step) {
-    const n = prod; // earlier positions only
-    const w = new Array(n).fill(0);
-    for (const layer of step.attn) for (const head of layer) for (const [src, wt] of head) if (src < n) w[src] += wt;
+    const cnt = Math.max(0, prod - 1); // positions 1..prod-1
+    const w = new Array(cnt).fill(0);
+    for (const layer of step.attn)
+      for (const head of layer)
+        for (const [src, wt] of head) if (src >= 1 && src < prod) w[src - 1] += wt;
     const tot = w.reduce((a, b) => a + b, 0) || 1;
     weights = w.map((x) => x / tot);
-    labels = trace.tokens.slice(0, n).map((t) => esc(t.t));
+    labels = trace.tokens.slice(1, prod).map((t) => esc(t.t));
     weights.forEach((x, i) => {
       if (x > strongest.w) strongest = { i, w: x };
     });
@@ -109,7 +114,9 @@ export function AttnSpace({ trace, prod }: { trace: Trace; prod: number }) {
   if (!ready)
     return (
       <div className="fl-status" role="status">
-        reading the attention weights…
+        {prod <= 1
+          ? "nothing earlier to look back at yet — this is the very start of the sentence."
+          : "reading the attention weights…"}
       </div>
     );
 
@@ -125,8 +132,9 @@ export function AttnSpace({ trace, prod }: { trace: Trace; prod: number }) {
         </div>
       </div>
       <div className="fl-space-honest">
-        the ring is reading order — each pull’s strength is the real attention weight, summed over
-        all {trace.layers} layers and {trace.heads} heads
+        the ring is the earlier words — each pull’s strength is the real attention weight, summed
+        over all {trace.layers} layers and {trace.heads} heads. the first-token “sink” (spare
+        attention every model parks on word 1) is set aside so the meaning-carrying pulls show.
       </div>
     </div>
   );

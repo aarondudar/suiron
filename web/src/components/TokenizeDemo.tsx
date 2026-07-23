@@ -57,7 +57,7 @@ function MergeTimeline({ pts }: { pts: Pretoken[] }) {
     sum += p.steps.length + 1;
   }
   const max = sum - 1;
-  const { i: g, playing, setI, toggle } = useAutoplay(max, { stepMs: 700 });
+  const { i: g, playing, setI, toggle } = useAutoplay(max, { stepMs: 400 });
 
   // start on the first word that actually merges (skip lone-token punctuation)
   useEffect(() => {

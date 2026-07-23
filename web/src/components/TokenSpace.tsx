@@ -10,18 +10,27 @@ import type { Neighbor, Trace } from "../types";
    similarity over the whole 151,936-row embedding table (closer = more alike in
    meaning). Only the angle is layout; every distance is a real number. */
 
-/** the last contentful token of the sentence — the one with the most telling
- *  neighbourhood (function words like "is" cluster with other function words) */
-function pick(trace: Trace, n: number): number {
-  const toks = trace.tokens.slice(0, Math.max(1, n));
-  for (let i = toks.length - 1; i >= 0; i--) {
-    if (/[A-Za-z]{3,}/.test((toks[i]?.t ?? "").trim())) return i;
+/** the most telling token to anchor the neighbourhood on: prefer the answer the
+ *  model just produced (the last generated token), else the last contentful word
+ *  of the prompt (function words like "is" cluster with other function words) */
+function pick(trace: Trace): number {
+  const last = trace.tokens.length - 1;
+  // the produced answer (e.g. " Paris") is the most satisfying neighbourhood to
+  // show — but prefer the newest generated token that carries a letter (any
+  // script): a repetition-trap run can end on a comma, and a comma's
+  // neighbourhood teaches nothing
+  for (let i = last; i >= trace.n_prompt; i--) {
+    if (/\p{L}/u.test(trace.tokens[i]?.t ?? "")) return i;
   }
-  return toks.length - 1;
+  if (last >= trace.n_prompt) return last;
+  for (let i = last; i >= 0; i--) {
+    if (/[A-Za-z]{3,}/.test((trace.tokens[i]?.t ?? "").trim())) return i;
+  }
+  return Math.max(0, last);
 }
 
-export function TokenSpace({ trace, n }: { trace: Trace; n: number }) {
-  const pi = pick(trace, n);
+export function TokenSpace({ trace }: { trace: Trace; n?: number }) {
+  const pi = pick(trace);
   const pickId = trace.tokens[pi]?.id ?? -1;
   const pickTok = esc(trace.tokens[pi]?.t ?? "");
 
@@ -113,7 +122,7 @@ export function TokenSpace({ trace, n }: { trace: Trace; n: number }) {
     ctx.fillStyle = "rgba(215,25,33,0.95)";
     ctx.textAlign = "left";
     ctx.fillText(center, origin.x + 9, origin.y + 4);
-  });
+  }, { rotatable: true });
 
   if (!ready)
     return (
