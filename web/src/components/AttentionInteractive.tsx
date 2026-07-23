@@ -15,6 +15,13 @@ export function AttentionInteractive({ ctx }: { ctx: ExplainCtx }) {
 
   return (
     <div className="attn-interactive">
+      <div className="fl-drawer-note">
+        the score compares two vectors: this word's <b>query</b> (what it's looking for) and an
+        earlier word's <b>key</b> (what it offers). each is {ctx.trace.head_dim} numbers long — its
+        "components." multiply the two lists component by component, add them up, and that sum
+        (scaled) is the score. a big product at a component means the two words agree strongly on
+        that feature.
+      </div>
       <div className="attn-controls">
         <label className="uh-sel">
           layer{" "}
