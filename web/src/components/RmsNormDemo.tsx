@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getInspect } from "../api";
 import { settledSeq } from "../lib";
+import { REDUCED } from "./spaceCanvas";
 import type { ExplainCtx } from "./Explanations";
 import type { WorkedNorm } from "../types";
 
@@ -59,6 +60,8 @@ export function RmsNormDemo({ ctx }: { ctx: ExplainCtx }) {
         {n.len.toLocaleString()} numbers)
       </div>
 
+      <ResetBars rows={rows} rms={n.rms} />
+
       <div className="tbl-scroll">
         <table className="rms-tbl">
           <thead>
@@ -92,6 +95,71 @@ export function RmsNormDemo({ ctx }: { ctx: ExplainCtx }) {
       <div className="rms-check">
         reconstructed = the engine's normalized vector{" "}
         <span className="dp-check">{maxErr < 5e-3 ? "· matches" : `· differs (${f(maxErr)})`}</span>
+      </div>
+    </div>
+  );
+}
+
+/* The reset, watchable (Aaron's #12): the same real components as bars, morphing
+   through the three stages — raw sizes, everything shrunk by one shared ÷rms,
+   then each channel re-scaled by its learned weight. CSS transitions carry the
+   morph; the stages walk once on open (instant under reduced-motion). */
+const STAGES = [
+  { key: "x", label: "raw x", cap: "the vector as the layer receives it — components at whatever size the running signal has grown to" },
+  { key: "scaled", label: "÷ rms", cap: "every component divided by the same number: the shape is untouched, the size is standard" },
+  { key: "out", label: "× weight", cap: "each channel re-scaled by its learned weight — what this layer's reader wants louder or quieter" },
+] as const;
+
+function ResetBars({
+  rows,
+  rms,
+}: {
+  rows: { x: number; scaled: number; out: number }[];
+  rms: number;
+}) {
+  const [stage, setStage] = useState(REDUCED ? 2 : 0);
+  // walk the stages once on open, then hand the buttons over
+  useEffect(() => {
+    if (REDUCED) return;
+    let s = 0;
+    const t = window.setInterval(() => {
+      s++;
+      setStage(s);
+      if (s >= 2) window.clearInterval(t);
+    }, 1100);
+    return () => window.clearInterval(t);
+  }, []);
+
+  const maxAbs = Math.max(...rows.flatMap((r) => [Math.abs(r.x), Math.abs(r.scaled), Math.abs(r.out)]), 1e-6);
+  const at = STAGES[stage];
+
+  return (
+    <div className="rms-reset">
+      <div className="seg fl-knob-seg">
+        {STAGES.map((s, i) => (
+          <button key={s.key} className={"seg-opt" + (i === stage ? " on" : "")} onClick={() => setStage(i)}>
+            {s.label}
+          </button>
+        ))}
+      </div>
+      <div className="rms-bars" role="img" aria-label={`the first ${rows.length} components at stage: ${at.label}`}>
+        {rows.map((r, j) => {
+          const v = r[at.key];
+          const up = v >= 0;
+          const h = (Math.abs(v) / maxAbs) * 50;
+          return (
+            <div className="rms-bar" key={j} title={`component ${j}: ${v.toFixed(3)}`}>
+              <div
+                className="rms-bar-fill"
+                style={{ height: `${h}%`, top: up ? `${50 - h}%` : "50%" }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="rms-stage-cap">
+        {at.cap}
+        {stage === 1 ? ` (rms = ${rms.toFixed(3)})` : ""}
       </div>
     </div>
   );

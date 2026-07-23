@@ -74,44 +74,72 @@ function MergeTimeline({ pts }: { pts: Pretoken[] }) {
 
   return (
     <div className="tok-demo">
-      {/* the whole prompt as its tokens; the active word is lit. click to jump. */}
-      <div className="tok-context-cap">the prompt, as its final tokens · click a word to watch it form</div>
-      <div className="tok-context">
-        {pts.map((p, j) => (
-          <button
-            key={j}
-            className={"tok-word" + (j === wi ? " active" : "")}
-            title={`pre-token ${j}`}
-            onClick={() => setI(offsets[j])}
-          >
-            {finalPieces(p).map((piece, x) => {
-              const lt = litToken(piece);
-              return (
-                <span key={x} className={lt.literal ? "geo-lit" : undefined}>
-                  {lt.text}
-                </span>
-              );
-            })}
-          </button>
-        ))}
+      {/* one accumulating sentence: finished words keep their final tokens,
+          the active word collapses in place, upcoming words wait as ghost
+          text — by the last frame the whole prompt stands tokenized. */}
+      <div className="tok-context-cap">
+        each word collapses in turn and stays · click any word to jump
+      </div>
+      <div className="tok-flow">
+        {pts.map((p, j) => {
+          if (j > wi) {
+            // not reached yet: the raw text, ghosted
+            const lt = litToken(p.start.join(""));
+            return (
+              <button
+                key={j}
+                className="tok-ghost"
+                title="not yet tokenized — click to skip ahead"
+                onClick={() => setI(offsets[j])}
+              >
+                <span className={lt.literal ? "geo-lit" : undefined}>{lt.text}</span>
+              </button>
+            );
+          }
+          const done = j < wi || k >= p.steps.length;
+          const pieces = j < wi || k === 0 ? (j < wi ? finalPieces(p) : p.start) : p.steps[k - 1].result;
+          const justMerged = j === wi && k > 0 ? p.steps[k - 1] : null;
+          const mergedText = justMerged ? justMerged.left + justMerged.right : null;
+          return (
+            <button
+              key={j}
+              className={"tok-wgroup" + (j === wi ? " active" : "")}
+              title={`pre-token ${j} — click to replay`}
+              onClick={() => setI(offsets[j])}
+            >
+              {pieces.map((piece, x) => {
+                const lt = litToken(piece);
+                const just =
+                  j === wi && mergedText !== null && piece === mergedText && pieces.indexOf(mergedText) === x;
+                const raw = !done && isRawPiece(piece);
+                return (
+                  <span
+                    key={x}
+                    className={"tok-piece" + (raw ? " raw" : "") + (just ? " just" : "") + (done ? " done" : "")}
+                  >
+                    <span className={lt.literal ? "geo-lit" : undefined}>{lt.text}</span>
+                    {done && <span className="tok-id">{p.tokens[x]}</span>}
+                  </span>
+                );
+              })}
+            </button>
+          );
+        })}
       </div>
 
-      <WordMerge word={word} k={k} />
+      <ActionLabel word={word} k={k} />
 
       <Stepper i={g} max={max} playing={playing} setI={setI} toggle={toggle} unit="step" />
     </div>
   );
 }
 
-/** One pre-token at local frame `k`: byte-level start (k=0) → each real merge
- *  → the final token(s) (k = steps.length). Controlled by the shared timeline. */
-function WordMerge({ word, k }: { word: Pretoken; k: number }) {
+/** The one-line narration for the active word at local frame `k`: byte-level
+ *  start (k=0) → each real merge → its final token(s). */
+function ActionLabel({ word, k }: { word: Pretoken; k: number }) {
   const total = word.steps.length;
   const isDone = k >= total;
-
-  const pieces = k === 0 ? word.start : word.steps[k - 1].result;
-  const justMerged = k > 0 ? word.steps[k - 1] : null;
-  const mergedText = justMerged ? justMerged.left + justMerged.right : null;
+  const justMerged = k > 0 && !(k > total) ? word.steps[k - 1] : null;
   // name the word by its final text (start pieces can be raw hex bytes)
   const wordText = litToken(finalPieces(word).join(""));
 
@@ -119,7 +147,7 @@ function WordMerge({ word, k }: { word: Pretoken; k: number }) {
   if (total === 0) {
     label = (
       <>
-        {disp(word.start.join(""))} is already a single token · id <b>{word.tokens[0]}</b>
+        already a single token · id <b>{word.tokens[0]}</b>
       </>
     );
   } else if (k === 0) {
@@ -140,35 +168,15 @@ function WordMerge({ word, k }: { word: Pretoken; k: number }) {
       <>
         merge <span className="tok-pair">{disp(justMerged.left)}</span> +{" "}
         <span className="tok-pair">{disp(justMerged.right)}</span> →{" "}
-        <span className="tok-merged">{disp(mergedText!)}</span> · rank {justMerged.rank}
+        <span className="tok-merged">{disp(justMerged.left + justMerged.right)}</span> · rank{" "}
+        {justMerged.rank}
       </>
     );
   }
 
   return (
-    <div className="tok-word-demo">
-      <div className="tok-word-title">
-        now merging: <b className={wordText.literal ? "geo-lit" : undefined}>{wordText.text}</b>
-      </div>
-
-      <div className="tok-row">
-        {pieces.map((piece, x) => {
-          const lt = litToken(piece);
-          const just = mergedText !== null && piece === mergedText && pieces.indexOf(mergedText) === x;
-          const raw = !isDone && isRawPiece(piece);
-          return (
-            <span
-              key={x}
-              className={"tok-piece" + (raw ? " raw" : "") + (just ? " just" : "") + (isDone ? " done" : "")}
-            >
-              <span className={lt.literal ? "geo-lit" : undefined}>{lt.text}</span>
-              {isDone && <span className="tok-id">{word.tokens[x]}</span>}
-            </span>
-          );
-        })}
-      </div>
-
-      <div className="tok-label">{label}</div>
+    <div className="tok-label">
+      <b className={wordText.literal ? "geo-lit" : undefined}>{wordText.text}</b> · {label}
     </div>
   );
 }
