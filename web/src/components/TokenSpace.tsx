@@ -12,8 +12,9 @@ import type { Neighbor, Trace } from "../types";
 
 /** the most telling token to anchor the neighbourhood on: prefer the answer the
  *  model just produced (the last generated token), else the last contentful word
- *  of the prompt (function words like "is" cluster with other function words) */
-function pick(trace: Trace): number {
+ *  of the prompt (function words like "is" cluster with other function words).
+ *  Shared with the meaning drawer so the step and its drawer tell one story. */
+export function pickAnchor(trace: Trace): number {
   const last = trace.tokens.length - 1;
   // the produced answer (e.g. " Paris") is the most satisfying neighbourhood to
   // show — but prefer the newest generated token that carries a letter (any
@@ -30,7 +31,7 @@ function pick(trace: Trace): number {
 }
 
 export function TokenSpace({ trace }: { trace: Trace; n?: number }) {
-  const pi = pick(trace);
+  const pi = pickAnchor(trace);
   const pickId = trace.tokens[pi]?.id ?? -1;
   const pickTok = esc(trace.tokens[pi]?.t ?? "");
 

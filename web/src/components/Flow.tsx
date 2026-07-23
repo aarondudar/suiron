@@ -15,7 +15,7 @@ import { DrawField } from "./DrawField";
 import { HeadField } from "./HeadField";
 import { LensSpace } from "./LensSpace";
 import { LoopChain } from "./LoopChain";
-import { TokenSpace } from "./TokenSpace";
+import { TokenSpace, pickAnchor } from "./TokenSpace";
 import { RmsNormDemo } from "./RmsNormDemo";
 import { RopeDemo } from "./RopeDemo";
 import { SignalField } from "./SignalField";
@@ -325,6 +325,7 @@ export function Flow() {
     if (demo) {
       if (text === demoPrompt()) {
         setInspect(null);
+        setPickTok(null); // a stale meaning-pick means nothing on a new run
         setExp(null);
         playDemo();
         goPhase(1);
@@ -334,6 +335,7 @@ export function Flow() {
       return;
     }
     setInspect(null); // a new run walks its own frontier
+    setPickTok(null); // and retires any meaning-drawer pick from the old one
     setExp(null); // a run of your own retires the experiment framing
     void generate(text, { ...params, n: 1 });
     goPhase(1);
@@ -345,6 +347,7 @@ export function Flow() {
       return;
     }
     setInspect(null);
+    setPickTok(null);
     void stepMore(1, params);
     goPhase(1);
   };
@@ -358,6 +361,7 @@ export function Flow() {
       return;
     }
     setInspect(null);
+    setPickTok(null);
     setExp(e);
     setPrompt(e.prompt);
     if (demo) {
@@ -830,7 +834,10 @@ export function Flow() {
         </>
       );
     if (drawer === "meaning" && flowCtx) {
-      const mPos = Math.max(0, Math.min(pickTok ?? cur, frontier));
+      // default = the same anchor as the step's meaning space (the produced
+      // answer), so the step and its drawer tell one story; the chip row is
+      // the visible, deliberate override
+      const mPos = Math.max(0, Math.min(pickTok ?? pickAnchor(flowCtx.trace), frontier));
       const mCtx = { ...flowCtx, cur: mPos };
       return (
         <ExplainerProvider value={NOOP_EXPLAINER}>
@@ -917,6 +924,7 @@ export function Flow() {
                   }
                   void fork(cur, id, params);
                   setInspect(null); // the fork makes a new frontier — walk it
+                  setPickTok(null);
                   setDrawer(null);
                   setPhase(5); // the changed sentence is the payoff
                 }}
