@@ -46,10 +46,46 @@ export function useCanvasLoop(ready: boolean, draw: (f: Frame) => void) {
     };
     resize();
     window.addEventListener("resize", resize);
+
+    // drag to rotate: the whole space follows the pointer, with momentum on release
+    let dragging = false;
+    let lastX = 0;
+    let vel = 0;
+    canvas.style.touchAction = "none";
+    canvas.style.cursor = "grab";
+    const down = (e: PointerEvent) => {
+      dragging = true;
+      lastX = e.clientX;
+      vel = 0;
+      canvas.style.cursor = "grabbing";
+      canvas.setPointerCapture?.(e.pointerId);
+    };
+    const move = (e: PointerEvent) => {
+      if (!dragging) return;
+      const dx = e.clientX - lastX;
+      lastX = e.clientX;
+      spin += dx * 0.008;
+      vel = dx * 0.008;
+    };
+    const up = () => {
+      dragging = false;
+      canvas.style.cursor = "grab";
+    };
+    canvas.addEventListener("pointerdown", down);
+    canvas.addEventListener("pointermove", move);
+    canvas.addEventListener("pointerup", up);
+    canvas.addEventListener("pointercancel", up);
+
     const frame = (ms: number) => {
       if (!t0) t0 = ms;
       if (canvas.clientWidth !== W || canvas.clientHeight !== H) resize();
-      if (!REDUCED) spin += 0.0022;
+      if (dragging) {
+        // pointer drives spin directly
+      } else {
+        if (!REDUCED) spin += 0.0022; // gentle idle drift
+        spin += vel; // fling momentum
+        vel *= 0.94;
+      }
       ctx.clearRect(0, 0, W, H);
       drawRef.current({ ctx, W, H, cx, cy, spin, t: (ms - t0) / 1000 });
       raf = requestAnimationFrame(frame);
@@ -58,6 +94,10 @@ export function useCanvasLoop(ready: boolean, draw: (f: Frame) => void) {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
+      canvas.removeEventListener("pointerdown", down);
+      canvas.removeEventListener("pointermove", move);
+      canvas.removeEventListener("pointerup", up);
+      canvas.removeEventListener("pointercancel", up);
     };
   }, [ready]);
   return cv;
