@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { getLens, getNeighbors } from "../api";
 import { useAutoplay } from "../autoplay";
-import { attnSources, litToken, settledSeq } from "../lib";
+import { attnSources, litToken, sameWordish, settledSeq } from "../lib";
 import { BandHeader } from "./BandHeader";
 import { Explain, useExplainer } from "./Explainer";
 import { SUB, type ExplainCtx } from "./Explanations";
@@ -156,6 +156,9 @@ export function GeometryView({
   let centerLiteral = false;
   let figure = "";
   let figureCaption = "";
+  /** shown when the nearest row is not just a spelling of the token — the
+   *  moment the table visibly files by meaning, worth naming right here */
+  let xNote: string | null = null;
 
   if (read === "meaning") {
     const ring = (nbrs ?? []).filter((nb) => nb.id !== tokenId).slice(0, cap);
@@ -171,6 +174,9 @@ export function GeometryView({
     centerLiteral = tl.literal;
     figure = ring[0] ? ring[0].cos.toFixed(2) : "";
     figureCaption = n0 ? `nearest: “${n0.text}”` : "";
+    if (ring[0] && n0 && !sameWordish(trace.tokens[cur]?.t ?? "", ring[0].token)) {
+      xNote = `“${n0.text}” is not a spelling of “${tl.text}” — the table files by meaning, and the closest meaning can live in another form or language (this model learned English and Chinese together).`;
+    }
   } else {
     const rows = read === "lens" ? lens?.layers[layerSel]?.top ?? [] : step.top ?? [];
     const m = topModel(rows, L, cap);
@@ -296,6 +302,7 @@ export function GeometryView({
           <span className="geo-figure-cap">{figureCaption}</span>
         </div>
       )}
+      {xNote && <div className="geo-xnote">{xNote}</div>}
     </div>
   );
 }

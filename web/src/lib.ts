@@ -9,6 +9,15 @@ export const esc = (t: string) => (t === '' ? '·' : t)
  *  from before the resident state changed. */
 export const settledSeq = (t: Trace): number => (t.busy ? -1 : t.seq ?? 0)
 
+/** True when two token texts are just spellings of the same word (case or
+ *  spacing variants, e.g. " France" vs "France"). The meaning views show an
+ *  explanatory note when the nearest neighbour is NOT one — the moment the
+ *  table visibly files by meaning rather than spelling (e.g. " is" → 是). */
+export function sameWordish(a: string, b: string): boolean {
+  const norm = (s: string) => s.replace(/\s+/g, "").toLowerCase()
+  return norm(a) === norm(b)
+}
+
 /** Softmax over logits at temperature t. t<=0 is the limit: all mass on the
  *  argmax (one-hot). Shared by the temperature / top-k / top-p demos, which all
  *  recompute from this token's real logits client-side (no engine call). */

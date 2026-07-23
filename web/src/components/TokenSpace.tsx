@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getNeighbors } from "../api";
-import { esc } from "../lib";
+import { esc, sameWordish } from "../lib";
 import { useCanvasLoop, rotY, sphereDirs, REDUCED, type V3 } from "./spaceCanvas";
 import type { Neighbor, Trace } from "../types";
 
@@ -145,9 +145,15 @@ export function TokenSpace({ trace }: { trace: Trace; n?: number }) {
       </div>
       <div className="fl-space-honest">
         distance is the real cosine similarity to “{pickTok}” over all 151,936 rows — closer means
-        more alike in meaning, often across languages (translations file together); the angle is
-        layout
+        more alike in meaning; the angle is layout
       </div>
+      {!sameWordish(trace.tokens[pi]?.t ?? "", nearest.token) && (
+        <div className="fl-space-honest fl-space-xnote">
+          “{esc(nearest.token)}” is not a spelling of “{pickTok}” — the table files by meaning, and
+          the closest meaning can live in another form or language (this model learned English and
+          Chinese together).
+        </div>
+      )}
     </div>
   );
 }

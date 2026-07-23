@@ -844,10 +844,7 @@ export function Flow() {
           <div className="fl-drawer-note">
             every token is a row in the model's 151,936 × 1,024 embedding table — not just a list
             of numbers but a position in a space of meanings, where words used alike sit close
-            together. and the space stores <em>meaning, not spelling</em>: this model grew up on
-            English and Chinese together, so a word's nearest neighbor (in red) is often its own
-            translation — “is” files next to 是. pick a word: its row, and its nearest neighbors by
-            that closeness, recompute.
+            together. pick a word: its row, and its nearest neighbors by that closeness, recompute.
           </div>
           <div className="fl-pick-row">
             {flowCtx.trace.tokens.map((tok, i) => (
