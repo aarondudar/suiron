@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getInspect, getSource } from "../api";
 import { settledSeq } from "../lib";
+import { CodeView } from "./CodeView";
 import { useHotVar } from "./Explainer";
 import type { ExplainCtx } from "./Explanations";
 import type { Trace } from "../types";
@@ -198,7 +199,10 @@ export function UnderHood({
             data-var={name}
             onMouseEnter={() => setHot(name)}
             onMouseLeave={() => setHot(null)}
-            onClick={() => setHot(hot === name ? null : name)}
+            onClick={(e) => {
+              e.stopPropagation(); // don't also pin the line's note
+              setHot(hot === name ? null : name);
+            }}
           >
             {m[0]}
           </span>,
@@ -253,25 +257,28 @@ export function UnderHood({
         )}
       </div>
 
-      <pre className="code uh-code">
-        {src === null
-          ? "loading…"
-          : src.split("\n").map((l, i) => <div key={i}>{line(l, i)}</div>)}
-      </pre>
-
-      <div className="uh-readout">
-        {active ? (
-          <>
-            <b className="uh-readout-name">{active.name}</b>
-            <span className="uh-readout-meaning"> {active.meaning} </span>={" "}
-            <span className="uh-val">{data ? active.value(data, head, ctx.trace) : "…"}</span>
-          </>
-        ) : (
-          <span className="uh-readout-idle">
-            hover a highlighted name to see its real value{stage === "embedding" ? " for this token" : " for the producing pass"}
-          </span>
-        )}
-      </div>
+      {src === null ? (
+        <pre className="code uh-code">loading…</pre>
+      ) : (
+        <CodeView
+          fn={anno.fn}
+          src={src}
+          renderLine={line}
+          readout={
+            active ? (
+              <>
+                <b className="uh-readout-name">{active.name}</b>
+                <span className="uh-readout-meaning"> {active.meaning} </span>={" "}
+                <span className="uh-val">{data ? active.value(data, head, ctx.trace) : "…"}</span>
+              </>
+            ) : (
+              <span className="uh-readout-idle">
+                hover a highlighted name for its real value · tap an underlined line for what it does
+              </span>
+            )
+          }
+        />
+      )}
     </div>
   );
 }

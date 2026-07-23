@@ -645,10 +645,47 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 /* monochrome syntax layers: structure bright, literals mid, commentary
    legible-but-receded. red stays reserved for the model's choices. */
 .code .c-kw { color: var(--ink); font-weight: 600; }
-.code .c-type { color: #d8d8d8; }
-.code .c-num { color: #e0e0e0; }
-.code .c-str { color: #989898; }
-.code .c-comment { color: #8a8a8a; font-style: italic; }
+.code .c-type { color: #c9d4e2; } /* cool steel — console family, not a data hue */
+.code .c-num { color: #efefef; }
+.code .c-str { color: #a3a89e; }
+.code .c-comment { color: #6e747c; font-style: italic; }
+
+/* ---------- CodeView (design-32): snippets with depth ---------- */
+.cv { margin-top: var(--sp-3); }
+.cv-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-3); }
+.cv-path { color: var(--faint); font-size: var(--t-micro); letter-spacing: 0.08em; }
+.cv-actions { display: flex; gap: var(--sp-2); }
+.cv-actions button, .cv-actions a {
+  background: none; border: 1px solid var(--hair); color: var(--dim); cursor: pointer;
+  font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.06em;
+  padding: 1px 8px; text-decoration: none; white-space: nowrap;
+}
+.cv-actions button:hover, .cv-actions a:hover { color: var(--ink); border-color: var(--hair-lit); }
+.cv-caption {
+  color: var(--dim); font-size: var(--t-tiny); line-height: 1.6;
+  max-width: 66ch; margin-top: var(--sp-1);
+}
+.cv-code { padding-left: 0; padding-right: 0; }
+.cv-line, .cv-fold { display: flex; padding: 0 14px 0 0; }
+.cv-ln {
+  width: 4.5ch; flex-shrink: 0; text-align: right; padding-right: 1.4ch;
+  color: #4a4a4a; user-select: none; font-variant-numeric: tabular-nums;
+}
+/* noted lines announce themselves in the gutter */
+.cv-line.has-note { cursor: pointer; }
+.cv-line.has-note .cv-ln { color: var(--dim); text-decoration: underline dotted; text-underline-offset: 3px; }
+.cv-line.has-note:hover { background: #101216; }
+.cv-line.lit { background: #101216; box-shadow: inset 2px 0 0 var(--red); }
+.cv-lc { flex: 1; min-width: 0; white-space: pre; }
+.cv-fold { color: var(--faint); font-style: italic; cursor: pointer; }
+.cv-fold:hover .cv-lc { color: var(--dim); }
+.cv-readout {
+  border: 1px solid var(--hair); border-top: none; background: #070707;
+  padding: 8px 14px; color: var(--dim); font-size: var(--t-tiny); line-height: 1.55;
+  min-height: 2.4em;
+}
+.cv-note { color: var(--ink); }
+.cv-idle { color: var(--faint); }
 
 /* ---------- the woven "under the hood" view ---------- */
 .under-hood { margin-top: var(--sp-3); }
