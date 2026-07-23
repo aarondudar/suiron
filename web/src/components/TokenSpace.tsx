@@ -145,7 +145,8 @@ export function TokenSpace({ trace }: { trace: Trace; n?: number }) {
       </div>
       <div className="fl-space-honest">
         distance is the real cosine similarity to “{pickTok}” over all 151,936 rows — closer means
-        more alike in meaning; the angle is layout
+        more alike in meaning, often across languages (translations file together); the angle is
+        layout
       </div>
     </div>
   );
