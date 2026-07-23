@@ -114,7 +114,9 @@ export function AttnSpace({ trace, prod }: { trace: Trace; prod: number }) {
   if (!ready)
     return (
       <div className="fl-status" role="status">
-        reading the attention weights…
+        {prod <= 1
+          ? "nothing earlier to look back at yet — this is the very start of the sentence."
+          : "reading the attention weights…"}
       </div>
     );
 

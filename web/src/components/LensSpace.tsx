@@ -135,6 +135,36 @@ export function LensSpace({
     resize();
     window.addEventListener("resize", resize);
 
+    // drag to rotate, matching the shared hook's feel (momentum on release,
+    // direct drag only under reduced-motion)
+    let dragging = false;
+    let lastX = 0;
+    let vel = 0;
+    canvas.style.touchAction = "none";
+    canvas.style.cursor = "grab";
+    const down = (e: PointerEvent) => {
+      dragging = true;
+      lastX = e.clientX;
+      vel = 0;
+      canvas.style.cursor = "grabbing";
+      canvas.setPointerCapture?.(e.pointerId);
+    };
+    const move = (e: PointerEvent) => {
+      if (!dragging) return;
+      const dx = e.clientX - lastX;
+      lastX = e.clientX;
+      spin += dx * 0.008;
+      vel = dx * 0.008;
+    };
+    const up = () => {
+      dragging = false;
+      canvas.style.cursor = "grab";
+    };
+    canvas.addEventListener("pointerdown", down);
+    canvas.addEventListener("pointermove", move);
+    canvas.addEventListener("pointerup", up);
+    canvas.addEventListener("pointercancel", up);
+
     const rotY = (p: V3, a: number): V3 => {
       const c = Math.cos(a),
         s = Math.sin(a);
@@ -151,7 +181,11 @@ export function LensSpace({
     const frame = () => {
       // the element may have had no layout at mount — track its real size
       if (canvas.clientWidth !== W || canvas.clientHeight !== H) resize();
-      if (!REDUCED) spin += 0.0022;
+      if (!dragging && !REDUCED) {
+        spin += 0.0022;
+        spin += vel; // fling momentum
+        vel *= 0.94;
+      }
       const { dirs, labels, probs, winner, argmax, locked } = st.current;
       ctx.clearRect(0, 0, W, H);
 
@@ -254,6 +288,10 @@ export function LensSpace({
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
+      canvas.removeEventListener("pointerdown", down);
+      canvas.removeEventListener("pointermove", move);
+      canvas.removeEventListener("pointerup", up);
+      canvas.removeEventListener("pointercancel", up);
     };
   }, [ready]);
 

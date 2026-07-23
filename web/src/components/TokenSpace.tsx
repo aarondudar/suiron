@@ -14,12 +14,19 @@ import type { Neighbor, Trace } from "../types";
  *  model just produced (the last generated token), else the last contentful word
  *  of the prompt (function words like "is" cluster with other function words) */
 function pick(trace: Trace): number {
-  // the produced answer (e.g. " Paris") is the most satisfying neighbourhood to show
-  if (trace.tokens.length > trace.n_prompt) return trace.tokens.length - 1;
-  for (let i = trace.tokens.length - 1; i >= 0; i--) {
+  const last = trace.tokens.length - 1;
+  // the produced answer (e.g. " Paris") is the most satisfying neighbourhood to
+  // show — but prefer the newest generated token that carries a letter (any
+  // script): a repetition-trap run can end on a comma, and a comma's
+  // neighbourhood teaches nothing
+  for (let i = last; i >= trace.n_prompt; i--) {
+    if (/\p{L}/u.test(trace.tokens[i]?.t ?? "")) return i;
+  }
+  if (last >= trace.n_prompt) return last;
+  for (let i = last; i >= 0; i--) {
     if (/[A-Za-z]{3,}/.test((trace.tokens[i]?.t ?? "").trim())) return i;
   }
-  return trace.tokens.length - 1;
+  return Math.max(0, last);
 }
 
 export function TokenSpace({ trace }: { trace: Trace; n?: number }) {
@@ -115,7 +122,7 @@ export function TokenSpace({ trace }: { trace: Trace; n?: number }) {
     ctx.fillStyle = "rgba(215,25,33,0.95)";
     ctx.textAlign = "left";
     ctx.fillText(center, origin.x + 9, origin.y + 4);
-  });
+  }, { rotatable: true });
 
   if (!ready)
     return (
