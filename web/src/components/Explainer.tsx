@@ -70,6 +70,14 @@ interface HotVar {
 const HotVarCtx = createContext<HotVar>({ hot: null, setHot: () => {} });
 export const useHotVar = () => useContext(HotVarCtx);
 
+/** A standalone hot-var scope for hosts outside ExplainerBody (the flow's
+ *  woven-code drawer): without a provider the context default is a NO-OP and
+ *  hovering a code variable silently does nothing. */
+export function HotVarScope({ children }: { children: ReactNode }) {
+  const [hot, setHot] = useState<string | null>(null);
+  return <HotVarCtx.Provider value={{ hot, setHot }}>{children}</HotVarCtx.Provider>;
+}
+
 /** A key term in the prose that links to a code variable + its value. Highlights
  *  (never red) in sync with the matching code name and the readout. */
 export function Term({ name, children }: { name: string; children: ReactNode }) {

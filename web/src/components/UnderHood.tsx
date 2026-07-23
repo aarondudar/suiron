@@ -271,11 +271,12 @@ export function UnderHood({
                 <span className="uh-readout-meaning"> {active.meaning} </span>={" "}
                 <span className="uh-val">{data ? active.value(data, head, ctx.trace) : "…"}</span>
               </>
-            ) : (
-              <span className="uh-readout-idle">
-                hover a highlighted name for its real value · tap an underlined line for what it does
-              </span>
-            )
+            ) : undefined
+          }
+          idle={
+            <span className="uh-readout-idle">
+              hover a highlighted name for its real value · tap an underlined line for what it does
+            </span>
           }
         />
       )}

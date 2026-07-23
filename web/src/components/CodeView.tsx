@@ -290,15 +290,18 @@ export function CodeView({
   src,
   renderLine,
   readout,
+  idle,
 }: {
   fn: string;
   src: string;
   /** custom per-line renderer (UnderHood weaves its live variables); defaults
    *  to the plain tinter */
   renderLine?: (text: string, i: number) => ReactNode;
-  /** what the readout shows when no line note is active (UnderHood's live
-   *  variable readout); CodeView falls back to its own hint */
+  /** an ACTIVE external readout (a hovered variable's live value) — outranks
+   *  the line note: pointing at a name is more specific than the line around it */
   readout?: ReactNode;
+  /** shown when nothing is active; CodeView falls back to its own hint */
+  idle?: ReactNode;
 }) {
   const meta = CODE_META[fn];
   const lines = useMemo(() => src.split("\n"), [src]);
@@ -387,15 +390,16 @@ export function CodeView({
       {meta?.caption && <div className="cv-caption">{meta.caption}</div>}
       <pre className="code cv-code">{rows}</pre>
       <div className="cv-readout">
-        {activeNote ? (
-          <span className="cv-note">{activeNote}</span>
-        ) : (
-          readout ?? (
-            <span className="cv-idle">
-              {notes.size ? "tap an underlined line for what it does" : "the engine's own source, served live"}
-            </span>
-          )
-        )}
+        {readout ??
+          (activeNote ? (
+            <span className="cv-note">{activeNote}</span>
+          ) : (
+            idle ?? (
+              <span className="cv-idle">
+                {notes.size ? "tap an underlined line for what it does" : "the engine's own source, served live"}
+              </span>
+            )
+          ))}
       </div>
     </div>
   );

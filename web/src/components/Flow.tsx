@@ -6,7 +6,7 @@ import { AttentionInteractive } from "./AttentionInteractive";
 import { Drawer } from "./Drawer";
 import { EmbeddingRow } from "./EmbeddingRow";
 import { Epilogue } from "./Epilogue";
-import { ExplainerProvider } from "./Explainer";
+import { ExplainerProvider, HotVarScope } from "./Explainer";
 import { GeometryCard } from "./Geometry";
 import { KvCacheDemo } from "./KvCacheDemo";
 import type { ExplainCtx } from "./Explanations";
@@ -998,7 +998,9 @@ export function Flow() {
               />
             </label>
           </div>
-          <UnderHood ctx={flowCtx} stage="feedforward" layer={at} head={0} />
+          <HotVarScope>
+            <UnderHood ctx={flowCtx} stage="feedforward" layer={at} head={0} />
+          </HotVarScope>
         </>
       );
     }
