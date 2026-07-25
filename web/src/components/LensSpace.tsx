@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useAutoplay } from "../autoplay";
-import { esc, settledSeq } from "../lib";
+import { esc, litToken, settledSeq } from "../lib";
 import { useLens } from "./Geometry";
 import { REDUCED, rotY, sphereDirs, useCanvasLoop, type V3 } from "./spaceCanvas";
 import { Stepper } from "./Stepper";
@@ -81,7 +81,9 @@ export function LensSpace({
 
     st.current = { dirs, labels: rows.map((r) => esc(r[1])), probs, winner, argmax, locked };
 
-    readWord = esc(at.top[0]?.[1] ?? "");
+    // whitespace-literal form for the caption: an early layer's top guess is
+    // often a bare space, which esc() would render as an empty-looking quote
+    readWord = litToken(at.top[0]?.[1] ?? "").text;
   }
 
   // report the shown-depth guess + lock layer to the spine caption (C does the

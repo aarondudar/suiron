@@ -350,6 +350,16 @@ export function ExpertLab() {
 
   // ---- deep links (docs/20): restore the linked moment, keep the URL current ----
   const pendingLink = useRef(INITIAL_LINK);
+
+  // booting over a resident run lands on the frontier, not the seed: the
+  // production bands need a produced token to render at all. A link that
+  // carries its own cur still wins (the restore applies it afterwards).
+  const bootedCur = useRef(false);
+  useEffect(() => {
+    if (bootedCur.current || !trace || !trace.tokens.length) return;
+    bootedCur.current = true;
+    if (pendingLink.current?.cur === undefined) setCur(trace.tokens.length - 1);
+  }, [trace]);
   /** trace.seq when the restore re-run was fired; null = not fired */
   const linkFiredAt = useRef<number | null>(null);
   const [linkMiss, setLinkMiss] = useState(false);

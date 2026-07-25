@@ -131,7 +131,7 @@ export function StepStage(p: StepStageProps) {
           </div>
           {exp && (
             <div className="fl-mark">
-              experiment · {exp.title} — {exp.hook}
+              experiment · {exp.title} · {exp.hook}
             </div>
           )}
         </>
