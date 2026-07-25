@@ -1065,6 +1065,16 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 .tok-ghost:hover { color: var(--dim); }
 
+/* the reworked drawer's firing strip: the ffn's 3,072 filters, bucketed —
+   bright, tall columns are the filters that fire for this token */
+.ffn-strip {
+  display: flex; align-items: flex-end; gap: 1px; height: 72px;
+  padding: var(--sp-2); margin-bottom: var(--sp-3);
+  background: radial-gradient(130% 130% at 50% 20%, #0a0b0e 0%, #050506 72%);
+  border: 1px solid var(--hair); border-top: 1px solid var(--hair-lit);
+}
+.ffn-bar { flex: 1; min-width: 1px; background: #cfd6df; }
+
 /* the reset, watchable (Aaron's #12): component bars morphing raw → ÷rms → ×weight */
 .rms-reset { margin: var(--sp-3) 0; }
 .rms-bars {

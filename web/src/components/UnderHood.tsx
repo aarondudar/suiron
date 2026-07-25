@@ -27,6 +27,9 @@ interface Inspect {
   pos: number;
   layer: number;
   token: { id: number; t: string };
+  /** the ffn firing profile: max |gate_act| per bucket of `per` channels —
+   *  the "which of the 3,072 filters fire" strip (feed-forward stage only) */
+  gate_profile?: { buckets: number[]; per: number; len: number };
   x_in?: VecStat;
   attn_norm?: VecStat;
   q?: VecStat;
@@ -257,6 +260,30 @@ export function UnderHood({
         )}
       </div>
 
+      {stage === "feedforward" && data?.gate_profile && (
+        // the firing strip: bright, tall columns are the filters that fire for
+        // this token at this layer. Silent (the drawer copy does the talking);
+        // hover a column for its real peak. Live only — recordings without the
+        // field simply omit the strip.
+        <div
+          className="ffn-strip"
+          role="img"
+          aria-label="which of the 3,072 filters fire for this token"
+        >
+          {(() => {
+            const gp = data.gate_profile;
+            const mx = Math.max(...gp.buckets, 1e-6);
+            return gp.buckets.map((v, b) => (
+              <span
+                key={b}
+                className="ffn-bar"
+                style={{ opacity: 0.12 + 0.88 * (v / mx), height: `${8 + 92 * (v / mx)}%` }}
+                title={`filters ${b * gp.per}–${Math.min((b + 1) * gp.per, gp.len) - 1} · peak |activation| ${v.toFixed(3)}`}
+              />
+            ));
+          })()}
+        </div>
+      )}
       {src === null ? (
         <pre className="code uh-code">loading…</pre>
       ) : (
