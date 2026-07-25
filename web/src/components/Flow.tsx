@@ -30,7 +30,7 @@ const FLOW_LINK = (() => {
 })();
 
 export function Flow() {
-  const trace = useTrace();
+  const { trace, refresh } = useTrace();
   const [phase, setPhase] = useState(0);
   const [prompt, setPrompt] = useState(FLOW_LINK?.p ?? "");
   /** the ONE open drawer (a DIVES id), or null. A single slot is the
@@ -104,6 +104,21 @@ export function Flow() {
     setLockLayer(null);
   };
 
+  /* a run was just started but the poll has not seen it yet — the stage shows
+     one steady "running…" state instead of flashing "no run yet" first (the
+     first-begin flicker). Cleared the moment the trace reflects the new run. */
+  const [launching, setLaunching] = useState(false);
+  const launchedAt = useRef<number | null>(null);
+  const markLaunch = () => {
+    launchedAt.current = trace?.seq ?? -1;
+    setLaunching(true);
+    refresh();
+  };
+  useEffect(() => {
+    if (!launching || !trace) return;
+    if (trace.busy || (trace.seq ?? -1) !== launchedAt.current) setLaunching(false);
+  }, [launching, trace]);
+
   const begin = () => {
     const text = prompt.trim();
     if (!text || busy) return;
@@ -114,6 +129,7 @@ export function Flow() {
         resetRunView();
         setExp(null);
         playDemo();
+        markLaunch();
         goPhase(1);
       } else {
         openGoLive();
@@ -122,7 +138,10 @@ export function Flow() {
     }
     resetRunView(); // a new run walks its own frontier
     setExp(null); // a run of your own retires the experiment framing
-    void generate(text, { ...params, n: 1 });
+    generate(text, { ...params, n: 1 })
+      .then(() => refresh())
+      .catch(() => {});
+    markLaunch();
     goPhase(1);
   };
   const runAgain = () => {
@@ -132,7 +151,10 @@ export function Flow() {
       return;
     }
     resetRunView();
-    void stepMore(1, params);
+    stepMore(1, params)
+      .then(() => refresh())
+      .catch(() => {});
+    markLaunch();
     goPhase(1);
   };
   /** the finale's experiments run live in the flow: a curated prompt loops
@@ -149,10 +171,14 @@ export function Flow() {
     setPrompt(e.prompt);
     if (demo) {
       playDemo();
+      markLaunch();
       goPhase(1);
       return;
     }
-    void generate(e.prompt, { ...params, ...e.params });
+    generate(e.prompt, { ...params, ...e.params })
+      .then(() => refresh())
+      .catch(() => {});
+    markLaunch();
     goPhase(1);
   };
 
@@ -419,7 +445,7 @@ export function Flow() {
             prod={prod}
             frontier={frontier}
             busy={busy}
-            launching={false}
+            launching={launching}
             hasRun={hasRun}
             demo={demo}
             prodStep={prodStep}
@@ -458,8 +484,11 @@ export function Flow() {
               setFfnLayer={setFfnLayer}
               openGoLive={openGoLive}
               onFork={(id) => {
-                void fork(cur, id, params);
+                fork(cur, id, params)
+                  .then(() => refresh())
+                  .catch(() => {});
                 resetRunView(); // the fork makes a new frontier — walk it
+                markLaunch();
                 setDrawer(null);
                 setPhase(5); // the changed sentence is the payoff
               }}
