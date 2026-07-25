@@ -23,10 +23,14 @@ export function LoopChain({
   const nPrompt = trace.n_prompt;
   const pos = useRef<{ x: number; y: number }[]>([]);
 
-  const st = { labels: toks.map((t) => esc(t.t)), nPrompt, last: frontier };
+  // a forked run carries tokens nobody drew — count and mark them honestly
+  const forced = toks.map((_, i) => !!trace.steps[i]?.sel?.forced);
+  const nForced = forced.filter(Boolean).length;
+
+  const st = { labels: toks.map((t) => esc(t.t)), nPrompt, last: frontier, forced };
 
   const canvas = useCanvasLoop(ready, ({ ctx, W, H, cx, cy, t }) => {
-    const { labels, nPrompt: np, last } = st;
+    const { labels, nPrompt: np, last, forced: fc } = st;
     const n = labels.length;
     if (!n) return;
     const mL = 40;
@@ -76,6 +80,14 @@ export function LoopChain({
       ctx.arc(P[i].x, P[i].y, r, 0, 7);
       ctx.fillStyle = isNew ? "#d71921" : isDrawn ? "rgba(232,232,232,0.85)" : "rgba(232,232,232,0.4)";
       ctx.fill();
+      // a human-forced link wears an ink ring (red stays the model's colour)
+      if (fc[i]) {
+        ctx.beginPath();
+        ctx.arc(P[i].x, P[i].y, r + 3, 0, 7);
+        ctx.strokeStyle = "rgba(232,232,232,0.9)";
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      }
       if (isNew && !REDUCED) {
         const pulse = 6 + 4 * Math.sin(t * 5);
         ctx.beginPath();
@@ -120,8 +132,9 @@ export function LoopChain({
         <div className="fl-space-ov fl-space-read">click any link to see how it was made</div>
       </div>
       <div className="fl-space-honest">
-        {trace.n_prompt} of your tokens + {frontier + 1 - trace.n_prompt} drawn — each link ran the
-        whole machine to make the next
+        {trace.n_prompt} of your tokens
+        {nForced > 0 && <> + {nForced} you forced</>} + {frontier + 1 - trace.n_prompt - nForced}{" "}
+        drawn — each link ran the whole machine to make the next
       </div>
     </div>
   );

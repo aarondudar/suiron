@@ -14,17 +14,23 @@ const MAX = 14; // discs shown (top survivors by logit)
 
 export function DrawField({ sel, chosenId }: { sel: Sel; chosenId: number }) {
   const [temp, setTemp] = useState(sel.temp);
-  const surv = sel.cand
-    .filter((c) => c.cut === "")
-    .sort((a, b) => b.logit - a.logit)
-    .slice(0, MAX);
+  /* a forced token was never drawn: its trace keeps the model's real shares
+     (p) but not the logits (stamped 0), so the temperature math has nothing
+     true to work with — show the real shares, retire the dial */
+  const forced = sel.forced;
+  const surv = forced
+    ? [...sel.cand].sort((a, b) => b.p - a.p).slice(0, MAX)
+    : sel.cand
+        .filter((c) => c.cut === "")
+        .sort((a, b) => b.logit - a.logit)
+        .slice(0, MAX);
   const ready = surv.length > 0;
 
   const T = Math.max(0.01, temp);
   const mx = surv.length ? Math.max(...surv.map((c) => c.logit)) : 0;
   const exps = surv.map((c) => Math.exp((c.logit - mx) / T));
   const z = exps.reduce((a, b) => a + b, 0) || 1;
-  const w = exps.map((e) => e / z);
+  const w = forced ? surv.map((c) => c.p) : exps.map((e) => e / z);
   const dirs = sphereDirs(surv.length);
   const chosenIdx = surv.findIndex((c) => c.id === chosenId);
   const chosenW = chosenIdx >= 0 ? w[chosenIdx] : 0;
@@ -50,23 +56,26 @@ export function DrawField({ sel, chosenId }: { sel: Sel; chosenId: number }) {
       const depth = (s.z + 1) / 2;
       const isWin = i === ci;
       const rad = 3 + Math.sqrt(ww[i]) * 46 * (0.6 + 0.5 * depth);
+      // red marks the model's own draw; a human-forced token rings in ink
+      // (the worlds chips keep the same law)
+      const win = forced ? `rgba(232,232,232,` : `rgba(215,25,33,`;
       ctx.beginPath();
       ctx.arc(s.x, s.y, rad, 0, 7);
       ctx.fillStyle = isWin
-        ? `rgba(215,25,33,${0.22 + 0.5 * depth})`
+        ? `${win}${0.22 + 0.5 * depth})`
         : `rgba(232,232,232,${(0.06 + 0.14 * depth) + ww[i] * 0.25})`;
       ctx.fill();
       if (isWin) {
         ctx.beginPath();
         ctx.arc(s.x, s.y, rad + 3, 0, 7);
-        ctx.strokeStyle = "rgba(215,25,33,0.95)";
+        ctx.strokeStyle = `${win}0.95)`;
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
       // label only the discs big enough to carry one
       if (ww[i] > 0.03 || isWin) {
         ctx.font = `${isWin ? 600 : 400} ${(11 + 3 * depth).toFixed(0)}px ui-monospace, monospace`;
-        ctx.fillStyle = isWin ? "rgba(215,25,33,0.95)" : `rgba(232,232,232,${0.4 + 0.4 * depth})`;
+        ctx.fillStyle = isWin ? `${win}0.95)` : `rgba(232,232,232,${0.4 + 0.4 * depth})`;
         ctx.textAlign = "center";
         ctx.fillText(labels[i], s.x, s.y - rad - 5);
       }
@@ -84,29 +93,48 @@ export function DrawField({ sel, chosenId }: { sel: Sel; chosenId: number }) {
     <div className="fl-spacewrap">
       <div className="fl-space">
         <canvas ref={canvas} />
-        <div className="fl-space-ov fl-space-ctx">suiron · draws one · temp {temp.toFixed(2)}</div>
+        <div className="fl-space-ov fl-space-ctx">
+          {forced ? "suiron · draws one · forced" : `suiron · draws one · temp ${temp.toFixed(2)}`}
+        </div>
         <div className="fl-space-ov fl-space-read">
-          at temp {temp.toFixed(2)}, <span className="w">“{chosenTok}”</span> holds{" "}
-          <span className="p">{(chosenW * 100).toFixed(0)}%</span> of the odds
+          {forced ? (
+            <>
+              the model gave <span className="w">“{chosenTok}”</span>{" "}
+              <span className="p">{(chosenW * 100).toFixed(1)}%</span> of the odds · you forced it
+            </>
+          ) : (
+            <>
+              at temp {temp.toFixed(2)}, <span className="w">“{chosenTok}”</span> holds{" "}
+              <span className="p">{(chosenW * 100).toFixed(0)}%</span> of the odds
+            </>
+          )}
         </div>
       </div>
-      <div className="fl-temp">
-        <span>temp</span>
-        <input
-          type="range"
-          min={0}
-          max={1.5}
-          step={0.05}
-          value={temp}
-          onChange={(e) => setTemp(parseFloat(e.target.value))}
-          aria-label="temperature"
-        />
-        <span className="fl-temp-v">{temp.toFixed(2)}</span>
-      </div>
+      {!forced && (
+        <div className="fl-temp">
+          <span>temp</span>
+          <input
+            type="range"
+            min={0}
+            max={1.5}
+            step={0.05}
+            value={temp}
+            onChange={(e) => setTemp(parseFloat(e.target.value))}
+            aria-label="temperature"
+          />
+          <span className="fl-temp-v">{temp.toFixed(2)}</span>
+        </div>
+      )}
       <div className="fl-space-honest">
-        disc area is the softmax of the real logits at this temperature — on this run it drew at temp{" "}
-        {sel.temp.toFixed(2)}
-        {sel.r == null ? " (greedy — the top by rule)" : `, landing at r = ${sel.r.toFixed(3)}`}
+        {forced ? (
+          <>disc area is the model's real share of the odds here · nothing was drawn at this position, you forced this token</>
+        ) : (
+          <>
+            disc area is the softmax of the real logits at this temperature — on this run it drew
+            at temp {sel.temp.toFixed(2)}
+            {sel.r == null ? " (greedy — the top by rule)" : `, landing at r = ${sel.r.toFixed(3)}`}
+          </>
+        )}
       </div>
     </div>
   );

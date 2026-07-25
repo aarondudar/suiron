@@ -202,7 +202,15 @@ export function StepStage(p: StepStageProps) {
                 <DrawField sel={sel} chosenId={chosenId} />
               </div>
               <div className="fl-cap fl-enter" style={cDelay}>
-                “{topTok}” holds {pTop} of the tickets · the draw landed on “{chosen}”
+                {sel.forced ? (
+                  <>
+                    “{topTok}” holds {pTop} of the tickets · no draw here, you forced “{chosen}”
+                  </>
+                ) : (
+                  <>
+                    “{topTok}” holds {pTop} of the tickets · the draw landed on “{chosen}”
+                  </>
+                )}
               </div>
             </>
           ) : (

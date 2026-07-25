@@ -134,6 +134,15 @@ export function DrawerBody(p: DrawerBodyProps) {
       </ExplainerProvider>
     );
   }
+  if (drawer === "sampling" && flowCtx?.sel?.forced)
+    // a forced token kept the model's shares but not its logits, so the dials
+    // would reshape fiction — say so instead of pretending
+    return (
+      <div className="fl-stub">
+        you forced this token, so there was no draw to bend. step to a token the model drew and
+        the dials come back.
+      </div>
+    );
   if (drawer === "sampling" && flowCtx?.sel) {
     const sel = flowCtx.sel;
     return (
@@ -172,11 +181,21 @@ export function DrawerBody(p: DrawerBodyProps) {
       </>
     );
   }
+  if (drawer === "sampling" && flowCtx)
+    // there IS a run — a missing sel means a prompt token, and no amount of
+    // stepping will ever give this position a draw
+    return (
+      <div className="fl-stub">
+        you supplied this token, so there was no draw. step to a token the model drew.
+      </div>
+    );
   if (drawer === "sampling")
     return <div className="fl-stub">no recorded draw at this position. run a step first.</div>;
   if (drawer === "fork" && flowCtx) {
     const top = (flowCtx.step.top ?? []).slice(0, 6);
     const chosenId = flowCtx.trace.tokens[cur]?.id;
+    // "picked" is the model's word; a token a human forced says so
+    const forcedHere = !!flowCtx.trace.steps[cur]?.sel?.forced;
     return (
       <>
         <div className="fl-drawer-note fl-d">
@@ -207,7 +226,9 @@ export function DrawerBody(p: DrawerBodyProps) {
             >
               <span className="fl-fork-tok">{esc(t)}</span>
               <span className="fl-fork-p">{(p2 * 100).toFixed(1)}%</span>
-              {id === chosenId && <span className="fl-fork-tag">picked</span>}
+              {id === chosenId && (
+                <span className="fl-fork-tag">{forcedHere ? "forced" : "picked"}</span>
+              )}
             </button>
           ))}
         </div>
@@ -397,6 +418,17 @@ export function WorldsPair({ trace }: { trace: Trace }) {
         to compare.
       </div>
     );
+  // the replaced token was not always the model's: a second fork replaces a
+  // token you forced, and a fork inside the prompt replaces your own text —
+  // the tag (and red, the model's colour) must not claim the model chose it
+  const shadowForced = !!shadow.steps[at]?.sel?.forced;
+  const shadowPrompt = at < shadow.n_prompt;
+  const otherTag = shadowPrompt
+    ? "your prompt had"
+    : shadowForced
+      ? "you forced earlier"
+      : "the model chose";
+  const otherIsModel = !shadowPrompt && !shadowForced;
   const world = (tr: Trace, label: string, tag: string, model: boolean) => (
     <div className="fl-world">
       <div className="fl-world-label">{label}</div>
@@ -423,7 +455,7 @@ export function WorldsPair({ trace }: { trace: Trace }) {
   return (
     <>
       {world(trace, "this world", "you forced", false)}
-      {world(shadow, "the other world", "the model chose", true)}
+      {world(shadow, "the other world", otherTag, otherIsModel)}
     </>
   );
 }
