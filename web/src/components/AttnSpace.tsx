@@ -125,7 +125,7 @@ export function AttnSpace({ trace, prod }: { trace: Trace; prod: number }) {
   return (
     <div className="fl-spacewrap">
       <div className="fl-space">
-        <canvas ref={canvas} />
+        <canvas ref={canvas} role="img" aria-label="how hard the model looks at each earlier word" />
       </div>
     </div>
   );

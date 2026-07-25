@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useAutoplay } from "../autoplay";
 import { esc, settledSeq } from "../lib";
 import { useLens } from "./Geometry";
+import { REDUCED } from "./spaceCanvas";
 import { Stepper } from "./Stepper";
 import type { Step, Trace } from "../types";
 
@@ -12,8 +13,6 @@ import type { Step, Trace } from "../types";
    at that depth, so you watch the eventual winner climb. Red marks the model's
    current top guess only. The last lens layer equals the engine's real output
    distribution — the check line at the end compares them live. */
-
-const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export function LensClimb({
   trace,

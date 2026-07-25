@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useAutoplay } from "../autoplay";
 import { esc, settledSeq } from "../lib";
 import { useLens } from "./Geometry";
+import { REDUCED, rotY, sphereDirs, useCanvasLoop, type V3 } from "./spaceCanvas";
 import { Stepper } from "./Stepper";
 import type { Trace } from "../types";
 
@@ -13,26 +14,10 @@ import type { Trace } from "../types";
    the candidate directions at the current layer (Σ pₖ·dirₖ), read live from the
    same getLens primitive the bars used — so the layer, the word it points at,
    the %, and the lock-on layer are all the engine's real numbers. Only the words'
-   fixed positions on the sphere are an illustration (labelled as such); the
-   motion is the data. */
+   fixed positions on the sphere are an illustration; the motion is the data.
+   Runs on the shared canvas loop (drag to rotate, DPR, reduced-motion). */
 
-const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-type V3 = [number, number, number];
 const K = 7; // candidates tracked (final layer's top-K)
-
-/** deterministic, evenly-spread unit directions (fibonacci sphere) — the fixed
- *  illustrative layout the vector travels through */
-function sphereDirs(n: number): V3[] {
-  const ga = Math.PI * (3 - Math.sqrt(5));
-  const out: V3[] = [];
-  for (let k = 0; k < n; k++) {
-    const y = n === 1 ? 0 : 0.85 - (k / (n - 1)) * 1.7; // spread ~[-0.85, 0.85]
-    const r = Math.sqrt(Math.max(0, 1 - y * y));
-    const th = ga * k;
-    out.push([Math.cos(th) * r, y, Math.sin(th) * r]);
-  }
-  return out;
-}
 
 export function LensSpace({
   trace,
@@ -58,9 +43,8 @@ export function LensSpace({
     toggle();
   }, [lens, toggle]);
 
-  const cv = useRef<HTMLCanvasElement>(null);
-  // everything the draw loop needs, refreshed each render (so one rAF loop can
-  // read live state without restarting)
+  // everything the draw loop needs, refreshed each render (so the shared loop
+  // can read live state without restarting)
   const st = useRef<{
     dirs: V3[];
     labels: string[];
@@ -100,84 +84,24 @@ export function LensSpace({
     readWord = esc(at.top[0]?.[1] ?? "");
   }
 
-  // one rAF loop for spin + depth; reads st.current so it never restarts. Runs
-  // once the data (and therefore the canvas) is in the DOM.
+  // report the shown-depth guess + lock layer to the spine caption (C does the
+  // talking; the instrument prints no prose of its own).
+  const onGuessRef = useRef(onGuess);
+  onGuessRef.current = onGuess;
   useEffect(() => {
-    const canvas = cv.current;
-    const ctx = canvas?.getContext("2d");
-    if (!ready || !canvas || !ctx) return;
-    let raf = 0;
-    let spin = 0;
-    let W = 0,
-      H = 0,
-      cx = 0,
-      cy = 0;
-    const resize = () => {
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      W = canvas.clientWidth;
-      H = canvas.clientHeight;
-      canvas.width = W * dpr;
-      canvas.height = H * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      cx = W / 2;
-      cy = H / 2;
-    };
-    resize();
-    window.addEventListener("resize", resize);
+    onGuessRef.current?.(readWord, leadLayer);
+  }, [readWord, leadLayer]);
 
-    // drag to rotate, matching the shared hook's feel (momentum on release,
-    // direct drag only under reduced-motion)
-    let dragging = false;
-    let lastX = 0;
-    let vel = 0;
-    canvas.style.touchAction = "none";
-    canvas.style.cursor = "grab";
-    const down = (e: PointerEvent) => {
-      dragging = true;
-      lastX = e.clientX;
-      vel = 0;
-      canvas.style.cursor = "grabbing";
-      canvas.setPointerCapture?.(e.pointerId);
-    };
-    const move = (e: PointerEvent) => {
-      if (!dragging) return;
-      const dx = e.clientX - lastX;
-      lastX = e.clientX;
-      spin += dx * 0.008;
-      vel = dx * 0.008;
-    };
-    const up = () => {
-      dragging = false;
-      canvas.style.cursor = "grab";
-    };
-    canvas.addEventListener("pointerdown", down);
-    canvas.addEventListener("pointermove", move);
-    canvas.addEventListener("pointerup", up);
-    canvas.addEventListener("pointercancel", up);
-
-    const rotY = (p: V3, a: number): V3 => {
-      const c = Math.cos(a),
-        s = Math.sin(a);
-      return [p[0] * c + p[2] * s, p[1], -p[0] * s + p[2] * c];
-    };
-    const scale = () => Math.min(W, H) * 0.58;
-    const proj = (p: V3) => {
-      const f = scale() / (2.6 - p[2]);
-      return { x: cx + p[0] * f, y: cy - p[1] * f, z: p[2] };
-    };
-
-    const trail: { x: number; y: number }[] = [];
-
-    const frame = () => {
-      // the element may have had no layout at mount — track its real size
-      if (canvas.clientWidth !== W || canvas.clientHeight !== H) resize();
-      if (!dragging && !REDUCED) {
-        spin += 0.0022;
-        spin += vel; // fling momentum
-        vel *= 0.94;
-      }
+  const trail = useRef<{ x: number; y: number }[]>([]);
+  const cv = useCanvasLoop(
+    ready,
+    ({ ctx, W, H, cx, cy, spin }) => {
+      const scale = Math.min(W, H) * 0.58;
+      const proj = (p: V3) => {
+        const f = scale / (2.6 - p[2]);
+        return { x: cx + p[0] * f, y: cy - p[1] * f, z: p[2] };
+      };
       const { dirs, labels, probs, winner, argmax, locked } = st.current;
-      ctx.clearRect(0, 0, W, H);
 
       // faint guide rings (depth)
       ctx.strokeStyle = "#141414";
@@ -193,10 +117,7 @@ export function LensSpace({
         ctx.stroke();
       }
 
-      if (!dirs.length) {
-        raf = requestAnimationFrame(frame);
-        return;
-      }
+      if (!dirs.length) return;
 
       // the traveling vector: real probability-weighted direction of the candidates
       let vx = 0,
@@ -239,13 +160,14 @@ export function LensSpace({
       // vector origin → tip, with a fading red trail
       const o = proj(rotY([0, 0, 0], spin));
       const tp = proj(rotY(v.map((x) => x * 1.15) as V3, spin));
-      trail.push({ x: tp.x, y: tp.y });
-      if (trail.length > 26) trail.shift();
-      for (let t = 1; t < trail.length; t++) {
+      const tr = trail.current;
+      tr.push({ x: tp.x, y: tp.y });
+      if (tr.length > 26) tr.shift();
+      for (let t = 1; t < tr.length; t++) {
         ctx.beginPath();
-        ctx.moveTo(trail[t - 1].x, trail[t - 1].y);
-        ctx.lineTo(trail[t].x, trail[t].y);
-        ctx.strokeStyle = `rgba(215,25,33,${(t / trail.length) * 0.22})`;
+        ctx.moveTo(tr[t - 1].x, tr[t - 1].y);
+        ctx.lineTo(tr[t].x, tr[t].y);
+        ctx.strokeStyle = `rgba(215,25,33,${(t / tr.length) * 0.22})`;
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
@@ -271,27 +193,9 @@ export function LensSpace({
       ctx.arc(o.x, o.y, 2.4, 0, 7);
       ctx.fillStyle = "#5a5a5a";
       ctx.fill();
-
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", resize);
-      canvas.removeEventListener("pointerdown", down);
-      canvas.removeEventListener("pointermove", move);
-      canvas.removeEventListener("pointerup", up);
-      canvas.removeEventListener("pointercancel", up);
-    };
-  }, [ready]);
-
-  // report the shown-depth guess + lock layer to the spine caption (C does the
-  // talking; the instrument prints no prose of its own).
-  const onGuessRef = useRef(onGuess);
-  onGuessRef.current = onGuess;
-  useEffect(() => {
-    onGuessRef.current?.(readWord, leadLayer);
-  }, [readWord, leadLayer]);
+    },
+    { rotatable: true },
+  );
 
   if (!lens || !lens.layers.length)
     return (
@@ -303,7 +207,7 @@ export function LensSpace({
   return (
     <div className="fl-spacewrap">
       <div className="fl-space">
-        <canvas ref={cv} />
+        <canvas ref={cv} role="img" aria-label="the guess sharpening across the layers" />
       </div>
       <Stepper i={i} max={last} playing={playing} setI={setI} toggle={toggle} unit="layer" />
     </div>

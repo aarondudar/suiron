@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
-
-const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+import { REDUCED } from "./spaceCanvas";
 
 /* The shared space backdrop (design-31): one subtle drifting starfield behind
    the whole app, giving the sci-fi ground the re-skin sits on. Deliberately
