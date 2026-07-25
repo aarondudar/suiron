@@ -120,21 +120,12 @@ export function AttnSpace({ trace, prod }: { trace: Trace; prod: number }) {
       </div>
     );
 
+  // design-24: the pull-lines carry no text; the spine caption C does the
+  // talking. Every former overlay string is removed.
   return (
     <div className="fl-spacewrap">
       <div className="fl-space">
         <canvas ref={canvas} />
-        <div className="fl-space-ov fl-space-ctx">suiron · looks back · attention</div>
-        <div className="fl-space-ov fl-space-read">
-          strongest pull:{" "}
-          <span className="w">“{labels[strongest.i] ?? ""}”</span>{" "}
-          <span className="p">{(strongest.w * 100).toFixed(0)}%</span> of the attention
-        </div>
-      </div>
-      <div className="fl-space-honest">
-        the ring is the earlier words — each pull’s strength is the real attention weight, summed
-        over all {trace.layers} layers and {trace.heads} heads. the first-token “sink” (spare
-        attention every model parks on word 1) is set aside so the meaning-carrying pulls show.
       </div>
     </div>
   );

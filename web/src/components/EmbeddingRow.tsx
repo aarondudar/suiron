@@ -50,8 +50,8 @@ export function EmbeddingRow({ ctx }: { ctx: ExplainCtx }) {
   return (
     <div className="emb-row">
       <div className="emb-title">
-        row <b>{data.token.id}</b> of the <b>{VOCAB.toLocaleString()}</b> × <b>{row.len}</b> embedding
-        table: the starting vector for “{t}”
+        row <b>{data.token.id}</b> of the model's <b>{VOCAB.toLocaleString()}</b> × <b>{row.len}</b>{" "}
+        map of meaning: the starting vector for “{t}”
       </div>
       <div className="emb-cells">
         {shown.map((x, i) => (

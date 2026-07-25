@@ -3,7 +3,7 @@ import { useAutoplay } from "../autoplay";
 import { esc, settledSeq } from "../lib";
 import { useLens } from "./Geometry";
 import { Stepper } from "./Stepper";
-import type { Step, Trace } from "../types";
+import type { Trace } from "../types";
 
 /* "sharpens", reimagined as an instrument (design-31): the flat logit-lens bars
    become one space of word-directions with a single traveling vector that swings
@@ -37,11 +37,13 @@ function sphereDirs(n: number): V3[] {
 export function LensSpace({
   trace,
   prod,
-  prodStep,
+  onGuess,
 }: {
   trace: Trace;
   prod: number;
-  prodStep: Step;
+  /** report the shown-depth top-1 and the lock-on layer up to the spine caption
+   *  (design-24: the instrument speaks only through the script's caption C) */
+  onGuess?: (lensTop: string, lockLayer: number | null) => void;
 }) {
   const lens = useLens(prod, true, settledSeq(trace));
   const last = lens ? lens.layers.length - 1 : 0;
@@ -68,15 +70,11 @@ export function LensSpace({
     locked: boolean;
   }>({ dirs: [], labels: [], probs: [], winner: 0, argmax: -1, locked: false });
 
-  // per-render: derive the real numbers for the current layer
-  let atLayer = 0;
-  let lastLayer = 0;
+  // per-render: derive the real numbers for the current layer. The instrument
+  // prints no prose (design-24) — the shown-depth top-1 and the lock-on layer
+  // go up to the spine caption via onGuess.
   let readWord = "";
-  let readP = 0;
   let leadLayer: number | null = null;
-  let agrees = false;
-  let winTok = "";
-  let done = false;
   if (lens && lens.layers.length) {
     const at = lens.layers[Math.min(i, last)];
     const rows = lens.layers[last].top.slice(0, K);
@@ -99,15 +97,7 @@ export function LensSpace({
 
     st.current = { dirs, labels: rows.map((r) => esc(r[1])), probs, winner, argmax, locked };
 
-    atLayer = at.layer;
-    lastLayer = lens.layers[last].layer;
-    const curTop = at.top[0];
-    readWord = esc(curTop?.[1] ?? "");
-    readP = curTop?.[2] ?? 0;
-    winTok = esc(rows[0]?.[1] ?? "");
-    const engineTop = prodStep.top?.[0];
-    agrees = !!rows[0] && !!engineTop && rows[0][0] === engineTop[0];
-    done = i >= last;
+    readWord = esc(at.top[0]?.[1] ?? "");
   }
 
   // one rAF loop for spin + depth; reads st.current so it never restarts. Runs
@@ -295,6 +285,14 @@ export function LensSpace({
     };
   }, [ready]);
 
+  // report the shown-depth guess + lock layer to the spine caption (C does the
+  // talking; the instrument prints no prose of its own).
+  const onGuessRef = useRef(onGuess);
+  onGuessRef.current = onGuess;
+  useEffect(() => {
+    onGuessRef.current?.(readWord, leadLayer);
+  }, [readWord, leadLayer]);
+
   if (!lens || !lens.layers.length)
     return (
       <div className="fl-status" role="status">
@@ -302,36 +300,12 @@ export function LensSpace({
       </div>
     );
 
-  const locked = st.current.locked;
   return (
     <div className="fl-spacewrap">
       <div className="fl-space">
         <canvas ref={cv} />
-        <div className="fl-space-ov fl-space-ctx">suiron · sharpens · {lastLayer + 1} layers</div>
-        <div className="fl-space-ov fl-space-lock" style={{ opacity: locked ? 1 : 0 }}>
-          ● locked on “{winTok}”{leadLayer !== null ? ` · layer ${leadLayer}` : ""}
-        </div>
-        <div className="fl-space-ov fl-space-read">
-          layer <b className="w">{atLayer}</b> / {lastLayer} · pointing at{" "}
-          <span className="w">“{readWord}”</span> <span className="p">{(readP * 100).toFixed(0)}%</span>
-        </div>
       </div>
-      <div className="fl-space-honest">
-        the words’ positions illustrate direction — the layer, the word and the % are the live
-        logit-lens
-      </div>
-
       <Stepper i={i} max={last} playing={playing} setI={setI} toggle={toggle} unit="layer" />
-
-      {done && (
-        <div className="fl-note" role="status">
-          {agrees
-            ? `“${winTok}”${
-                leadLayer !== null ? ` takes the lead at layer ${leadLayer}` : ""
-              } — the engine’s real prediction ✓`
-            : "the last layer differs from the engine’s prediction — inspect in the expert view"}
-        </div>
-      )}
     </div>
   );
 }
