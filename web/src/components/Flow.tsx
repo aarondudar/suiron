@@ -484,13 +484,20 @@ export function Flow() {
               setFfnLayer={setFfnLayer}
               openGoLive={openGoLive}
               onFork={(id) => {
-                fork(cur, id, params)
+                // a one-token continuation reads as an append, not a fork —
+                // let the forced history run on far enough to visibly diverge
+                fork(cur, id, { ...params, n: Math.max(params.n, 6) })
                   .then(() => refresh())
                   .catch(() => {});
-                resetRunView(); // the fork makes a new frontier — walk it
+                // pin the view to the fork point: the engine keeps the model's
+                // preferences there, so the same candidates stay up, "picked"
+                // moves to the forced token, and both worlds appear below —
+                // the tour resumes right where the reader left it
+                setInspect(cur);
+                setPickTok(null);
+                setClimbTop("");
+                setLockLayer(null);
                 markLaunch();
-                setDrawer(null);
-                setPhase(5); // the changed sentence is the payoff
               }}
             />
           </Drawer>

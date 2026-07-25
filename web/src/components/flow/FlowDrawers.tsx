@@ -211,42 +211,20 @@ export function DrawerBody(p: DrawerBodyProps) {
             </button>
           ))}
         </div>
+        {/* the payoff, right where the choice was made: once a fork lands, both
+            futures appear side by side here — no jump, the tour resumes from
+            this sub-step (Aaron, 2026-07-24: the old phase-5 teleport buried
+            the comparison and lost the reader's place) */}
+        {busy && (
+          <div className="fl-status" role="status">
+            the model is running…
+          </div>
+        )}
+        {!busy && trace.fork && <WorldsPair trace={trace} />}
       </>
     );
   }
   if (drawer === "worlds" && trace.fork) {
-    const shadow = shadowTrace(trace);
-    const at = trace.fork.pos;
-    if (!shadow)
-      return (
-        <div className="fl-stub">
-          this run's replaced tail wasn't recorded, so the other world can't be shown. fork
-          again to compare.
-        </div>
-      );
-    const world = (tr: Trace, label: string, tag: string, model: boolean) => (
-      <div className="fl-world">
-        <div className="fl-world-label">{label}</div>
-        <div className="fl-world-chips">
-          {tr.tokens.map((tok, i) => (
-            <span
-              key={i}
-              className={
-                "fl-chip" +
-                (i < at ? " dim" : "") +
-                (i === at ? (model ? " new" : " forced") : "")
-              }
-              title={`id ${tok.id} · pos ${i}`}
-            >
-              {i === at && <i className="fl-readhead">{tag}</i>}
-              {/* the divergence token must be legible even when it is pure
-                  whitespace — show it the way the geometry labels do */}
-              {i === at ? litToken(tok.t).text : esc(tok.t)}
-            </span>
-          ))}
-        </div>
-      </div>
-    );
     return (
       <>
         <div className="fl-drawer-note fl-d">
@@ -259,8 +237,7 @@ export function DrawerBody(p: DrawerBodyProps) {
             Both ran through the same engine; the divergence is only the draw.
           </p>
         </div>
-        {world(trace, "this world", "you forced", false)}
-        {world(shadow, "the other world", "the model chose", true)}
+        <WorldsPair trace={trace} />
       </>
     );
   }
@@ -403,5 +380,50 @@ export function DrawerBody(p: DrawerBodyProps) {
       this deep-dive re-homes an existing module here. coming soon, one pass at a time. until
       then it lives in the <a href="?view=expert">expert view</a>.
     </div>
+  );
+}
+
+/* Both futures side by side: the forked run vs the run it replaced. Shared by
+   the fork drawer (inline payoff, right after the click) and the "two worlds"
+   handle on the loop step. */
+export function WorldsPair({ trace }: { trace: Trace }) {
+  if (!trace.fork) return null;
+  const shadow = shadowTrace(trace);
+  const at = trace.fork.pos;
+  if (!shadow)
+    return (
+      <div className="fl-stub">
+        this run's replaced tail wasn't recorded, so the other world can't be shown. fork again
+        to compare.
+      </div>
+    );
+  const world = (tr: Trace, label: string, tag: string, model: boolean) => (
+    <div className="fl-world">
+      <div className="fl-world-label">{label}</div>
+      <div className="fl-world-chips">
+        {tr.tokens.map((tok, i) => (
+          <span
+            key={i}
+            className={
+              "fl-chip" +
+              (i < at ? " dim" : "") +
+              (i === at ? (model ? " new" : " forced") : "")
+            }
+            title={`id ${tok.id} · pos ${i}`}
+          >
+            {i === at && <i className="fl-readhead">{tag}</i>}
+            {/* the divergence token must be legible even when it is pure
+                whitespace — show it the way the geometry labels do */}
+            {i === at ? litToken(tok.t).text : esc(tok.t)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+  return (
+    <>
+      {world(trace, "this world", "you forced", false)}
+      {world(shadow, "the other world", "the model chose", true)}
+    </>
   );
 }
