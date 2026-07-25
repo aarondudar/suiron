@@ -176,8 +176,9 @@ export function StepStage(p: StepStageProps) {
             </div>
           )}
           <div className="fl-note fl-enter" style={aDelay}>
-            Each round is called a layer. Every layer runs the same two moves you have seen, look
-            back, then rework, and hands its result to the next.
+            Each round is called a layer. A layer does two things: it looks back over the earlier
+            words, the attention you just watched, then it reworks each token on its own and hands
+            the result to the next layer.
           </div>
         </>
       );
