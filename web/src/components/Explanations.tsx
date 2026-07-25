@@ -17,7 +17,7 @@ import { GeometryCard, type Read } from "./Geometry";
 import { KvCacheDemo } from "./KvCacheDemo";
 import { ModelOverview } from "./ModelOverview";
 import { RmsNormDemo } from "./RmsNormDemo";
-import { RnormSparkline } from "./RnormSparkline";
+import { SignalField } from "./SignalField";
 import { RopeDemo } from "./RopeDemo";
 import { TokenizeDemo } from "./TokenizeDemo";
 import { UnembedDemo } from "./UnembedDemo";
@@ -345,7 +345,9 @@ export const CONCEPTS: Record<string, Concept> = {
     id: "residual",
     title: "the residual stream",
     highlight: (c) => ({ kind: "layer", layer: c.layer }),
-    interactive: (c) => <RnormSparkline step={c.step} layer={c.layer} layers={c.trace.layers} />,
+    // SignalField retired here from the flow (docs/storyboard.md ruling) — the
+    // scrubbable RMS waveform replaces the old static sparkline
+    interactive: (c) => <SignalField step={c.step} />,
     rungs: [code("forward")],
     intro: (c) => {
       const r = c.step.rnorm ?? [];
