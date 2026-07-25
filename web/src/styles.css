@@ -1489,7 +1489,9 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
    is .fl-note (subordinate, below). C never competes with H. */
 .fl-cap {
   color: var(--dim); font-size: var(--t-tiny); text-align: center;
-  letter-spacing: 0.02em; margin: calc(-1 * var(--sp-3)) auto var(--sp-4);
+  /* the tier rhythm: the caption pairs with its hero (small gap above),
+     and the aside sits clearly below (its own margin adds to ours) */
+  letter-spacing: 0.02em; margin: 10px auto 8px;
   max-width: 52ch; font-variant-numeric: tabular-nums;
 }
 .fl-cap b { color: var(--ink); font-weight: 600; }
@@ -1507,7 +1509,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .fl-status, .fl-note { color: var(--faint); font-size: var(--t-body); text-align: center; margin-top: var(--sp-3); }
 .fl-note a { color: var(--faint); border-bottom: 1px dotted var(--faint); text-decoration: none; }
 .fl-note a:hover { color: var(--ink); border-bottom-color: var(--ink); }
-.fl-center { text-align: center; }
+.fl-center { text-align: center; margin-top: var(--sp-3); }
 
 /* the sentence so far: real resident tokens as chips */
 .fl-sentence {
