@@ -402,6 +402,22 @@ export function Flow() {
                   {copied ? "copied ✓" : "share"}
                 </button>
               )}
+              {phase > 0 && (
+                <button
+                  className="fl-share"
+                  title="back to the start — type a new prompt"
+                  onClick={() => {
+                    goPhase(0);
+                    // the input mounts with the step — focus it once it exists
+                    setTimeout(
+                      () => document.querySelector<HTMLInputElement>(".fl-blank")?.focus(),
+                      0,
+                    );
+                  }}
+                >
+                  new prompt
+                </button>
+              )}
             </div>
             <div className="fl-rail" role="tablist" aria-label="steps">
               {[1, 2, 3, 4, 5].map((n) => (

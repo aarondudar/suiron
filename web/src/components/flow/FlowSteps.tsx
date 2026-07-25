@@ -255,6 +255,14 @@ export function StepStage(p: StepStageProps) {
               {busy ? "running…" : "run it again"}
             </button>
           </div>
+          <div className="fl-ex">
+            <span className="fl-ex-label">or try one of these experiments:</span>
+            {EXPERIMENTS.map((e) => (
+              <button key={e.id} title={e.hook} disabled={busy} onClick={() => runExperiment(e)}>
+                {e.title}
+              </button>
+            ))}
+          </div>
           <div className="fl-center">
             <button className="fl-end-link" onClick={() => setPhase(6)}>
               how this scales up
