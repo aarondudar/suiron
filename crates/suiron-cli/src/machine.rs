@@ -492,6 +492,28 @@ pub fn inspect_json(
     for (name, v) in &obs.vectors {
         j.push_str(&format!(",\"{name}\":{}", vec_json(v, VEC_HEAD_N)));
     }
+    // The feed-forward firing profile (the "reworked" drawer's strip): the full
+    // ffn-width |gate_act| folded into fixed-width buckets (max |v| per bucket).
+    // Which-filters-fire at legible resolution, a ~1 KB field instead of 3072
+    // floats. Pure exposure of a vector forward() already recorded.
+    if let Some((_, ga)) = obs.vectors.iter().find(|kv| kv.0 == "gate_act") {
+        const BUCKETS: usize = 128;
+        let n = ga.len();
+        if n >= BUCKETS {
+            let per = n.div_ceil(BUCKETS);
+            j.push_str(",\"gate_profile\":{\"buckets\":[");
+            for b in 0..BUCKETS {
+                if b > 0 {
+                    j.push(',');
+                }
+                let s = b * per;
+                let e = ((b + 1) * per).min(n);
+                let m = ga[s..e].iter().fold(0f32, |a, &x| a.max(x.abs()));
+                j.push_str(&format!("{m:.4}"));
+            }
+            j.push_str(&format!("],\"per\":{per},\"len\":{n}}}"));
+        }
+    }
     j.push_str(",\"heads\":[");
     for (h, (scores, weights)) in obs.scores.iter().zip(&obs.weights).enumerate() {
         if h > 0 {
