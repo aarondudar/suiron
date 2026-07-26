@@ -6,6 +6,8 @@ token-for-token against `llama.cpp`.
 
 **[Open the live lab](https://aarondudar.dev/suiron-lab/)** · **[read the writeup](https://aarondudar.dev/suiron)**
 
+[![The lab's "sharpens" step: the logit lens drawn as one vector in a space of word-directions, locked onto " Paris" — the engine's real prediction](.github/lens.png)](https://aarondudar.dev/suiron-lab/)
+
 suiron is an LLM inference engine for Apple Silicon, written from scratch in Rust —
 a GGUF parser, a byte-level BPE tokenizer, attention, RoPE, SwiGLU, and hand-rolled
 Metal kernels, with **no ML dependencies** — paired with a browser "microscope" that
