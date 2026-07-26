@@ -45,9 +45,7 @@ function GateBody({
 }) {
   return (
     <div className="wasmgate">
-      <div className="wasmgate-brand">
-        suiron<span className="jp">推論</span>
-      </div>
+      <div className="wasmgate-brand">suiron</div>
       {s.err ? (
         <>
           <div className="wasmgate-err">could not start: {s.err}</div>

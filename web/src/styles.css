@@ -78,7 +78,6 @@ header {
   font-size: var(--t-display); font-weight: 700; letter-spacing: 0.14em;
   text-transform: lowercase;
 }
-.brand .jp { color: var(--dim); font-size: var(--t-md); margin-left: 10px; letter-spacing: 0.3em; }
 header .spec {
   color: var(--dim); text-transform: lowercase; font-size: var(--t-tiny);
   margin-top: 6px; letter-spacing: 0.1em;
@@ -86,13 +85,16 @@ header .spec {
 header .pos {
   font-family: var(--dot); font-size: var(--t-lg); font-weight: 600;
   color: var(--dim); white-space: nowrap;
+  /* a flex row, not baseline soup: the tags, the count, and the live dot all
+     centre on one axis instead of each nudging its own vertical-align */
+  display: flex; align-items: center; gap: 10px;
 }
 header .pos b { color: var(--ink); font-weight: 700; display: inline-block; min-width: 1.5ch; text-align: right; }
 .head-right { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
 
 .dot-live {
   display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-  background: var(--red); margin-left: 10px; vertical-align: 0;
+  background: var(--red);
   opacity: 0.18; transition: opacity 0.3s;
 }
 .dot-live.on { opacity: 1; animation: pulse 1.1s ease-in-out infinite; }
@@ -109,8 +111,8 @@ header .pos b { color: var(--ink); font-weight: 700; display: inline-block; min-
 /* active-backend tag in the header */
 .be-tag {
   font-family: var(--dot); font-size: var(--t-body); font-weight: 700;
-  letter-spacing: 0.1em; padding: 1px 6px; margin-right: 10px;
-  border: 1px solid var(--hair); color: var(--dim); vertical-align: 1px;
+  letter-spacing: 0.1em; padding: 1px 6px;
+  border: 1px solid var(--hair); color: var(--dim);
 }
 .be-tag.be-q8 { color: var(--red); border-color: var(--red); }
 
@@ -1227,7 +1229,6 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 @keyframes welcome-in { from { transform: translateY(8px); opacity: 0; } }
 .welcome-brand { font-size: var(--t-display); color: var(--ink); letter-spacing: 0.02em; }
-.welcome-brand .jp { color: var(--dim); font-size: var(--t-md); margin-left: 10px; letter-spacing: 0.3em; }
 .welcome-lead { color: var(--ink); font-size: var(--t-base); line-height: 1.6; margin: var(--sp-4) 0 var(--sp-3); }
 .welcome-body { color: var(--dim); font-size: var(--t-body); line-height: 1.7; margin: 0 0 var(--sp-3); }
 .welcome-body b { color: var(--ink); }
@@ -1246,7 +1247,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .rec-tag {
   background: none; border: 1px solid var(--red); color: var(--red); cursor: pointer;
   font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.06em;
-  text-transform: uppercase; padding: 1px 6px; margin-right: var(--sp-2);
+  text-transform: uppercase; padding: 1px 6px;
 }
 .rec-tag:hover { background: var(--red); color: var(--bg); }
 .demo-miss { color: var(--faint); font-size: var(--t-tiny); margin: var(--sp-2) 0; }
@@ -1359,7 +1360,6 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   justify-content: center; gap: var(--sp-4); text-align: center; padding: var(--sp-4);
 }
 .wasmgate-brand { font-size: var(--t-display); color: var(--ink); }
-.wasmgate-brand .jp { color: var(--dim); font-size: var(--t-md); margin-left: 10px; letter-spacing: 0.3em; }
 .wasmgate-msg { color: var(--dim); font-size: var(--t-body); min-height: 1.4em; }
 .wasmgate-bar { width: min(360px, 80vw); height: 4px; border: 1px solid var(--hair); }
 .wasmgate-fill { height: 100%; background: var(--red); transition: width 0.2s ease; }
@@ -1417,7 +1417,6 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 .fl-head-top { display: flex; justify-content: space-between; align-items: baseline; }
 .fl-brand { font-family: var(--dot); font-size: 18px; font-weight: 700; letter-spacing: 0.14em; }
-.fl-brand .jp { color: var(--dim); font-size: var(--t-base); margin-left: var(--sp-2); letter-spacing: 0.3em; font-family: var(--mono); font-weight: normal; }
 .fl-share {
   background: none; border: none; cursor: pointer; margin-left: var(--sp-3);
   color: var(--faint); font-family: var(--mono); font-size: var(--t-tiny); font-weight: normal;
@@ -1814,13 +1813,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .fl-fork-tag { font-size: var(--t-micro); letter-spacing: 0.08em; text-transform: uppercase; }
 @media (max-width: 640px) { .fl-drawer { padding: var(--sp-4); } }
 
-/* step 5 → the finale, and the finale itself (the unchanged epilogue) */
-.fl-end-link {
-  background: none; border: none; cursor: pointer; margin-top: var(--sp-4);
-  color: var(--faint); font-family: var(--mono); font-size: var(--t-tiny);
-  letter-spacing: 0.08em; text-decoration: underline; text-underline-offset: 3px;
-}
-.fl-end-link:hover { color: var(--ink); }
+/* the outro screens (the epilogue, one half per step) */
 .fl-finale { width: 100%; text-align: left; }
 
 /* the quiet route to the old everything-at-once stack */

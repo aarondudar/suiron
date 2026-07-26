@@ -263,11 +263,6 @@ export function StepStage(p: StepStageProps) {
               </button>
             ))}
           </div>
-          <div className="fl-center">
-            <button className="fl-end-link" onClick={() => setPhase(6)}>
-              how this scales up
-            </button>
-          </div>
         </>
       );
     case 6:
@@ -288,12 +283,23 @@ export function StepStage(p: StepStageProps) {
             </div>
             <Epilogue
               onTryChat={() => {
-                window.location.href = "?view=expert";
+                // land in the expert view WITH the chat open (its settings
+                // applied there) — not just next to it
+                window.location.href = "?view=expert&chat=1";
               }}
               onRun={runExperiment}
               trace={trace}
               part={phase === 6 ? "scale" : "agent"}
             />
+            {phase === 7 && (
+              // the tour's last action loops back into the machine: one more
+              // token of the same prompt
+              <div className="fl-center">
+                <button className="fl-again" onClick={runAgain} disabled={busy}>
+                  {busy ? "running…" : "run it again"}
+                </button>
+              </div>
+            )}
           </div>
         </ExplainerProvider>
       );

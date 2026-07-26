@@ -105,9 +105,7 @@ export function Welcome({
         ref={ref}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="welcome-brand">
-          suiron<span className="jp">推論</span>
-        </div>
+        <div className="welcome-brand">suiron</div>
         <WelcomeStory demo={demo} />
         <button className="welcome-enter" onClick={() => onClose()}>
           enter the lab

@@ -145,6 +145,33 @@ export function ExpertLab() {
     );
   }, [toggleChat]);
 
+  // arriving from the flow's "try it: chat" (?chat=1): open the chat with its
+  // settings applied. In demo mode chat has no engine, so raise the go-live
+  // gate once and KEEP the param — when the engine lands (trace goes live),
+  // the chat opens then, and only then does the param leave the URL.
+  const chatParamDone = useRef(false);
+  const chatGateShown = useRef(false);
+  useEffect(() => {
+    if (chatParamDone.current || !trace) return;
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("chat") !== "1") {
+      chatParamDone.current = true;
+      return;
+    }
+    if (trace.demo) {
+      if (!chatGateShown.current) {
+        chatGateShown.current = true;
+        onTryChat();
+      }
+      return;
+    }
+    chatParamDone.current = true;
+    onTryChat();
+    q.delete("chat");
+    const search = q.size ? "?" + q.toString() : "";
+    history.replaceState(null, "", window.location.pathname + search + window.location.hash);
+  }, [trace, onTryChat]);
+
   // the box reflects the resident run (design-13): prefill once from the
   // resident prompt when loading over an existing run, never clobbering
   // typed or link-restored text, never from a chat-wrapped resident
@@ -490,9 +517,7 @@ export function ExpertLab() {
     <ExplainerProvider value={explainer}>
       <header>
         <div>
-          <div className="brand">
-            suiron<span className="jp">推論</span>
-          </div>
+          <div className="brand">suiron</div>
           <div className="spec" data-explain-el="spec">
             <Explain of="model">
               {trace.model.toLowerCase()} · {trace.quant} · {trace.layers} layers · {trace.heads}h/
@@ -532,12 +557,14 @@ export function ExpertLab() {
               </button>
             )}
             <span className={"be-tag be-" + activeBackend}>{activeBackend}</span>
+            {/* one span per read: .pos is a flex row, so the phrase must stay
+                a single item or the gap splits it mid-sentence */}
             {!hasTokens ? (
-              <>token <b>0</b></>
+              <span>token <b>0</b></span>
             ) : prod >= 0 ? (
-              <>token <b>{safeCur}</b> · from <b>{prod}</b></>
+              <span>token <b>{safeCur}</b> · from <b>{prod}</b></span>
             ) : (
-              <>token <b>0</b> · start</>
+              <span>token <b>0</b> · start</span>
             )}
             <span
               className={
@@ -711,7 +738,7 @@ export function ExpertLab() {
 
       <footer>
         <span>
-          suiron · 推論 · a from-scratch LLM inference engine in Rust, verified token-for-token
+          suiron · a from-scratch LLM inference engine in Rust, verified token-for-token
           against llama.cpp
         </span>
         <span>
