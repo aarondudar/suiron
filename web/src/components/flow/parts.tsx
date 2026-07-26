@@ -7,7 +7,9 @@ import type { Trace } from "../../types";
    presentation only, no state. */
 
 /** step vocabulary from docs/design.md — fix it there first (6 = the finale) */
-export const STEPS = ["begin", "tokens", "looks back", "sharpens", "draws one", "loops", "the end"] as const;
+// 1–5 are the tour ("one prediction, five steps"); 6–7 are the outro — the
+// epilogue split into two readable stops on the same continue path
+export const STEPS = ["begin", "tokens", "looks back", "sharpens", "draws one", "loops", "how it scales", "an agent"] as const;
 
 export const VOCAB = 151_936;
 

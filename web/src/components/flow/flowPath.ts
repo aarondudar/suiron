@@ -38,6 +38,10 @@ export function flowPath(opts: {
     path.push({ phase: p, d: null });
     for (const dv of divesFor(p)) path.push({ phase: p, d: dv.id });
   }
+  // the outro: the epilogue as two drawerless stops, so continue carries the
+  // reader past the loop instead of dead-ending at step 5's last drawer
+  path.push({ phase: 6, d: null });
+  path.push({ phase: 7, d: null });
   const pathIdx = path.findIndex((s) => s.phase === phase && s.d === drawer);
   const applyStop = (s: { phase: number; d: string | null }) => {
     if (s.d && s.d !== drawer) onFreshOpen();
@@ -53,15 +57,11 @@ export function flowPath(opts: {
   };
   const retreat = () => {
     if (phase === 0) return;
-    if (phase === 6) {
-      goPhase(5);
-      return;
-    }
     if (pathIdx > 0) applyStop(path[pathIdx - 1]);
     else goPhase(0);
   };
   const canContinue =
-    phase === 0 ? hasRun || busy : phase <= 5 && pathIdx >= 0 && pathIdx + 1 < path.length;
+    phase === 0 ? hasRun || busy : pathIdx >= 0 && pathIdx + 1 < path.length;
 
   const subCount = 1 + dives.length;
   const subPos = drawer ? dives.findIndex((d) => d.id === drawer) + 1 : 0;

@@ -271,8 +271,12 @@ export function StepStage(p: StepStageProps) {
         </>
       );
     case 6:
-      // the finale: the unchanged epilogue, opt-in after the loop closes.
-      // chat lives in the expert view; experiments run right here.
+    case 7: {
+      // the outro, two stops on the continue path: "how it scales" (the
+      // boundary, the measured f32/q8 race, the glossary), then "an agent"
+      // (the loop, wrapped — chat lives in the expert view; experiments run
+      // right here). One epilogue half per screen, so neither read crowds
+      // the other.
       return (
         <ExplainerProvider value={NOOP_EXPLAINER}>
           <div className="fl-finale">
@@ -288,10 +292,12 @@ export function StepStage(p: StepStageProps) {
               }}
               onRun={runExperiment}
               trace={trace}
+              part={phase === 6 ? "scale" : "agent"}
             />
           </div>
         </ExplainerProvider>
       );
+    }
     default:
       return null;
   }

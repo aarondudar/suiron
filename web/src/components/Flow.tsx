@@ -66,7 +66,7 @@ export function Flow() {
    *  WITH its drawer open */
   const goPhase = (n: number) => {
     setDrawer(null);
-    setPhase(Math.max(0, Math.min(6, n)));
+    setPhase(Math.max(0, Math.min(7, n)));
   };
 
   // the flow walks the frontier by default; an inspected token re-anchors
@@ -220,7 +220,7 @@ export function Flow() {
       pendingLink.current = null;
       const last = trace.tokens.length - 1;
       if (link.cur !== undefined && link.cur < last) setInspect(Math.max(1, link.cur));
-      if (link.step !== undefined) setPhase(Math.max(0, Math.min(6, link.step)));
+      if (link.step !== undefined) setPhase(Math.max(0, Math.min(7, link.step)));
       if (link.d && Object.values(DIVES).flat().some((dd) => dd.id === link.d)) setDrawer(link.d);
     };
     // the resident run already is this link (a reload, or our re-run settling)
@@ -434,6 +434,18 @@ export function Flow() {
                   )}
                 </button>
               ))}
+              {/* the outro: past the loop, two hollow stops on the same path */}
+              <span className="fl-rail-sep" aria-hidden="true" />
+              {[6, 7].map((n) => (
+                <button
+                  key={n}
+                  className={"fl-dot outro" + (phase >= n ? " on" : "") + (phase === n ? " cur" : "")}
+                  aria-label={`outro · ${STEPS[n]}`}
+                  title={`outro · ${STEPS[n]}`}
+                  aria-current={phase === n}
+                  onClick={() => railTo(n)}
+                />
+              ))}
             </div>
           </div>
           {hasRun && phase >= 2 && phase <= 4 && (
@@ -535,8 +547,8 @@ export function Flow() {
               <>
                 <span className="fl-live-dot" /> running
               </>
-            ) : phase === 6 ? (
-              STEPS[6]
+            ) : phase >= 6 ? (
+              `outro · ${STEPS[phase]}`
             ) : phase > 0 ? (
               `${phase} / 5 · ${STEPS[phase]}${openDive ? " · " + openDive.tab : ""}`
             ) : (

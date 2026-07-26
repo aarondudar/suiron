@@ -1437,6 +1437,11 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .fl-dot.cur { width: 22px; background: var(--hair); position: relative; overflow: hidden; }
 .fl-dot-fill { position: absolute; left: 0; top: 0; height: 100%; background: var(--red); transition: width 0.2s; }
 @media (prefers-reduced-motion: reduce) { .fl-dot, .fl-dot-fill { transition: none; } }
+/* past the loop: the outro's two stops read hollow, apart from the tour's five */
+.fl-rail-sep { width: 1px; height: 10px; background: var(--hair); margin: 0 2px; }
+.fl-dot.outro { background: transparent; border: 1px solid var(--hair-lit); }
+.fl-dot.outro.on { border-color: var(--red); background: transparent; }
+.fl-dot.outro.cur { width: 22px; border-color: var(--red); background: transparent; }
 
 /* the stage: one step at a time, centered; keyed remount fades the new step in */
 .fl-stage {

@@ -23,7 +23,7 @@ export interface LinkState {
   /** which surface the link points into; absent = the expert stack (all
    *  pre-flow links), "flow" = the guided flow */
   view?: "flow";
-  /** guided flow only: the step (0–6) and the open drawer id */
+  /** guided flow only: the step (0–7; 6–7 are the outro) and the open drawer id */
   step?: number;
   d?: string;
 }

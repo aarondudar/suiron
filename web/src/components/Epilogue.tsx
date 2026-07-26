@@ -78,6 +78,7 @@ export function Epilogue({
   trace,
   card,
   dim,
+  part,
 }: {
   onTryChat: () => void;
   /** run a curated experiment (docs/21): somewhere to go after the tour */
@@ -88,17 +89,25 @@ export function Epilogue({
   card?: ReactNode;
   /** another band hosts the open card: this one recedes */
   dim?: boolean;
+  /** render one half only — the flow gives each its own outro step; absent
+   *  (the expert view) renders the whole epilogue as before */
+  part?: "scale" | "agent";
 }) {
+  const showScale = part !== "agent";
+  const showAgent = part !== "scale";
   return (
     <section className={"epilogue" + (dim ? " dimmed" : "")} data-explain-el="epilogue">
-      <div className="epi-boundary" role="separator">
-        <span className="epi-boundary-up">↑ computed and verified in this lab</span>
-        <span className="epi-boundary-down">
-          ↓ how this scales · described here, not implemented
-        </span>
-      </div>
+      {showScale && (
+        <div className="epi-boundary" role="separator">
+          <span className="epi-boundary-up">↑ computed and verified in this lab</span>
+          <span className="epi-boundary-down">
+            ↓ how this scales · described here, not implemented
+          </span>
+        </div>
+      )}
       {card}
 
+      {showScale && (
       <div className="epi-half">
         <h3 className="epi-h">
           <Explain of="scaling">how this scales</Explain>
@@ -146,7 +155,9 @@ export function Epilogue({
           </ScaleEntry>
         </ul>
       </div>
+      )}
 
+      {showAgent && (
       <div className="epi-half">
         <h3 className="epi-h">
           <Explain of="agents">from this loop to an agent</Explain>
@@ -180,7 +191,9 @@ export function Epilogue({
           ↑ try it: chat with the model
         </button>
       </div>
+      )}
 
+      {showAgent && (
       <div className="epi-exps">
         <span className="epi-exps-label">or run another experiment ↑</span>
         {EXPERIMENTS.map((x) => (
@@ -189,6 +202,7 @@ export function Epilogue({
           </button>
         ))}
       </div>
+      )}
     </section>
   )
 }
