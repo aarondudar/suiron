@@ -17,14 +17,17 @@ export function HeadField({
   trace,
   step,
   prod,
+  fixedLayer,
 }: {
   trace: Trace;
   step: Step;
   prod: number;
+  /** pin the dials to one layer (the expert band's open layer) — no scrubber */
+  fixedLayer?: number;
 }) {
   const lastLayer = trace.layers - 1;
   const { i: layer, playing, setI, toggle } = useAutoplay(lastLayer, { stepMs: 320 });
-  const L = Math.min(layer, lastLayer);
+  const L = Math.min(fixedLayer ?? layer, lastLayer);
   const heads = step.attn[L] ?? [];
   const nPos = prod + 1;
   const glances = heads.map((edges) => headGlance(edges));
@@ -152,7 +155,9 @@ export function HeadField({
         each needle points at the position that head reads hardest, its length the head’s real share
         of attention — dim dials are sinks (found nothing to fetch). tap a dial to read that head.
       </div>
-      <Stepper i={layer} max={lastLayer} playing={playing} setI={setI} toggle={toggle} unit="layer" />
+      {fixedLayer === undefined && (
+        <Stepper i={layer} max={lastLayer} playing={playing} setI={setI} toggle={toggle} unit="layer" />
+      )}
     </div>
   );
 }

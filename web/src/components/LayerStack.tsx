@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
 import { edgesToWeights, headGlance, layerGlance, litToken, meanHeadWeights, moments, q, settledSeq, type Marker } from "../lib";
 import type { FocusTarget, Step, Trace } from "../types";
+import { AttnSpace } from "./AttnSpace";
 import { BandHeader } from "./BandHeader";
 import { DotStrip } from "./DotStrip";
 import { Explain } from "./Explainer";
 import { SUB } from "./Explanations";
+import { HeadField } from "./HeadField";
+import { LensSpace } from "./LensSpace";
 import { RoleTag } from "./RoleTag";
 import { useLens } from "./Geometry";
 
@@ -70,6 +73,9 @@ export function LayerStack({
           this layer's math: <Explain of="norm" label="normalize" /> →{" "}
           <Explain of="attention" label="attention" /> → <Explain of="feedforward" label="feed-forward" />
         </div>
+        {/* the tour's gaze dials (design-31), pinned to this layer — the same
+            heads the strips below itemize, drawn as one glance */}
+        <HeadField trace={trace} step={step} prod={nPos - 1} fixedLayer={l} />
         <div className="heads">
           {step.attn[l].map((edges, h) => {
             const g = headGlance(edges);
@@ -171,6 +177,27 @@ export function LayerStack({
         <RoleTag trace={trace} pos={nPos - 1} kind="prod" />
       </BandHeader>
       {card}
+      {/* the band's hero is the tour's instrument (visual parity, design-33):
+          the aggregate read while the band tells the attention story, the
+          climbing lens vector once the lens read is open. The dense per-layer
+          rows below stay — they are what "expert" means. */}
+      {lensActive ? (
+        <>
+          <div className="label">
+            the climb: what the model would guess if it stopped at each layer — the vector locks on
+            when the winner takes the lead
+          </div>
+          <LensSpace trace={trace} prod={nPos - 1} />
+        </>
+      ) : (
+        <>
+          <div className="label">
+            the read, drawn: every pull is this pass's real attention, summed over all{" "}
+            {trace.layers} layers and {trace.heads} heads
+          </div>
+          <AttnSpace trace={trace} prod={nPos - 1} />
+        </>
+      )}
       {outputMarker && <div className="moment-output">{outputMarker.label}</div>}
       <div onMouseLeave={() => setHover({ kind: "none" })}>{rows}</div>
     </section>

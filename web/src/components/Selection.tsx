@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { esc, q } from "../lib";
 import { BandHeader } from "./BandHeader";
+import { DrawField } from "./DrawField";
 import { Explain } from "./Explainer";
 import { SUB } from "./Explanations";
 import { RoleTag } from "./RoleTag";
@@ -91,6 +92,10 @@ function SelDetail({ sel }: { sel: Sel }) {
     const fav = sel.cand[0];
     const wanted = fav && fav.id !== sel.chosen;
     return (
+      <>
+      {/* the tour's draw field (design-33): real shares, dial retired — the
+          component states the forcing itself */}
+      <DrawField sel={sel} chosenId={sel.chosen} />
       <div className="sel-math">
         <span className="red">you</span> forced <span className="red">{q(chosen.t)}</span>{" "}
         here, so no sampling happened.{" "}
@@ -111,6 +116,7 @@ function SelDetail({ sel }: { sel: Sel }) {
         every token after this point is the model continuing from the history{" "}
         <b>you</b> changed. the math is the same, the history is not.
       </div>
+      </>
     );
   }
 
@@ -126,6 +132,11 @@ function SelDetail({ sel }: { sel: Sel }) {
           </>
         )}
       </div>
+
+      {/* the tour's draw field (design-33): each disc's area a candidate's
+          real share, the drawn token ringed red, the dial live — the table
+          below stays the expert's exact ledger */}
+      <DrawField sel={sel} chosenId={sel.chosen} />
 
       <div className="tbl-scroll">
       <table className="sel">
