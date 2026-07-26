@@ -17,6 +17,8 @@ interface Msg {
   text: string
   /** the message's measured pace: generated tokens + tok/s as they arrived */
   stats?: { tokens: number; tps: number | null }
+  /** this user turn was sent with Qwen3's /no_think switch appended */
+  noThink?: boolean
 }
 
 export function ChatPanel() {
@@ -31,15 +33,22 @@ export function ChatPanel() {
     bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight })
   }, [msgs, pending])
 
+  /* Qwen3's reasoning is on by default; its own soft switch turns it off:
+     "/no_think" appended to the user turn makes the model emit an empty
+     think block and answer directly (nothing is forced — the model still
+     draws every token). Off saves the token budget for the answer. */
+  const [think, setThink] = useState(true)
+
   const send = async () => {
     const text = input.trim()
     if (!text || pending) return
     setInput('')
-    setMsgs((m) => [...m, { role: 'you', text }])
+    setMsgs((m) => [...m, { role: 'you', text, noThink: !think }])
     setPending(true)
     try {
       const before = (await getTrace()).seq
-      await generate(text, { ...CHAT_PARAMS, seed: Math.floor(Math.random() * 1e9) })
+      const sent = think ? text : `${text} /no_think`
+      await generate(sent, { ...CHAT_PARAMS, seed: Math.floor(Math.random() * 1e9) })
       const { reply, stats } = await waitForReply(before, setLiveTps)
       setMsgs((m) => [...m, { role: 'model', text: reply || '(no output)', stats }])
     } catch {
@@ -71,6 +80,11 @@ export function ChatPanel() {
           <div key={i} className={'chat-msg chat-' + m.role}>
             <span className="chat-role">{m.role}</span>
             {m.role === 'model' ? <ModelText text={m.text} /> : <span className="chat-text">{m.text}</span>}
+            {m.noThink && (
+              <span className="chat-meta" title="Qwen3's own soft switch: the model skips its reasoning block and answers directly">
+                sent with /no_think — reasoning off
+              </span>
+            )}
             {m.stats && m.stats.tps !== null && (
               <span className="chat-meta" title="measured as the tokens arrived, this message">
                 {m.stats.tokens} tokens · {m.stats.tps.toFixed(1)} tok/s
@@ -99,6 +113,19 @@ export function ChatPanel() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send()}
         />
+        <button
+          className={'chat-think-toggle' + (think ? '' : ' off')}
+          disabled={pending}
+          aria-pressed={!think}
+          title={
+            think
+              ? 'reasoning on: the model thinks before it answers (its <think> block, shown de-emphasized). click to turn off — " /no_think", Qwen3\'s own switch, is appended to your message and the whole budget goes to the answer.'
+              : 'reasoning off: " /no_think" is appended to your message (Qwen3\'s own switch) and the model answers directly. click to let it think again.'
+          }
+          onClick={() => setThink(!think)}
+        >
+          {think ? 'reasoning on' : 'reasoning off'}
+        </button>
         <button className={pending ? 'busy' : ''} disabled={pending || !input.trim()} onClick={send}>
           send
         </button>
@@ -152,7 +179,21 @@ function decodeReply(tokens: { t: string }[]): string {
    is hidden — the reasoning is real output the model produced. */
 function ModelText({ text }: { text: string }) {
   const m = text.match(/^<think>([\s\S]*?)<\/think>\s*([\s\S]*)$/)
-  if (!m) return <span className="chat-text">{text || '(no output)'}</span>
+  if (!m) {
+    // an unclosed think block (the reply stopped mid-reasoning): still show
+    // it as reasoning, not as a raw tag, and say what happened
+    const open = text.match(/^<think>([\s\S]*)$/)
+    if (open)
+      return (
+        <>
+          <span className="chat-think">
+            <span className="chat-think-label">reasoning</span> {open[1].trim()}
+          </span>
+          <span className="chat-text">(it stopped mid-reasoning, before an answer)</span>
+        </>
+      )
+    return <span className="chat-text">{text || '(no output)'}</span>
+  }
   const think = m[1].trim()
   const answer = m[2].trim()
   return (

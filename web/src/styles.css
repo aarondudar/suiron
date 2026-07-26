@@ -1341,6 +1341,11 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .chat-think-label { text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); margin-right: 4px; }
 /* the reply's measured pace, pinned under the message it timed */
 .chat-meta { color: var(--faint); font-size: var(--t-micro); letter-spacing: 0.06em; margin-top: 2px; }
+/* the reasoning switch: quiet while on (the default), red while it rewrites
+   the prompt (" /no_think" appended — the model's own switch, but the reader
+   should see that their message is being amended) */
+.chat-think-toggle { font-size: var(--t-tiny); color: var(--dim); white-space: nowrap; }
+.chat-think-toggle.off { color: var(--red); border-color: var(--red); }
 .chat-dots { color: var(--faint); }
 
 /* the chat dropdown toggle in the prompt band's settings row */
