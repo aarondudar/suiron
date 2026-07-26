@@ -1,7 +1,0 @@
-{
-  "editor.inlineSuggest.enabled": true,
-  "files.associations": {
-    "*.metal": "cpp"
-  },
-  "C_Cpp.errorSquiggles": "disabled"
-}

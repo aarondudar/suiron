@@ -1056,12 +1056,14 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   background: none; border: none; padding: 0 0 3px; cursor: pointer;
   font-family: var(--mono); font-size: inherit; color: inherit;
   border-bottom: 1px solid transparent;
+  text-transform: none; /* real token text reads verbatim */
 }
 .tok-wgroup.active { border-bottom-color: var(--red); }
 .tok-ghost {
   background: none; border: none; border-bottom: 1px dashed var(--hair-lit);
   color: var(--faint); font-family: var(--mono); font-size: inherit;
   padding: 0 2px 3px; cursor: pointer; white-space: pre;
+  text-transform: none; /* real token text reads verbatim */
 }
 .tok-ghost:hover { color: var(--dim); }
 
@@ -1774,7 +1776,10 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 
 /* the meaning drawer's token picker: pick a word, its geometry recomputes */
 .fl-pick-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: var(--sp-4); }
-.fl-chip.pickable { cursor: pointer; background: var(--surface); font-family: var(--mono); }
+.fl-chip.pickable {
+  cursor: pointer; background: var(--surface); font-family: var(--mono);
+  text-transform: none; /* real token text reads verbatim */
+}
 .fl-chip.pickable:hover { border-color: var(--dim); }
 .fl-chip.pickable.on { border-color: var(--ink); color: var(--ink); background: rgba(232, 232, 232, 0.08); }
 
@@ -1785,6 +1790,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   background: var(--surface); border: 1px solid var(--hair); color: var(--ink);
   font-family: var(--mono); font-size: var(--t-base); padding: 6px 12px; cursor: pointer;
   text-align: left;
+  text-transform: none; /* the candidates are verbatim model tokens */
 }
 .fl-fork-opt:hover:not(:disabled) { border-color: var(--red); }
 .fl-fork-opt:disabled { cursor: default; }
