@@ -27,11 +27,22 @@ export function ChatPanel() {
   const [pending, setPending] = useState(false)
   /** tok/s of the in-flight reply, updated every poll while it streams */
   const [liveTps, setLiveTps] = useState<number | null>(null)
+  /** the in-flight reply's text so far, streamed into the pending bubble */
+  const [partial, setPartial] = useState('')
   const bodyRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight })
   }, [msgs, pending])
+
+  // follow the stream only while the reader is at the bottom — never yank
+  // someone who scrolled up to read the reasoning as it happens
+  useEffect(() => {
+    const el = bodyRef.current
+    if (!el) return
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 60)
+      el.scrollTo({ top: el.scrollHeight })
+  }, [partial])
 
   /* Qwen3's reasoning is on by default; its own soft switch turns it off:
      "/no_think" appended to the user turn makes the model emit an empty
@@ -49,13 +60,17 @@ export function ChatPanel() {
       const before = (await getTrace()).seq
       const sent = think ? text : `${text} /no_think`
       await generate(sent, { ...CHAT_PARAMS, seed: Math.floor(Math.random() * 1e9) })
-      const { reply, stats } = await waitForReply(before, setLiveTps)
+      const { reply, stats } = await waitForReply(before, (p, tps) => {
+        setPartial(p)
+        setLiveTps(tps)
+      })
       setMsgs((m) => [...m, { role: 'model', text: reply || '(no output)', stats }])
     } catch {
       setMsgs((m) => [...m, { role: 'model', text: '(generation failed)' }])
     } finally {
       setPending(false)
       setLiveTps(null)
+      setPartial('')
     }
   }
 
@@ -95,6 +110,7 @@ export function ChatPanel() {
         {pending && (
           <div className="chat-msg chat-model">
             <span className="chat-role">model</span>
+            {partial && <ModelText text={partial} streaming />}
             <span className="chat-text chat-dots">
               generating…{liveTps !== null && ` · ${liveTps.toFixed(1)} tok/s`}
             </span>
@@ -135,35 +151,53 @@ export function ChatPanel() {
 }
 
 /** Poll the resident trace until a NEW generation settles, then read the
- *  assistant's tokens (everything after the chat-wrapped prompt). Along the
- *  way it measures the reply's real pace — generated tokens over the time
- *  since the first one was observed (so prefill never skews it) — reporting
- *  the live rate each poll and returning the final one with the text. */
+ *  assistant's tokens (everything after the chat-wrapped prompt). There is no
+ *  wall-clock cap: the wait follows the engine's own busy flag, however slow
+ *  the machine — it bails only when the token count stops moving for STALL_MS
+ *  (a hung engine, not a slow one). Along the way it reports the partial text
+ *  and the reply's real pace — generated tokens over the time since the first
+ *  one was observed (so prefill never skews it). */
+const STALL_MS = 15000
 async function waitForReply(
   beforeSeq: number | undefined,
-  onRate?: (tps: number | null) => void,
+  onUpdate?: (partial: string, tps: number | null) => void,
 ): Promise<{ reply: string; stats: { tokens: number; tps: number | null } }> {
-  const deadline = Date.now() + 45000
   let first: { at: number; n: number } | null = null
   let tps: number | null = null
+  let lastMove = Date.now()
+  let lastN = -1
   const settle = (t: { tokens: { t: string }[]; n_prompt: number }) => ({
     reply: decodeReply(t.tokens.slice(t.n_prompt)),
     stats: { tokens: Math.max(0, t.tokens.length - t.n_prompt), tps },
   })
-  while (Date.now() < deadline) {
+  for (;;) {
     await sleep(250)
-    const t = await getTrace()
-    if (t.seq === beforeSeq) continue // still the previous run
-    const n = t.tokens.length - t.n_prompt
-    const now = Date.now()
-    if (n > 0 && !first) first = { at: now, n }
-    if (first && n > first.n && now > first.at) {
-      tps = ((n - first.n) * 1000) / (now - first.at)
-      onRate?.(tps)
+    let t
+    try {
+      t = await getTrace()
+    } catch {
+      // a transient poll failure is not a dead engine — the stall guard
+      // decides when to stop believing that
+      if (Date.now() - lastMove > STALL_MS) throw new Error('trace unreachable')
+      continue
     }
+    const now = Date.now()
+    if (t.seq === beforeSeq) {
+      // the new run has not landed yet; if it never does, say so honestly
+      if (now - lastMove > STALL_MS) return { reply: '', stats: { tokens: 0, tps: null } }
+      continue
+    }
+    const n = t.tokens.length - t.n_prompt
+    if (n !== lastN) {
+      lastN = n
+      lastMove = now
+    }
+    if (n > 0 && !first) first = { at: now, n }
+    if (first && n > first.n && now > first.at) tps = ((n - first.n) * 1000) / (now - first.at)
+    onUpdate?.(n > 0 ? decodeReply(t.tokens.slice(t.n_prompt)) : '', tps)
     if (!t.busy) return settle(t)
+    if (now - lastMove > STALL_MS) return settle(t) // hung, not slow: post what exists
   }
-  return settle(await getTrace())
 }
 
 function decodeReply(tokens: { t: string }[]): string {
@@ -177,11 +211,12 @@ function decodeReply(tokens: { t: string }[]): string {
 /* Qwen3 is a reasoning model: in chat mode it leads with a <think>…</think>
    block. Show it, but de-emphasized, with the final answer prominent. Nothing
    is hidden — the reasoning is real output the model produced. */
-function ModelText({ text }: { text: string }) {
+function ModelText({ text, streaming }: { text: string; streaming?: boolean }) {
   const m = text.match(/^<think>([\s\S]*?)<\/think>\s*([\s\S]*)$/)
   if (!m) {
-    // an unclosed think block (the reply stopped mid-reasoning): still show
-    // it as reasoning, not as a raw tag, and say what happened
+    // an unclosed think block: mid-stream that is just reasoning in progress;
+    // in a settled message it means the reply stopped before an answer —
+    // either way it reads as reasoning, never as a raw tag
     const open = text.match(/^<think>([\s\S]*)$/)
     if (open)
       return (
@@ -189,10 +224,12 @@ function ModelText({ text }: { text: string }) {
           <span className="chat-think">
             <span className="chat-think-label">reasoning</span> {open[1].trim()}
           </span>
-          <span className="chat-text">(it stopped mid-reasoning, before an answer)</span>
+          {!streaming && (
+            <span className="chat-text">(it stopped mid-reasoning, before an answer)</span>
+          )}
         </>
       )
-    return <span className="chat-text">{text || '(no output)'}</span>
+    return <span className="chat-text">{text || (streaming ? '' : '(no output)')}</span>
   }
   const think = m[1].trim()
   const answer = m[2].trim()
@@ -203,9 +240,11 @@ function ModelText({ text }: { text: string }) {
           <span className="chat-think-label">reasoning</span> {think}
         </span>
       )}
-      <span className="chat-text">
-        {answer || '(reasoning only: it ran out of tokens before the answer)'}
-      </span>
+      {(answer || !streaming) && (
+        <span className="chat-text">
+          {answer || '(reasoning only: it ran out of tokens before the answer)'}
+        </span>
+      )}
     </>
   )
 }
