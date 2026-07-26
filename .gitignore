@@ -1,6 +1,7 @@
 /target
 /models/*.gguf
 .DS_Store
+/trace.json
 /DEVPLAN.md
 /.vscode/
 /docs/
