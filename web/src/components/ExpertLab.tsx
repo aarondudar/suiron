@@ -726,10 +726,12 @@ export function ExpertLab() {
             card={cardFor("06")}
             dim={dimFor("06")}
           />
+          {/* no trace → no SpeedRace panel here: module 06 directly above
+              already shows the same f32/q8 cards (the flow's outro, which has
+              no module 06, is where the panel earns its place) */}
           <Epilogue
             onTryChat={onTryChat}
             onRun={runExperiment}
-            trace={trace}
             card={cardFor("epilogue")}
             dim={dimFor("epilogue")}
           />

@@ -1339,6 +1339,8 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   border-left: 1px solid var(--hair); padding-left: var(--sp-2); margin-bottom: 2px;
 }
 .chat-think-label { text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); margin-right: 4px; }
+/* the reply's measured pace, pinned under the message it timed */
+.chat-meta { color: var(--faint); font-size: var(--t-micro); letter-spacing: 0.06em; margin-top: 2px; }
 .chat-dots { color: var(--faint); }
 
 /* the chat dropdown toggle in the prompt band's settings row */

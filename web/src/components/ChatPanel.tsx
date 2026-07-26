@@ -15,12 +15,16 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 interface Msg {
   role: 'you' | 'model'
   text: string
+  /** the message's measured pace: generated tokens + tok/s as they arrived */
+  stats?: { tokens: number; tps: number | null }
 }
 
 export function ChatPanel() {
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [input, setInput] = useState('')
   const [pending, setPending] = useState(false)
+  /** tok/s of the in-flight reply, updated every poll while it streams */
+  const [liveTps, setLiveTps] = useState<number | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -36,12 +40,13 @@ export function ChatPanel() {
     try {
       const before = (await getTrace()).seq
       await generate(text, { ...CHAT_PARAMS, seed: Math.floor(Math.random() * 1e9) })
-      const reply = await waitForReply(before)
-      setMsgs((m) => [...m, { role: 'model', text: reply || '(no output)' }])
+      const { reply, stats } = await waitForReply(before, setLiveTps)
+      setMsgs((m) => [...m, { role: 'model', text: reply || '(no output)', stats }])
     } catch {
       setMsgs((m) => [...m, { role: 'model', text: '(generation failed)' }])
     } finally {
       setPending(false)
+      setLiveTps(null)
     }
   }
 
@@ -66,12 +71,19 @@ export function ChatPanel() {
           <div key={i} className={'chat-msg chat-' + m.role}>
             <span className="chat-role">{m.role}</span>
             {m.role === 'model' ? <ModelText text={m.text} /> : <span className="chat-text">{m.text}</span>}
+            {m.stats && m.stats.tps !== null && (
+              <span className="chat-meta" title="measured as the tokens arrived, this message">
+                {m.stats.tokens} tokens · {m.stats.tps.toFixed(1)} tok/s
+              </span>
+            )}
           </div>
         ))}
         {pending && (
           <div className="chat-msg chat-model">
             <span className="chat-role">model</span>
-            <span className="chat-text chat-dots">generating…</span>
+            <span className="chat-text chat-dots">
+              generating…{liveTps !== null && ` · ${liveTps.toFixed(1)} tok/s`}
+            </span>
           </div>
         )}
       </div>
@@ -96,18 +108,35 @@ export function ChatPanel() {
 }
 
 /** Poll the resident trace until a NEW generation settles, then read the
- *  assistant's tokens (everything after the chat-wrapped prompt). */
-async function waitForReply(beforeSeq: number | undefined): Promise<string> {
+ *  assistant's tokens (everything after the chat-wrapped prompt). Along the
+ *  way it measures the reply's real pace — generated tokens over the time
+ *  since the first one was observed (so prefill never skews it) — reporting
+ *  the live rate each poll and returning the final one with the text. */
+async function waitForReply(
+  beforeSeq: number | undefined,
+  onRate?: (tps: number | null) => void,
+): Promise<{ reply: string; stats: { tokens: number; tps: number | null } }> {
   const deadline = Date.now() + 45000
+  let first: { at: number; n: number } | null = null
+  let tps: number | null = null
+  const settle = (t: { tokens: { t: string }[]; n_prompt: number }) => ({
+    reply: decodeReply(t.tokens.slice(t.n_prompt)),
+    stats: { tokens: Math.max(0, t.tokens.length - t.n_prompt), tps },
+  })
   while (Date.now() < deadline) {
     await sleep(250)
     const t = await getTrace()
-    if (t.seq !== beforeSeq && !t.busy) {
-      return decodeReply(t.tokens.slice(t.n_prompt))
+    if (t.seq === beforeSeq) continue // still the previous run
+    const n = t.tokens.length - t.n_prompt
+    const now = Date.now()
+    if (n > 0 && !first) first = { at: now, n }
+    if (first && n > first.n && now > first.at) {
+      tps = ((n - first.n) * 1000) / (now - first.at)
+      onRate?.(tps)
     }
+    if (!t.busy) return settle(t)
   }
-  const t = await getTrace()
-  return decodeReply(t.tokens.slice(t.n_prompt))
+  return settle(await getTrace())
 }
 
 function decodeReply(tokens: { t: string }[]): string {
