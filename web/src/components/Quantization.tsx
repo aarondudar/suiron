@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { getQuantSample, IS_WASM } from "../api";
+import { N_PARAMS } from "../lib";
 import { BandHeader } from "./BandHeader";
 import { BackendToggle } from "./Controls";
 import { Explain } from "./Explainer";
@@ -10,7 +11,7 @@ import type { Backend, GenParams, QuantSample, Trace } from "../types";
    machine band: the switch and the headline, then the live speed comparison,
    then an interactive look at one REAL weight block from the model. */
 
-const PARAMS = 596_049_920; // Qwen3-0.6B; matches `suiron load`
+const PARAMS = N_PARAMS;
 
 export function Quantization({
   trace,

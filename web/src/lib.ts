@@ -80,6 +80,34 @@ export const CHAT_PARAMS: GenParams = {
   backend: 'q8',
 }
 
+/** Qwen3-0.6B's parameter count — matches `suiron load` and the writeup. */
+export const N_PARAMS = 596_049_920
+
+/** One honest line per backend for the f32/q8 speed panels, from whatever has
+ *  actually been measured: a live number, the demo's recorded number (labeled
+ *  as such), or the truthful reason there is none. The wasm build never has an
+ *  f32 number to show — dequantized weights are ~2.4 GB, the browser build's
+ *  memory wall — so that path says so instead of "run it". */
+export function raceLine(
+  which: 'f32' | 'q8',
+  tps: { f32: number | null; q8: number | null },
+  demo: boolean,
+  wasm: boolean,
+): string {
+  const v = which === 'f32' ? tps.f32 : tps.q8
+  if (v) {
+    const src = demo ? ' · recorded on the native engine' : wasm ? ' · measured in your browser' : ''
+    return `${v.toFixed(1)} tok/s${src}`
+  }
+  if (which === 'f32' && wasm) return 'too big for a browser tab — the native lab’s reference path'
+  return 'run it to measure'
+}
+
+/** “N.NN× faster →” once BOTH paths have been measured; null otherwise. */
+export function raceSpeedup(tps: { f32: number | null; q8: number | null }): string | null {
+  return tps.f32 && tps.q8 ? `${(tps.q8 / tps.f32).toFixed(2)}× faster →` : null
+}
+
 /** Model's softmax probability for generated token i (from the previous
  *  step's top-10), or null for prompt tokens / unknown. */
 export function confidence(trace: Trace, i: number): number | null {

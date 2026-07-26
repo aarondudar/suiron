@@ -1,5 +1,8 @@
 import { useState, type ReactNode } from 'react'
+import { IS_WASM } from '../api'
 import { EXPERIMENTS, type Experiment } from '../experiments'
+import { N_PARAMS, raceLine, raceSpeedup } from '../lib'
+import type { Trace } from '../types'
 import { Explain } from './Explainer'
 
 /* The epilogue: framing that sits OUTSIDE the verified instrument and closes the
@@ -13,6 +16,41 @@ import { Explain } from './Explainer'
 
 function Tag() {
   return <span className="epi-tag">not run here</span>
+}
+
+/** The one entry that gets to prove itself: quantization runs in this lab, so
+ *  it opens "how this scales" with the real f32/q8 memory and whatever speed
+ *  has actually been measured — live, or the demo's recorded number, labeled.
+ *  Reuses module 06's cards so the two reads stay visually one fact. */
+function SpeedRace({ trace }: { trace: Trace }) {
+  const tps = trace.tps ?? { f32: null, q8: null }
+  const demo = !!trace.demo
+  const gib = (b: number) => (b / 1024 ** 3).toFixed(2)
+  return (
+    <div className="epi-race">
+      <p className="epi-race-lead">
+        One of them runs right here. Every number this lab computed used <b>quantized</b>{' '}
+        weights — the q8 path below — and the engine's tests pin its answers argmax-identical
+        to the f32 reference. The only difference left is how many bytes each token reads:
+        <span className="epi-tag here">measured, not described</span>
+      </p>
+      <div className="q-cards">
+        <div className={'q-card' + (trace.backend === 'f32' ? ' on' : '')}>
+          <div className="q-name">f32</div>
+          <div className="q-sub">weights expanded to 32-bit floats</div>
+          <div className="q-big">{gib(N_PARAMS * 4)} GiB</div>
+          <div className="q-sub">{raceLine('f32', tps, demo, IS_WASM)}</div>
+        </div>
+        <div className="q-arrow">{raceSpeedup(tps) ?? '→'}</div>
+        <div className={'q-card' + (trace.backend !== 'f32' ? ' on' : '')}>
+          <div className="q-name">q8</div>
+          <div className="q-sub">8-bit blocks read directly</div>
+          <div className="q-big">{gib((N_PARAMS * 34) / 32)} GiB</div>
+          <div className="q-sub">{raceLine('q8', tps, demo, IS_WASM)}</div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 /** One glossary entry: the term is always visible; its explanation (with the
@@ -37,12 +75,15 @@ function ScaleEntry({ term, children }: { term: string; children: ReactNode }) {
 export function Epilogue({
   onTryChat,
   onRun,
+  trace,
   card,
   dim,
 }: {
   onTryChat: () => void;
   /** run a curated experiment (docs/21): somewhere to go after the tour */
   onRun: (e: Experiment) => void;
+  /** the resident run, for the measured f32/q8 race (absent = panel hidden) */
+  trace?: Trace;
   /** the open concept's inline card, when this band hosts it (docs/16) */
   card?: ReactNode;
   /** another band hosts the open card: this one recedes */
@@ -67,6 +108,7 @@ export function Epilogue({
           The techniques below are what production systems add on top, to go faster and serve many
           users at once. Each one builds on a surface you just used; expand any to see how.
         </p>
+        {trace && <SpeedRace trace={trace} />}
         <ul className="epi-list">
           <ScaleEntry term="paged KV cache">
             The earlier tokens’ keys and values that <Explain of="attention">attention</Explain>{' '}

@@ -702,6 +702,7 @@ export function ExpertLab() {
           <Epilogue
             onTryChat={onTryChat}
             onRun={runExperiment}
+            trace={trace}
             card={cardFor("epilogue")}
             dim={dimFor("epilogue")}
           />

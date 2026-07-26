@@ -287,6 +287,7 @@ export function StepStage(p: StepStageProps) {
                 window.location.href = "?view=expert";
               }}
               onRun={runExperiment}
+              trace={trace}
             />
           </div>
         </ExplainerProvider>

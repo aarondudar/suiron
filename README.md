@@ -108,9 +108,19 @@ llama.cpp on an M1 Pro.
       materialization — ~4× less weight-memory traffic, measured live in the lab's
       f32/q8 toggle; argmax-identical to the f32 path. Q4_K_M loads via Q4_K/Q6_K
       dequant. (GPU-quantized kernels: stretch.)
-- [ ] **M5 — Paged KV cache + continuous batching.**
-- [ ] **M6 — Speculative decoding.**
-- [ ] **M7 — OpenAI-compatible HTTP server.**
+- [ ] **M5 — Paged KV cache + continuous batching.** *(parked)*
+- [ ] **M6 — Speculative decoding.** *(parked)*
+- [ ] **M7 — OpenAI-compatible HTTP server.** *(parked)*
+
+**Why it stops here.** The destination was never a production server — it was MV,
+the microscope: one prediction made fully transparent, on an engine trustworthy
+enough to teach from. M5–M7 are serving-systems milestones; they make one engine
+fast for *many concurrent users*, which a single-user teaching lab cannot
+demonstrate honestly. So they stay parked rather than half-built: the lab's
+epilogue explains each one against the surfaces you just used, and the one
+scaling trade suiron *does* implement — f32 vs Q8 — is measured right there,
+live, not described. (The groundwork is laid where it was cheap: the KV cache
+already has the `truncate()` rollback speculative decoding needs.)
 
 ## Workspace
 

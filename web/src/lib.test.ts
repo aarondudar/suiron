@@ -65,3 +65,40 @@ describe("moments", () => {
     expect(moments(trace, 0).some((x) => x.kind === "attention")).toBe(false);
   });
 });
+
+/* The epilogue's f32/q8 race lines: every string states only what was actually
+   measured, labels the demo's recorded number as recorded, and gives the wasm
+   build's missing f32 its honest reason (the ~2.4 GB memory wall) instead of
+   an impossible "run it to measure". */
+describe("raceLine / raceSpeedup", () => {
+  it("shows a live number bare on the native lab", async () => {
+    const { raceLine } = await import("./lib");
+    expect(raceLine("q8", { f32: null, q8: 21.4 }, false, false)).toBe("21.4 tok/s");
+  });
+
+  it("labels the demo's number as recorded on the native engine", async () => {
+    const { raceLine } = await import("./lib");
+    expect(raceLine("q8", { f32: null, q8: 4.77 }, true, true)).toBe(
+      "4.8 tok/s · recorded on the native engine",
+    );
+  });
+
+  it("labels a live wasm measurement as measured in your browser", async () => {
+    const { raceLine } = await import("./lib");
+    expect(raceLine("q8", { f32: null, q8: 3.2 }, false, true)).toBe(
+      "3.2 tok/s · measured in your browser",
+    );
+  });
+
+  it("explains the wasm build's missing f32 instead of asking for a run", async () => {
+    const { raceLine } = await import("./lib");
+    expect(raceLine("f32", { f32: null, q8: 3.2 }, false, true)).toContain("too big for a browser tab");
+    expect(raceLine("f32", { f32: null, q8: null }, false, false)).toBe("run it to measure");
+  });
+
+  it("shows the speedup only once BOTH paths have been measured", async () => {
+    const { raceSpeedup } = await import("./lib");
+    expect(raceSpeedup({ f32: 5.0, q8: 20.0 })).toBe("4.00× faster →");
+    expect(raceSpeedup({ f32: null, q8: 20.0 })).toBeNull();
+  });
+});
