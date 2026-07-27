@@ -186,6 +186,15 @@ export function Flow() {
     if (hasRun || busy) goPhase(n);
   };
 
+  /** the expert view, carrying THIS moment (run + inspected token) — the two
+   *  views are one lab, so switching never discards the run. Falls back to a
+   *  bare switch when the run isn't linkable (no tokens yet / chat-wrapped). */
+  const expertHref = (() => {
+    if (!trace) return "?view=expert";
+    const l = currentLink(trace, { cur, c: null, walk: null, layer: -1 });
+    return l ? "?view=expert#" + encodeLink(l) : "?view=expert";
+  })();
+
   // the box reflects the resident run (design-13): prefill once when loading
   // over an existing run, never clobbering typed or link-restored text
   const prefilled = useRef(false);
@@ -420,12 +429,15 @@ export function Flow() {
               )}
             </div>
             <div className="fl-rail" role="tablist" aria-label="steps">
+              {/* before a run the dots are honest about it: visibly parked,
+                  not silently ignoring the click */}
               {[1, 2, 3, 4, 5].map((n) => (
                 <button
                   key={n}
                   className={"fl-dot" + (phase >= n ? " on" : "") + (phase === n ? " cur" : "")}
+                  disabled={!hasRun && !busy}
                   aria-label={`step ${n} · ${STEPS[n]}`}
-                  title={`step ${n} · ${STEPS[n]}`}
+                  title={hasRun || busy ? `step ${n} · ${STEPS[n]}` : "begin a run first"}
                   aria-current={phase === n}
                   onClick={() => railTo(n)}
                 >
@@ -440,8 +452,9 @@ export function Flow() {
                 <button
                   key={n}
                   className={"fl-dot outro" + (phase >= n ? " on" : "") + (phase === n ? " cur" : "")}
+                  disabled={!hasRun && !busy}
                   aria-label={`outro · ${STEPS[n]}`}
-                  title={`outro · ${STEPS[n]}`}
+                  title={hasRun || busy ? `outro · ${STEPS[n]}` : "begin a run first"}
                   aria-current={phase === n}
                   onClick={() => railTo(n)}
                 />
@@ -566,7 +579,7 @@ export function Flow() {
       </div>
 
       <div className="fl-alt">
-        <a href="?view=expert">expert view — the whole lab on one page</a>
+        <a href={expertHref}>expert view — the whole lab on one page</a>
       </div>
     </div>
   );

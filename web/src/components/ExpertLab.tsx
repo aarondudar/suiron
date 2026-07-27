@@ -530,7 +530,24 @@ export function ExpertLab() {
             <button className="about-link" onClick={() => setWelcomeOpen(true)}>
               about
             </button>
-            <a className="about-link" href={window.location.pathname} title="the guided five-step walkthrough">
+            {/* the guided walkthrough, carrying THIS run — the two views are
+                one lab, so switching never discards the moment */}
+            <a
+              className="about-link"
+              href={(() => {
+                const l = hasTokens
+                  ? currentLink(trace, {
+                      cur: safeCur,
+                      c: null,
+                      walk: null,
+                      layer: -1,
+                      flow: { step: 1, d: null },
+                    })
+                  : null;
+                return l ? window.location.pathname + "#" + encodeLink(l) : window.location.pathname;
+              })()}
+              title="the guided five-step walkthrough"
+            >
               guided view
             </a>
             {hasTokens &&

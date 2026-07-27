@@ -1,4 +1,5 @@
 import { esc } from "../../lib";
+import { currentLink, encodeLink } from "../../link";
 import { EXPERIMENTS, type Experiment } from "../../experiments";
 import type { Step, Trace } from "../../types";
 import { AttnSpace } from "../AttnSpace";
@@ -272,14 +273,17 @@ export function StepStage(p: StepStageProps) {
       // (the loop, wrapped — chat lives in the expert view; experiments run
       // right here). One epilogue half per screen, so neither read crowds
       // the other.
+      const link = currentLink(trace, { cur, c: null, walk: null, layer: -1 });
+      const expertHref = link ? "?view=expert#" + encodeLink(link) : "?view=expert";
       return (
         <ExplainerProvider value={NOOP_EXPLAINER}>
           <div className="fl-finale">
             {/* the epilogue's copy was written beside the full instrument;
-                keep its "above" references honest from here (design-13) */}
+                keep its "above" references honest from here (design-13);
+                the link carries the run, so "above" shows THIS run */}
             <div className="fl-note">
               written beside the full instrument — where it says “above”, it means the{" "}
-              <a href="?view=expert">expert view</a>.
+              <a href={expertHref}>expert view</a>.
             </div>
             <Epilogue
               onTryChat={() => {

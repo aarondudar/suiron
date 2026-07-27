@@ -57,6 +57,10 @@ body {
 #root { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 28px var(--sp-5) var(--sp-4); }
 
 ::selection { background: var(--red); color: var(--bg); }
+/* taps feel native: no grey flash on mobile; anchors scroll smoothly unless
+   the reader asked for reduced motion */
+* { -webkit-tap-highlight-color: transparent; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 
 /* tabular figures on the display font too — changing counters/figures keep a
    fixed advance so layout never reflows as digits update. */
@@ -488,7 +492,12 @@ button.busy { border-color: var(--red); color: var(--red); }
 }
 
 /* ---------- logits ---------- */
+/* the candidate rows are fork buttons — say so with the cursor and a hover */
 .bar-row { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: 4px; }
+.bar-row[role="button"] { cursor: pointer; transition: background 0.12s; }
+.bar-row[role="button"]:hover { background: #0e0e0e; }
+.bar-row[aria-disabled="true"] { cursor: default; }
+.bar-row[aria-disabled="true"]:hover { background: none; }
 .bar-tok { width: 130px; white-space: pre; overflow: hidden; text-align: right; }
 .bar-wrap { flex: 1; height: 9px; position: relative; background: #101010; }
 .bar { height: 100%; background: var(--ink); opacity: 0.8; transition: width 0.25s ease-out; }
@@ -1436,7 +1445,11 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .fl-dot {
   width: 7px; height: 7px; border-radius: 4px; border: none; padding: 0;
   background: var(--hair); cursor: pointer; transition: width 0.2s, background 0.2s;
+  position: relative;
 }
+/* the dot is 7px; the finger isn't — a generous invisible hit area */
+.fl-dot::after { content: ""; position: absolute; inset: -8px; }
+.fl-dot:disabled { cursor: default; opacity: 0.45; }
 .fl-dot.on { background: var(--red); }
 /* the current step's dot is a mini progress bar: it fills as continue walks
    the step's drawers (design-25), so the primary cue moves even mid-step */
