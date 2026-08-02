@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>suiron — core loop north-star (reference prototype)</title>
+<!--
+  REFERENCE PROTOTYPE — not the app, not wired to the engine.
+  It uses CANNED numbers to demonstrate ONE thing: the interaction model.
+  Match its SHAPE and PACING, never its data. The real app runs live against
+  the engine on the user's own prompt (see docs/design.md, faithful-or-nothing).
+  Open in a browser. Watch how it holds back: one idea per screen, deep-dives
+  as single drawers over one step at a time, and "close" returns you to place.
+-->
+<style>
+  html,body{margin:0;background:#050505;}
+  #wrap{max-width:700px;margin:0 auto;padding:24px 16px;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="scr" style="position:relative;overflow:hidden;background:#050505;background-image:radial-gradient(circle,#141414 1px,transparent 1px);background-size:24px 24px;border:1px solid #2a2a2a;border-top:2px solid #d71921;color:#e8e8e8;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px;line-height:1.6;letter-spacing:0.03em;min-height:560px;display:flex;flex-direction:column;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:16px 22px;border-bottom:1px solid #1c1c1c;">
+      <div style="font-size:18px;letter-spacing:0.14em;">suiron<span style="color:#7a7a7a;font-size:12px;margin-left:8px;letter-spacing:0.3em;">推論</span></div>
+      <div id="rail" style="display:flex;gap:7px;align-items:center;"></div>
+    </div>
+    <div id="stage" style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:34px 32px;min-height:360px;"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 22px;border-top:1px solid #1c1c1c;">
+      <button id="back" style="background:none;border:1px solid #2a2a2a;color:#7a7a7a;font:inherit;font-size:11px;letter-spacing:0.1em;padding:5px 13px;cursor:pointer;">back</button>
+      <div style="color:#5a5a5a;font-size:10px;letter-spacing:0.08em;">prototype · feel the open / return rhythm</div>
+      <button id="next" style="background:none;border:1px solid #d71921;color:#d71921;font:inherit;font-size:11px;letter-spacing:0.1em;padding:5px 15px;cursor:pointer;">continue</button>
+    </div>
+    <div id="drawer" style="position:absolute;inset:0;background:rgba(5,5,5,0.93);display:none;flex-direction:column;padding:22px 26px;overflow-y:auto;"></div>
+  </div>
+</div>
+<script>
+(function(){
+  var RED="#d71921",INK="#e8e8e8",DIM="#7a7a7a",FAINT="#5a5a5a",HAIR="#2a2a2a";
+  var reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var ctx=["The","\u00b7capital","\u00b7of","\u00b7France","\u00b7is"];
+  var step=0,animTimer=null,appended=false;
+  var stage=document.getElementById("stage"),rail=document.getElementById("rail"),drawer=document.getElementById("drawer");
+  var back=document.getElementById("back"),next=document.getElementById("next");
+  var cands=[["\u00b7Paris",0.89],["\u00b7Lyon",0.04],["\u00b7Nice",0.03],["\u00b7London",0.02],["\u00b7Rome",0.01]];
+  var startBias={"\u00b7Paris":0.30,"\u00b7Lyon":0.55,"\u00b7Nice":0.35,"\u00b7London":0.62,"\u00b7Rome":0.40};
+
+  function chip(t,c,bg,br){return '<span style="border:1px solid '+(br||HAIR)+';background:'+(bg||"transparent")+';color:'+(c||INK)+';padding:2px 7px;white-space:pre;font-size:13px;">'+t.replace(/\u00b7/g," ")+'</span>';}
+  function sentence(extra){var s=ctx.map(function(t){return chip(t,DIM);}).join(" ");
+    s+=' '+(extra?chip(extra,RED,"rgba(215,25,33,0.10)",RED):'<span style="color:'+FAINT+';border-bottom:1px solid '+FAINT+';padding:0 10px;">\u200b     \u200b</span>');
+    return '<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;justify-content:center;margin-bottom:24px;">'+s+'</div>';}
+  function head(t){return '<div style="color:'+INK+';font-size:15px;line-height:1.55;max-width:44ch;margin:0 auto 20px;text-align:center;">'+t+'</div>';}
+  function dive(label){return '<div style="text-align:center;margin-top:24px;"><button class="dive" data-d="'+label+'" style="background:none;border:1px solid '+HAIR+';color:'+DIM+';font:inherit;font-size:11px;letter-spacing:0.06em;cursor:pointer;padding:5px 14px;">\u2193  '+label+'</button></div>';}
+
+  var DRAWERS={
+    "watch one score compute":function(){
+      var q=[0.21,-0.44,0.68,0.11,-0.30],k=[0.18,-0.51,0.72,0.05,-0.22],i=0,timer=null;
+      var body='<div style="color:'+DIM+';font-size:12px;line-height:1.6;max-width:52ch;margin:0 0 16px;">attention scores how much this word should listen to an earlier one. it is one dot product: multiply the two words\' vectors component by component, add them up, scale. here it is, running.</div>'+
+        '<div style="font-family:ui-monospace;font-size:12px;color:'+DIM+';margin-bottom:10px;">score = ( q \u00b7 k ) / \u221a128</div>'+
+        '<div id="dp"></div>'+
+        '<div id="dpsum" style="display:flex;align-items:center;gap:10px;margin-top:14px;"><span style="color:'+DIM+';font-size:11px;">running sum</span><div style="flex:1;max-width:200px;height:6px;background:#101010;"><div id="dpbar" style="height:100%;width:0;background:'+INK+';transition:width .1s linear;"></div></div><span id="dpval" style="color:'+INK+';font-size:12px;font-variant-numeric:tabular-nums;">0.00</span></div>'+
+        '<div id="dpres" style="margin-top:16px;color:'+FAINT+';font-size:12px;"></div>';
+      setTimeout(function(){
+        var dp=document.getElementById("dp");
+        function frame(){
+          dp.innerHTML=q.map(function(v,j){var on=j<=i;return '<div style="display:flex;align-items:center;gap:8px;opacity:'+(on?1:0.3)+';margin-bottom:2px;font-size:12px;font-variant-numeric:tabular-nums;"><span style="width:8ch;color:'+DIM+';">q['+j+'] '+v.toFixed(2)+'</span><span style="color:'+FAINT+';">\u00d7</span><span style="width:8ch;color:'+DIM+';">k['+j+'] '+k[j].toFixed(2)+'</span><span style="color:'+FAINT+';">=</span><span style="color:'+(j===i&&on?RED:DIM)+';">'+(v*k[j]).toFixed(3)+'</span></div>';}).join("");
+          var s=0;for(var j=0;j<=i;j++)s+=q[j]*k[j];
+          document.getElementById("dpbar").style.width=Math.min(100,Math.abs(s)*90)+"%";
+          document.getElementById("dpval").textContent=s.toFixed(2);
+          if(i>=q.length-1){var sc=(s/Math.sqrt(128)).toFixed(4);document.getElementById("dpres").innerHTML='\u00f7 \u221a128 \u2192 <span style="color:'+RED+';">score '+sc+'</span> \u00b7 <span style="color:'+FAINT+';">matches the engine \u2713</span>';}
+        }
+        if(reduce){i=q.length-1;frame();return;}
+        frame();timer=setInterval(function(){i++;frame();if(i>=q.length-1)clearInterval(timer);},420);
+      },30);
+      return body;
+    },
+    "watch the text become tokens":function(){
+      return '<div style="color:'+DIM+';font-size:12px;line-height:1.6;max-width:52ch;margin:0 0 18px;">the model has no letters, only tokens. it builds them by merging the most common adjacent pair, over and over, until the word is whole. watch " capital":</div>'+
+        '<div style="display:flex;flex-direction:column;gap:10px;">'+
+        ['c a p i t a l','ca p i t a l','ca pi t a l','capi ta l','capita l','\u00b7capital'].map(function(row,ri){var pieces=row.split(" ");
+          return '<div style="display:flex;align-items:center;gap:6px;"><span style="width:5ch;color:'+FAINT+';font-size:10px;">'+(ri<5?"merge "+(ri+1):"done")+'</span>'+
+          pieces.map(function(p){var done=ri===5;return chip(p,done?RED:INK,done?"rgba(215,25,33,0.08)":"#0a0a0a",done?RED:HAIR);}).join(" ")+'</div>';
+        }).join("")+'</div>'+
+        '<div style="color:'+FAINT+';font-size:11px;margin-top:16px;max-width:52ch;line-height:1.6;">in the real lab these are the actual merge ranks from the tokenizer \u2014 the final pieces match the engine\'s tokens exactly.</div>';
+    }
+  };
+
+  function openDrawer(label){
+    var fn=DRAWERS[label];
+    drawer.innerHTML='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;"><span style="color:'+INK+';font-size:13px;letter-spacing:0.08em;">'+label+'</span><button id="dx" style="background:none;border:1px solid '+HAIR+';color:'+DIM+';font:inherit;font-size:12px;padding:3px 11px;cursor:pointer;">\u00d7 close</button></div><div style="flex:1;">'+(fn?fn():'<div style="color:'+DIM+';font-size:12px;">this deep-dive is a stub in the prototype \u2014 in the app it re-homes an existing module here.</div>')+'</div><div style="color:'+FAINT+';font-size:10px;margin-top:18px;border-top:1px solid '+HAIR+';padding-top:10px;">one drawer at a time \u00b7 closing returns you to the step</div>';
+    drawer.style.display="flex";
+    if(!reduce){drawer.style.opacity=0;drawer.style.transform="translateY(10px)";requestAnimationFrame(function(){drawer.style.transition="opacity .18s, transform .18s";drawer.style.opacity=1;drawer.style.transform="none";});}
+    document.getElementById("dx").onclick=closeDrawer;
+  }
+  function closeDrawer(){drawer.style.display="none";drawer.innerHTML="";}
+
+  var steps=[
+    function(){return sentence()+head("the model does one thing: <b style=\"color:#e8e8e8;font-weight:400;border-bottom:1px solid #444\">guess the next word</b>. let\'s watch it happen \u2014 one step at a time.")+
+      '<div style="text-align:center;"><button id="begin" style="background:'+RED+';color:#fff;border:none;font:inherit;font-size:13px;letter-spacing:0.05em;padding:8px 22px;cursor:pointer;">\u25b6 begin</button></div>';},
+    function(){var c=ctx.map(function(t,i){return '<span class="in" style="opacity:0;transition:opacity .3s '+(i*0.12)+'s;">'+chip(t,INK)+'</span>';}).join(" ");
+      return head("first, your words become <b style=\"color:#e8e8e8;font-weight:400;border-bottom:1px solid #444\">tokens</b> \u2014 the pieces the model actually reads.")+
+      '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">'+c+'</div>'+dive("watch the text become tokens");},
+    function(){var c=ctx.map(function(t,i){var last=i===ctx.length-1;return chip(t,last?INK:DIM,last?"rgba(232,232,232,0.06)":"transparent",last?DIM:HAIR);}).join(" ");
+      return head("to guess what comes next, it <b style=\"color:#e8e8e8;font-weight:400;border-bottom:1px solid #444\">looks back</b> over everything written so far.")+
+      '<div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:6px;">'+c+'</div>'+
+      '<div style="text-align:center;color:'+FAINT+';font-size:11px;">reading from here \u2192</div>'+dive("watch one score compute");},
+    function(){return head("it doesn\'t decide at once. the guess <b style=\"color:#e8e8e8;font-weight:400;border-bottom:1px solid #444\">sharpens</b> as it passes through all 28 layers.")+
+      '<div id="climb" style="max-width:340px;margin:0 auto;"></div>'+
+      '<div style="text-align:center;margin-top:14px;"><span id="lyr" style="color:'+DIM+';font-size:11px;letter-spacing:0.08em;">layer 0 / 28</span> <button id="replay" style="background:none;border:1px solid '+HAIR+';color:'+DIM+';font:inherit;font-size:10px;letter-spacing:0.08em;padding:3px 10px;cursor:pointer;margin-left:8px;">replay</button></div>'+
+      '<div style="text-align:center;color:'+FAINT+';font-size:10px;margin-top:8px;">the signature moment \u2014 inline, not hidden in a drawer</div>';},
+    function(){var rest=1-cands.reduce(function(a,c){return a+c[1];},0);
+      var segs=cands.map(function(c){return '<div style="width:'+(c[1]*100)+'%;background:'+(c[0]==="\u00b7Paris"?RED:"#3a3a3a")+';border-right:1px solid #050505;"></div>';}).join("")+'<div style="width:'+(rest*100)+'%;background:#161616;"></div>';
+      return head("then it <b style=\"color:#e8e8e8;font-weight:400;border-bottom:1px solid #444\">draws one</b>. usually the top guess \u2014 but temperature leaves room for chance.")+
+      '<div style="max-width:360px;margin:0 auto 10px;height:22px;display:flex;border:1px solid '+HAIR+';">'+segs+'</div>'+
+      '<div style="display:flex;justify-content:space-between;max-width:360px;margin:0 auto;color:'+DIM+';font-size:11px;"><span style="color:'+RED+';">paris \u00b7 0.89</span><span>the rest \u00b7 0.11</span></div>'+dive("bend the odds: temperature, top-k, top-p");},
+    function(){return sentence("\u00b7Paris")+head("that word joins the sentence \u2014 and it does the <b style=\"color:#e8e8e8;font-weight:400;border-bottom:1px solid #444\">whole thing again</b>.")+
+      '<div style="text-align:center;"><button id="loop" style="background:none;border:1px solid '+RED+';color:'+RED+';font:inherit;font-size:12px;letter-spacing:0.05em;padding:7px 18px;cursor:pointer;">\u21bb run it again</button></div>'+dive("the cache that makes the loop fast");}
+  ];
+
+  function runClimb(){
+    var box=document.getElementById("climb"),lyr=document.getElementById("lyr");if(!box)return;
+    function frame(L){var f=L/28;var scored=cands.map(function(c){return [c[0],c[1]*f+startBias[c[0]]*(1-f)];});
+      var mx=Math.max.apply(null,scored.map(function(s){return s[1];}));var ex=scored.map(function(s){return [s[0],Math.exp((s[1]-mx)*6)];});
+      var sum=ex.reduce(function(a,s){return a+s[1];},0);var probs=ex.map(function(s){return [s[0],s[1]/sum];}).sort(function(a,b){return b[1]-a[1];});
+      var done=L>=28;box.innerHTML=probs.map(function(p){var win=done&&p[0]==="\u00b7Paris";
+        return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;"><span style="width:6ch;text-align:right;color:'+(win?RED:DIM)+';font-size:12px;white-space:pre;">'+p[0].replace("\u00b7"," ")+'</span><div style="flex:1;height:7px;background:#101010;"><div style="height:100%;width:'+(p[1]*100)+'%;background:'+(win?RED:"#4a4a4a")+';transition:width .12s linear;"></div></div></div>';}).join("");
+      if(lyr)lyr.textContent="layer "+L+" / 28";}
+    if(reduce){frame(28);return;}var L=0;frame(0);clearInterval(animTimer);animTimer=setInterval(function(){L++;frame(L);if(L>=28)clearInterval(animTimer);},70);
+  }
+
+  function render(){
+    closeDrawer();stage.style.opacity=0;
+    setTimeout(function(){
+      stage.innerHTML=steps[step]();
+      rail.innerHTML=[1,2,3,4,5].map(function(n){var on=step>=n;return '<span data-r="'+n+'" style="width:'+(step===n?"16px":"7px")+';height:7px;border-radius:4px;background:'+(on?RED:HAIR)+';cursor:pointer;transition:width .2s;"></span>';}).join("");
+      back.style.visibility=step===0?"hidden":"visible";next.style.visibility=step>=steps.length-1?"hidden":"visible";
+      stage.style.transition="opacity .25s";stage.style.opacity=1;
+      if(step===1){[].forEach.call(stage.querySelectorAll(".in"),function(e){requestAnimationFrame(function(){e.style.opacity=1;});});}
+      if(step===3)runClimb();
+      var b=document.getElementById("begin");if(b)b.onclick=function(){step=1;render();};
+      var lp=document.getElementById("loop");if(lp)lp.onclick=function(){if(!appended){ctx.push("\u00b7Paris");appended=true;}step=1;render();};
+      var rp=document.getElementById("replay");if(rp)rp.onclick=runClimb;
+      [].forEach.call(stage.querySelectorAll(".dive"),function(btn){btn.onclick=function(){openDrawer(btn.getAttribute("data-d"));};});
+    },120);
+  }
+  next.onclick=function(){if(step<steps.length-1){step++;render();}};
+  back.onclick=function(){if(step>0){step--;render();}};
+  rail.onclick=function(e){var n=e.target&&e.target.getAttribute&&e.target.getAttribute("data-r");if(n){step=+n;render();}};
+  render();
+})();
+</script>
+</body>
+</html>
