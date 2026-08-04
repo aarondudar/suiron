@@ -281,24 +281,28 @@ export function StepStage(p: StepStageProps) {
             {/* the epilogue's copy was written beside the full instrument;
                 keep its "above" references honest from here (design-13);
                 the link carries the run, so "above" shows THIS run */}
-            <div className="fl-note">
+            <div className="fl-note fl-enter" style={hDelay}>
               written beside the full instrument — where it says “above”, it means the{" "}
               <a href={expertHref}>expert view</a>.
             </div>
-            <Epilogue
-              onTryChat={() => {
-                // land in the expert view WITH the chat open (its settings
-                // applied there) — not just next to it
-                window.location.href = "?view=expert&chat=1";
-              }}
-              onRun={runExperiment}
-              trace={trace}
-              part={phase === 6 ? "scale" : "agent"}
-            />
+            {/* the outro obeys the same entrance order as the tour: note,
+                a beat, then the epilogue half, then the closing action */}
+            <div className="fl-enter" style={heroDelay}>
+              <Epilogue
+                onTryChat={() => {
+                  // land in the expert view WITH the chat open (its settings
+                  // applied there) — not just next to it
+                  window.location.href = "?view=expert&chat=1";
+                }}
+                onRun={runExperiment}
+                trace={trace}
+                part={phase === 6 ? "scale" : "agent"}
+              />
+            </div>
             {phase === 7 && (
               // the tour's last action loops back into the machine: one more
               // token of the same prompt
-              <div className="fl-center">
+              <div className="fl-center fl-enter" style={cDelay}>
                 <button className="fl-again" onClick={runAgain} disabled={busy}>
                   {busy ? "running…" : "run it again"}
                 </button>

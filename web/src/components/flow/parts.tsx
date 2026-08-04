@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { esc } from "../../lib";
 import type { Trace } from "../../types";
 
@@ -40,8 +40,18 @@ export const dockDelay = enterDelay("1s");
  *  learns the word with the reader). "vectors" and "scores" never appear.
  *  On step 2 it enters once with a left-to-right draw (`intro`). */
 type MapAt = "look" | "rounds" | "guess";
+const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 export function MachineMap({ trace, n, at, intro }: { trace: Trace; n: number; at: MapAt; intro?: boolean }) {
-  const roundsWord = at === "look" ? "rounds" : "layers";
+  // the relabel happens AT THE MOMENT step 3's aside lands (the A tier enters
+  // at 0.8s), not on step entry — the map learns the word with the reader.
+  // Step 4 arrives already knowing it; reduced motion learns instantly.
+  const [learned, setLearned] = useState(at === "guess" || REDUCED);
+  useEffect(() => {
+    if (at !== "rounds" || learned) return;
+    const t = window.setTimeout(() => setLearned(true), 900);
+    return () => window.clearTimeout(t);
+  }, [at, learned]);
+  const roundsWord = at === "look" || (at === "rounds" && !learned) ? "rounds" : "layers";
   return (
     <div
       className={"fl-map" + (intro ? " fl-map-intro" : "")}
@@ -60,7 +70,7 @@ export function MachineMap({ trace, n, at, intro }: { trace: Trace; n: number; a
       </span>
       <span className="fl-map-sep"> · </span>
       <span className={"fl-map-x" + (at === "rounds" ? " on" : "")}>
-        × {trace.layers} {roundsWord}
+        ×{trace.layers} {roundsWord}
       </span>
       <span className="fl-map-arrow">→</span>
       <span className="fl-map-box">
