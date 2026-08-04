@@ -210,6 +210,12 @@ export function LensSpace({
     <div className="fl-spacewrap">
       <div className="fl-space">
         <canvas ref={cv} role="img" aria-label="the guess sharpening across the layers" />
+        {/* the climb's whereabouts, readable WHILE it plays (Aaron's tour
+            walk, 2026-07-26) — same corner slot as the sibling instruments */}
+        <div className="fl-space-ov fl-space-ctx">
+          suiron · sharpens · layer {lens.layers[Math.min(i, last)].layer} /{" "}
+          {lens.layers[last].layer}
+        </div>
       </div>
       <Stepper i={i} max={last} playing={playing} setI={setI} toggle={toggle} unit="layer" />
     </div>
