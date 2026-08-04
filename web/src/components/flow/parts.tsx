@@ -12,6 +12,10 @@ import type { Trace } from "../../types";
 export const STEPS = ["begin", "tokens", "looks back", "sharpens", "draws one", "loops", "how it scales", "an agent"] as const;
 
 export const VOCAB = 151_936;
+/** the width of one token's stored representation (Qwen3-0.6B hidden size) —
+ *  a model fact like VOCAB; the step-1 aside multiplies the two for the
+ *  "where the size lives" intuition (matches the welcome card's ledger) */
+export const HIDDEN = 1_024;
 
 /** The finale hosts the unchanged Epilogue, whose <Explain> anchors need an
  *  Explainer context. The flow has no concept cards, so they quietly no-op. */

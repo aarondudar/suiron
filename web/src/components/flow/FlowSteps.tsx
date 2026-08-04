@@ -1,4 +1,4 @@
-import { esc } from "../../lib";
+import { esc, N_PARAMS } from "../../lib";
 import { currentLink, encodeLink } from "../../link";
 import { EXPERIMENTS, type Experiment } from "../../experiments";
 import type { Step, Trace } from "../../types";
@@ -8,7 +8,7 @@ import { Epilogue } from "../Epilogue";
 import { ExplainerProvider } from "../Explainer";
 import { LensSpace } from "../LensSpace";
 import { LoopChain } from "../LoopChain";
-import { NOOP_EXPLAINER, Sentence, VOCAB, aDelay, cDelay, hDelay, heroDelay } from "./parts";
+import { HIDDEN, NOOP_EXPLAINER, Sentence, VOCAB, aDelay, cDelay, hDelay, heroDelay } from "./parts";
 
 /* The stage, one step at a time (docs/design.md + docs/storyboard.md). Every
    string here is the copy-script's, verbatim; every number is live. Split out
@@ -127,8 +127,11 @@ export function StepStage(p: StepStageProps) {
             {n} tokens · this is exactly what the model sees
           </div>
           <div className="fl-note fl-enter" style={aDelay}>
-            Each piece is called a token. The model knows a fixed list of {VOCAB.toLocaleString()}{" "}
-            of them, its vocabulary, and every token has a number in that list.
+            Each piece is called a token, and the model knows a fixed list of{" "}
+            <b>{VOCAB.toLocaleString()}</b> of them, its vocabulary. Every token in that list is
+            stored as <b>{HIDDEN.toLocaleString()}</b> numbers that place it on a map of meaning:
+            those lists alone are <b>{Math.round((VOCAB * HIDDEN) / 1e6)} million</b> of the
+            model's <b>{Math.round(N_PARAMS / 1e6)} million</b> numbers.
           </div>
           {exp && (
             <div className="fl-mark">
