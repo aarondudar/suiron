@@ -95,9 +95,15 @@ unless Aaron edits it here.
 - H: "First, your words are broken into the pieces the model actually reads."
 - C (under the token chips): "{n_tokens} tokens · this is exactly what the model
   sees"
-- A: "Each piece is called a token. The model knows a fixed list of
-  {vocab_size} of them, its vocabulary, and every token has a number in that
-  list."
+- A: "Each piece is called a token, and the model knows a fixed list of
+  {vocab_size} of them, its vocabulary. Every token in that list is stored as
+  {hidden_size} numbers that place it on a map of meaning: those lists alone
+  are {embed_millions} million of the model's {param_millions} million
+  numbers." (amended 2026-07-26, Aaron's tour walk: the aside now carries the
+  core idea of both step-1 drawers, the list AND the map, plus the
+  where-the-size-lives intuition; the key values render bold so the aside
+  stops being easy to miss. The counts agree with the welcome card's weight
+  ledger; "vector" stays drawer-only.)
 - drawer button: "watch the text become tokens"
 - D.what: "The tokenizer builds tokens by merging, over and over, the pair of
   neighbouring pieces it has seen together most often. These are the real merges
@@ -272,7 +278,10 @@ instrument-rendered prose, axis label, or term is removed.
 - TokenSpace (step 1): labels use "closeness in meaning". The term "cosine
   similarity" may appear only inside the meaning drawer's fine print.
 - LensSpace (step 3): the spine label is "its guess so far". The words "logit
-  lens" may appear only inside the depth drawer.
+  lens" may appear only inside the depth drawer. Corner context string (added
+  2026-07-26, Aaron's tour walk — the current layer must be readable WHILE the
+  climb plays): "suiron · sharpens · layer {i} / {last}", the same corner slot
+  the sibling instruments use. Ledger-legal: "layer" unlocks at this step.
 - AttnSpace (step 2): pull-lines carry no text; the caption C does the talking.
 - rework firing strip (step 3 drawer): silent — no printed text; hover
   tooltips carry the real bucket values ("filters a–b · peak |activation| x").
@@ -296,7 +305,37 @@ instrument-rendered prose, axis label, or term is removed.
 - step 2: "score one look" · "16 readers" · "word order"
 - step 3: "kept steady" · "reworked" · "guess by depth"
 - step 4: "bend the odds" · "fork it" · "the readout"
-- step 5: "why it's fast" · "two worlds" · "at scale"
+- step 5: "why it's fast" · "two worlds"
 
 The long drawer-button phrases in the script above serve as each drawer's TITLE
 once open; the handles above are the dock labels on the spine.
+
+(amended 2026-07-26: "at scale" is retired as a step-5 dock handle. The
+epilogue is no longer a text-link finale off step 5 — it is two more stops,
+"how it scales" and "an agent", on the SAME continue path as steps 1–5,
+directly after step 5's last drawer. See storyboard.md's "the outro" for the
+full ruling; the epilogue's own copy still lives with its band, per the D
+(epilogue) row above, and still may not run before step 5.)
+
+### instrument text, addendum to the addendum (documentation-only sync,
+2026-07-26 — these strings already shipped under design-31/33 and are
+Aaron-approved; they were simply missing from the inventory above)
+
+- LensSpace (step 3) corner readout: "suiron · sharpens · layer {i} / {last}"
+  (added 2026-07-26, Aaron's tour walk: the current layer was not legible
+  during autoplay).
+- AttnSpace (step 2): no printed text, per the original addendum.
+- TokenSpace (step 1, meaning drawer's map): corner context "suiron · tokens
+  · meaning space"; the read line "nearest to '{pick_tok}': '{nearest}'"; the
+  honest line naming what cosine similarity is REALLY assembled from meaning
+  vs. spelling.
+- DrawField (step 4 hero, and its forced-token variant): corner context
+  "suiron · draws one · temp {temp}"; the read line naming the shown
+  candidate; the honest line ("disc area is the softmax of the real logits
+  at this temperature…"). This is the one instrument allowed to say
+  "softmax"/"logit" on the step-4 spine — the words describe the INSTRUMENT'S
+  own mechanism (how the picture was built), not a new spine concept, the
+  same way C never explains mechanism but D always does.
+- LoopChain (step 5 hero): corner context "suiron · loops · the sentence so
+  far"; the read line "click any link to see how it was made"; the honest
+  line stating the chain is the resident run, clickable back into step 2.

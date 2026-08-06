@@ -80,11 +80,37 @@ everyone else in the wings.
   the primary action.
 - cast: none. The map completes and fades out here: the machine has been
   walked; retire the diagram.
-- chrome: rail; dock ("why it's fast", "two worlds", "at scale").
+- chrome: rail; dock ("why it's fast", "two worlds"). No "at scale" handle
+  here (superseded — see outro, below): continue carries the reader straight
+  past step 5's dock into the outro instead.
 - (Aaron, 2026-07-24) the experiments are re-pitched under "run it again":
   "or try one of these experiments:" + the five curated buttons, same row as
   the front door's. The loop step is where a reader decides what to do next;
   the finale keeps its own pitch too.
+
+### the outro — phases 6–7 (Aaron, 2026-07-26: "make it easier to reach from
+the end of the guided tour")
+- superseded ruling: the epilogue was originally a single finale screen
+  reached by a text link off step 5 ("how this scales up"). It is now two
+  stops on the SAME continue path as steps 1–5, immediately after step 5's
+  last drawer, so the reader never dead-ends. The link is removed; continue is
+  the one way in.
+- rail: the five tour dots, a separator, then two HOLLOW dots for phases 6–7
+  — visibly past the loop, but reachable exactly like any step dot.
+- phase 6, "how it scales": hero is the epilogue's first half (the verified
+  boundary, the measured f32/q8 SpeedRace panel, the six-entry glossary).
+  entrance order applies (note fl-enter below).
+- phase 7, "an agent": hero is the epilogue's second half (chat template,
+  harness, the "model never runs a tool" line, the chat CTA, the experiments
+  row) plus a closing "run it again" action — the tour's last action loops
+  back into the machine, same as step 5's.
+- entrance order (added 2026-07-26, this pass had been missed on ship): the
+  outro note enters at H's beat, the epilogue half at hero's beat, the
+  closing action (phase 7 only) at C's beat. Same tiered timing as steps 1–5.
+- the SpeedRace panel is the one epilogue entry that PROVES itself rather
+  than describing itself: it renders only in the flow's outro (module 06 in
+  the expert view already shows the identical f32/q8 cards directly above
+  the epilogue there, so the expert epilogue does not repeat them).
 
 ## Rulings on the open reports (from the copy-transplant session)
 
@@ -135,6 +161,23 @@ everyone else in the wings.
   the brand row, visible on every phase past the front door, jumps straight
   back to step 0 and focuses the prompt field — the reader can bail into a
   new prompt from anywhere in the tour without walking back.
+- **view-switch links carry the moment (2026-07-26 nav audit)**: "expert
+  view" (flow footer + outro note) and "guided view" (expert header) now
+  build a deep link from the CURRENT run + inspected token via the existing
+  link machinery, instead of a bare `?view=` switch. The two views are one
+  lab; switching between them no longer discards the run.
+- **the expert view adopts the tour's instruments (design-33, 2026-07-26,
+  Aaron: "update the expert view to match the visuals from the guided
+  tour")**: this storyboard governs the FLOW only, but the ruling is recorded
+  here since it reuses these exact components. AttnSpace + LensSpace become
+  band 02's hero (swapping on the lens read); HeadField pins to the open
+  layer's detail via a new `fixedLayer` prop; DrawField hero above the
+  selection table, including the forced-token branch. The expert view's own
+  dense per-row/per-candidate readouts are kept below each — density is what
+  "expert" means there. Skipped, deliberately: Geometry (already encodes
+  MORE real quantities than the tour's meaning space), LoopChain (TokenStrip
+  is denser and interactive), MachineMap (its highlight is step-bound; an
+  un-anchored render in the expert lifecycle lead would fake a position).
 
 ## What this storyboard is NOT
 
