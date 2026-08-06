@@ -166,6 +166,27 @@ the end of the guided tour")
   build a deep link from the CURRENT run + inspected token via the existing
   link machinery, instead of a bare `?view=` switch. The two views are one
   lab; switching between them no longer discards the run.
+- **stays concise as the run grows (Aaron, 2026-07-26: "ensure the expert
+  view remains useful and concise even when the output becomes longer")**:
+  three fixes, all faithful-not-decorative (nothing real is hidden, only
+  what's illegible is decluttered). (1) AttnSpace: every earlier position
+  keeps its dot and pull line, but only the LABEL_CAP=14 strongest pulls get
+  a text label — past that count the ring was overlaying words on words. (2)
+  TokenStrip: the chip strip scrolls in a bounded box instead of growing into
+  a wall of chips, and follows the inspected token (jump, click, or step) via
+  scrollIntoView. (3) the chat handoff (below) stopped dropping the reader
+  into a blank reboot, which was the other half of "the output got long and
+  the view stopped being useful."
+- **the chat handoff carries the run too (Aaron, 2026-07-26: "using the chat
+  function after running the guided tour seems just confusing")**: "try it:
+  chat" was a bare `?view=expert&chat=1` navigation — no hash, so unlike the
+  "expert view"/"guided view" links (above), it dropped the run and rebooted
+  the engine blank, AND the first-time welcome overlay popped up over the
+  chat the reader had just asked for. Fixed: the handoff now carries the same
+  moment-link the other two switches use, so the exact prediction the reader
+  watched is what surrounds the chat panel when it opens; the welcome overlay
+  is suppressed (and marked seen) specifically on this arrival, since walking
+  the full tour already covers what it would say.
 - **the expert view adopts the tour's instruments (design-33, 2026-07-26,
   Aaron: "update the expert view to match the visuals from the guided
   tour")**: this storyboard governs the FLOW only, but the ruling is recorded

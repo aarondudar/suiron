@@ -6,6 +6,7 @@ import { SUB } from "./Explanations";
 import type { FocusTarget, Step, Trace } from "../types";
 
 const NARROW = "(max-width: 640px)";
+const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export function TokenStrip({
   trace,
@@ -71,6 +72,16 @@ export function TokenStrip({
     drawArcs(canvasRef.current, stripRef.current, step, cur, prod, arcs && !narrow, !narrow, focusLayer);
   });
 
+  // a longer run must not make the band a wall of chips (Aaron, 2026-07-26):
+  // the strip scrolls in its own bounded box, and the inspected token follows
+  // — jumping the frontier, clicking an earlier token, or stepping the tour
+  // all bring the right chip into view without hunting through rows of them.
+  useEffect(() => {
+    stripRef.current
+      ?.querySelector(".tok.cur")
+      ?.scrollIntoView({ block: "nearest", behavior: REDUCED ? "auto" : "smooth" });
+  }, [cur]);
+
   return (
     <section className={dim ? "dimmed" : undefined}>
       <BandHeader
@@ -86,6 +97,12 @@ export function TokenStrip({
         </label>
       </BandHeader>
       {card}
+      {/* the scroll boundary lives on this wrapper, not .strip itself: .strip
+          stays full-height (unclipped) so the arc canvas's own dimensions —
+          read from its clientWidth/Height — cover the whole token field, not
+          just what's currently visible; scrolling this wrapper moves the
+          canvas and the chips together, in sync. */}
+      <div className="strip-scroll">
       <div className="strip" ref={stripRef} onMouseLeave={() => setHoverTok(null)}>
         <canvas className="arc-layer" ref={canvasRef} aria-hidden="true" />
         {trace.tokens.map((tok, i) => {
@@ -132,6 +149,7 @@ export function TokenStrip({
             </span>
           );
         })}
+      </div>
       </div>
     </section>
   );

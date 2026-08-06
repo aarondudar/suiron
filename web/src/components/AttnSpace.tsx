@@ -7,7 +7,15 @@ import type { Trace } from "../types";
    line to the centre is a real attention pull (summed over every layer and head
    at this position), and the red vector rests at the attention-weighted centroid
    — literally assembled from the words it attends to. Positions on the ring are
-   reading-order layout; the pull strengths are the engine's real numbers. */
+   reading-order layout; the pull strengths are the engine's real numbers.
+
+   Stays legible as the context grows (Aaron, 2026-07-26): every position keeps
+   its dot and pull line — nothing is hidden from the centroid math or the
+   picture — but only the LABEL_CAP strongest pulls get a text label. Past that
+   count the ring would just overlay label text on itself; capping the labels
+   to what's actually worth reading is the same move the instrument already
+   teaches ("it does not look at every word equally"). */
+const LABEL_CAP = 14;
 
 export function AttnSpace({ trace, prod }: { trace: Trace; prod: number }) {
   const step = prod > 1 ? trace.steps[prod] : undefined; // need ≥1 earlier non-sink token
@@ -21,6 +29,7 @@ export function AttnSpace({ trace, prod }: { trace: Trace; prod: number }) {
   let weights: number[] = [];
   let labels: string[] = [];
   let strongest = { i: -1, w: 0 };
+  let labeled = new Set<number>();
   const curTok = step ? esc(trace.tokens[prod].t) : "";
   if (step) {
     const cnt = Math.max(0, prod - 1); // positions 1..prod-1
@@ -34,12 +43,18 @@ export function AttnSpace({ trace, prod }: { trace: Trace; prod: number }) {
     weights.forEach((x, i) => {
       if (x > strongest.w) strongest = { i, w: x };
     });
+    labeled = new Set(
+      weights
+        .map((x, i) => i)
+        .sort((a, b) => weights[b] - weights[a])
+        .slice(0, LABEL_CAP),
+    );
   }
 
-  const st = { weights, labels, cur: curTok };
+  const st = { weights, labels, cur: curTok, labeled };
 
   const canvas = useCanvasLoop(ready, ({ ctx, W, H, cx, cy, t }) => {
-    const { weights: w, labels: lab, cur } = st;
+    const { weights: w, labels: lab, cur, labeled: lbld } = st;
     const n = w.length;
     if (!n) return;
     const R = Math.min(W, H) * 0.34;
@@ -81,6 +96,9 @@ export function AttnSpace({ trace, prod }: { trace: Trace; prod: number }) {
       ctx.arc(pos[i].x, pos[i].y, 2.6 + w[i] * 9, 0, 7);
       ctx.fillStyle = hot ? "#d71921" : `rgba(232,232,232,${lit})`;
       ctx.fill();
+      // every position keeps its dot; only the strongest LABEL_CAP get text —
+      // past that count the ring would just overlay words on top of words
+      if (!lbld.has(i)) continue;
       // label leans inward (toward centre) so it never clips off the frame edge
       const left = pos[i].x < cx;
       ctx.font = `${hot ? 600 : 400} 12px ui-monospace, monospace`;

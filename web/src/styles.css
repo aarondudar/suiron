@@ -386,6 +386,10 @@ button.busy { border-color: var(--red); color: var(--red); }
 .ctl-params input[type="checkbox"] { accent-color: var(--red); }
 
 /* ---------- token strip ---------- */
+/* the scroll boundary: a longer run (a chat reply, a raised n) stays a
+   glance-able height instead of a growing wall of chips; see TokenStrip.tsx
+   for why the boundary sits here and not on .strip itself */
+.strip-scroll { max-height: 158px; overflow-y: auto; overscroll-behavior-y: contain; }
 .strip { display: flex; flex-wrap: wrap; gap: 5px; position: relative; padding-top: 34px; }
 .arc-layer { position: absolute; inset: 0; pointer-events: none; }
 .arc-toggle { display: flex; align-items: center; gap: 5px; margin-left: auto; }

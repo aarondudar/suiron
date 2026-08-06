@@ -28,6 +28,12 @@ import type { FocusTarget, GenParams, Trace } from "../types";
 // restore effect below rebuilds the run + view
 const INITIAL_LINK = decodeLink(window.location.hash);
 
+// arriving from the flow's "try it: chat" (?chat=1, Aaron, 2026-07-26): the
+// reader just walked the full guided tour, which already covers everything
+// the welcome overlay would say — showing it again would sit directly on top
+// of the chat they asked for. Read once at load, same as INITIAL_LINK.
+const ARRIVING_FOR_CHAT = new URLSearchParams(window.location.search).get("chat") === "1";
+
 const NONE: FocusTarget = { kind: "none" };
 const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -68,7 +74,7 @@ export function ExpertLab() {
   /** the first-visit welcome overlay; remembered so returning visitors are not
    *  re-prompted, reopenable from the header "about" affordance */
   const [welcomeOpen, setWelcomeOpen] = useState(
-    () => localStorage.getItem(WELCOME_SEEN_KEY) !== "1",
+    () => !ARRIVING_FOR_CHAT && localStorage.getItem(WELCOME_SEEN_KEY) !== "1",
   );
   const closeWelcome = useCallback(() => {
     setWelcomeOpen(false);
@@ -76,6 +82,15 @@ export function ExpertLab() {
       localStorage.setItem(WELCOME_SEEN_KEY, "1");
     } catch {
       /* private mode — fine, just won't persist */
+    }
+  }, []);
+  useEffect(() => {
+    if (ARRIVING_FOR_CHAT) {
+      try {
+        localStorage.setItem(WELCOME_SEEN_KEY, "1");
+      } catch {
+        /* private mode — fine, just won't persist */
+      }
     }
   }, []);
   /** demo mode (docs/19): a read that isn't in the shipped recording raises a
@@ -165,6 +180,12 @@ export function ExpertLab() {
       }
       return;
     }
+    // go-live's own canonical replay is mid-flight here (demo just turned
+    // false; busy stays true through its prefill) — calling onTryChat() now
+    // would call stop() and cut that replay off part-way, landing the reader
+    // on a half-built run instead of the one they watched. Wait for it to
+    // actually settle.
+    if (trace.busy) return;
     chatParamDone.current = true;
     onTryChat();
     q.delete("chat");

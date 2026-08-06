@@ -278,6 +278,12 @@ export function StepStage(p: StepStageProps) {
       // the other.
       const link = currentLink(trace, { cur, c: null, walk: null, layer: -1 });
       const expertHref = link ? "?view=expert#" + encodeLink(link) : "?view=expert";
+      // the chat handoff carries the SAME run (Aaron, 2026-07-26: landing in
+      // chat after the tour "seems just confusing" — it was dropping the run
+      // and rebooting blank). ?chat=1 rides alongside the run link exactly
+      // like the plain "expert view" link above; ExpertLab restores the run
+      // first, then opens chat once it lands.
+      const chatHref = link ? "?view=expert&chat=1#" + encodeLink(link) : "?view=expert&chat=1";
       return (
         <ExplainerProvider value={NOOP_EXPLAINER}>
           <div className="fl-finale">
@@ -294,8 +300,9 @@ export function StepStage(p: StepStageProps) {
               <Epilogue
                 onTryChat={() => {
                   // land in the expert view WITH the chat open (its settings
-                  // applied there) — not just next to it
-                  window.location.href = "?view=expert&chat=1";
+                  // applied there) AND this exact run resident — not a blank
+                  // reboot next to it
+                  window.location.href = chatHref;
                 }}
                 onRun={runExperiment}
                 trace={trace}
