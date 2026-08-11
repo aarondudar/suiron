@@ -37,6 +37,16 @@ everyone else in the wings.
 6. **Instruments speak only script.** An instrument may render only the
    I-slot strings in `copy-script.md`. Everything else it currently prints is
    removed.
+7. **The stage fits the window.** (design-34, the fresh walk.) The frame never
+   grows past the viewport: a step taller than the window scrolls INSIDE the
+   stage, exactly as a drawer already does, so the dock and the foot — and above
+   all `continue` — are on screen at every step. When a short window still can't
+   hold a step, height comes off padding first, then the headline's leading, then
+   the hero; the aside is never what falls off the bottom. Before this rule, six
+   of seven steps pushed the nav row below the fold at 1280x720.
+8. **Text tiers are legible tiers.** Any tier that carries words clears 4.5:1;
+   `--faint` is hairlines and graphics only. Red as small text uses `--red-text`,
+   red behind text uses `--red-deep` — `--red` itself stays the model's choice.
 
 ## The stage, step by step
 

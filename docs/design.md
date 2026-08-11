@@ -111,6 +111,13 @@ The re-homing passes are scoped after it, one module at a time.
 
 ## Out of scope (whole track)
 
-No new engine work; `web/` composition only. No new palette, no second accent, no
+No new engine work; `web/` composition only. **One carve-out (design-34, Aaron
+2026-08-10):** `/api/v1/odds` + `Model::odds_at` + the wasm `odds_json` mirror.
+The step-4 dial printed shares renormalized over the candidates it drew (81%
+where the truth was 65%); the softmax normalizer depends on the temperature
+being dragged, so no constant shipped with the trace can stand in for it and the
+browser cannot compute it. Faithful-or-nothing outranks the composition-only
+rule, so the engine answers. Nothing else in the flow track may add engine work
+on this precedent. No new palette, no second accent, no
 component library. No change to module internals, props, the geometry math, or the
 registry (see re-homing). No deleting the expert stack yet.
