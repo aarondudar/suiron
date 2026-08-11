@@ -180,7 +180,7 @@ export function DrawerBody(p: DrawerBodyProps) {
           ))}
         </div>
         {knob === "temperature" && (
-          <TemperatureDemo cand={sel.cand} temp={sel.temp} chosen={sel.chosen} />
+          <TemperatureDemo cand={sel.cand} temp={sel.temp} chosen={sel.chosen} pos={cur - 1} />
         )}
         {knob === "top-k" && (
           <TopKDemo cand={sel.cand} k={sel.top_k} temp={sel.temp} chosen={sel.chosen} />

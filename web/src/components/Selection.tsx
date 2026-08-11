@@ -64,7 +64,7 @@ export function Selection({
         : "no selection recorded for this position."}
     </div>
   ) : (
-    <SelDetail sel={sel} />
+    <SelDetail sel={sel} pos={cur - 1} />
   );
 
   return (
@@ -83,7 +83,7 @@ export function Selection({
   );
 }
 
-function SelDetail({ sel }: { sel: Sel }) {
+function SelDetail({ sel, pos }: { sel: Sel; pos: number }) {
   const greedy = sel.r === null;
   const chosen = sel.cand.find((c) => c.id === sel.chosen) ?? sel.cand[0];
   const maxLogit = sel.cand[0]?.logit ?? 0;
@@ -95,7 +95,7 @@ function SelDetail({ sel }: { sel: Sel }) {
       <>
       {/* the tour's draw field (design-33): real shares, dial retired — the
           component states the forcing itself */}
-      <DrawField sel={sel} chosenId={sel.chosen} />
+      <DrawField sel={sel} chosenId={sel.chosen} pos={pos} />
       <div className="sel-math">
         <span className="red">you</span> forced <span className="red">{q(chosen.t)}</span>{" "}
         here, so no sampling happened.{" "}
@@ -136,7 +136,7 @@ function SelDetail({ sel }: { sel: Sel }) {
       {/* the tour's draw field (design-33): each disc's area a candidate's
           real share, the drawn token ringed red, the dial live — the table
           below stays the expert's exact ledger */}
-      <DrawField sel={sel} chosenId={sel.chosen} />
+      <DrawField sel={sel} chosenId={sel.chosen} pos={pos} />
 
       <div className="tbl-scroll">
       <table className="sel">

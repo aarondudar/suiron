@@ -180,6 +180,46 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                     }
                 }
             }
+            ("GET", "/api/v1/odds") => {
+                // exact full-vocabulary shares at one temperature, for the
+                // candidates the web is drawing. Same lazy shape as /lens: clone
+                // the cache, truncate to `pos`, one f32 forward. The dial in the
+                // lab renormalized over the few candidates it showed, which
+                // overstated every share it printed; this is the honest number.
+                let (pos, temp, ids) = parse_odds(&path);
+                let setup = {
+                    let st = shared.lock().unwrap();
+                    if st.busy {
+                        Err("busy")
+                    } else if pos >= st.tokens.len() || ids.is_empty() {
+                        Err("bad pos or ids")
+                    } else if let Some(cache) = &st.cache {
+                        let mut c = cache.clone();
+                        c.truncate(pos);
+                        Ok((c, st.tokens[pos].0))
+                    } else {
+                        Err("nothing to inspect — generate first")
+                    }
+                };
+                match setup {
+                    Err(e) => respond(&mut s, "409 Conflict", "text/plain", e.as_bytes()),
+                    Ok((mut c, id)) => {
+                        let mut obs = suiron_cli::machine::LensObserver::default();
+                        forward(&model, &mut c, id, Backend::F32, Some(&mut obs));
+                        let last = obs.residuals.last().map(|r| r.as_slice()).unwrap_or(&[]);
+                        let ps = model.odds_at(last, temp, &ids);
+                        let mut j = format!("{{\"pos\":{pos},\"temp\":{temp},\"p\":[");
+                        for (i, p) in ps.iter().enumerate() {
+                            if i > 0 {
+                                j.push(',');
+                            }
+                            j.push_str(&format!("{p:.6}"));
+                        }
+                        j.push_str("]}");
+                        respond(&mut s, "200 OK", "application/json", j.as_bytes());
+                    }
+                }
+            }
             ("GET", "/api/v1/source") => {
                 let name = path
                     .split_once("fn=")
@@ -566,6 +606,24 @@ fn finish(shared: &Mutex<Shared>, cache: KvCache, logits: Vec<f32>) {
 }
 
 /// lens params: ?pos=<position>&k=<top-k> (k defaults to 5)
+/// `/api/v1/odds?pos=&temp=&ids=1,2,3` — the position whose prediction we want,
+/// the temperature to score it at, and which vocabulary entries to report.
+fn parse_odds(path: &str) -> (usize, f32, Vec<u32>) {
+    let (mut pos, mut temp, mut ids) = (usize::MAX, 1.0f32, Vec::new());
+    if let Some(q) = path.split_once('?').map(|(_, q)| q) {
+        for kv in q.split('&') {
+            let Some((key, v)) = kv.split_once('=') else { continue };
+            match key {
+                "pos" => pos = v.parse().unwrap_or(usize::MAX),
+                "temp" => temp = v.parse().unwrap_or(1.0),
+                "ids" => ids = v.split(',').filter_map(|x| x.parse().ok()).collect(),
+                _ => {}
+            }
+        }
+    }
+    (pos, temp, ids)
+}
+
 fn parse_lens(path: &str) -> (usize, usize) {
     let (mut pos, mut k) = (usize::MAX, 5usize);
     if let Some(q) = path.split_once('?').map(|(_, q)| q) {

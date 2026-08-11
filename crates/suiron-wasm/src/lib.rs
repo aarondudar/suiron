@@ -384,6 +384,34 @@ pub fn lens_json(pos: usize, k: usize) -> Result<String, JsError> {
     })
 }
 
+/// Exact full-vocabulary shares at one temperature, `/api/v1/odds` shape.
+/// The static lab has to answer this too, or its temperature dial goes back to
+/// renormalizing over the handful of candidates on screen (design-34).
+#[wasm_bindgen]
+pub fn odds_json(pos: usize, temp: f32, ids: &[u32]) -> Result<String, JsError> {
+    with_lab(|lab| {
+        if pos >= lab.tokens.len() || ids.is_empty() {
+            return Err("bad pos or ids".into());
+        }
+        let mut c = lab.cache.clone();
+        c.truncate(pos);
+        let id = lab.tokens[pos].0;
+        let mut obs = machine::LensObserver::default();
+        forward(&lab.model, &mut c, id, Backend::Q8, Some(&mut obs));
+        let last = obs.residuals.last().map(|r| r.as_slice()).unwrap_or(&[]);
+        let ps = lab.model.odds_at(last, temp, ids);
+        let mut j = format!("{{\"pos\":{pos},\"temp\":{temp},\"p\":[");
+        for (i, p) in ps.iter().enumerate() {
+            if i > 0 {
+                j.push(',');
+            }
+            j.push_str(&format!("{p:.6}"));
+        }
+        j.push_str("]}");
+        Ok(j)
+    })
+}
+
 /// Cosine neighbors of a token, `/api/v1/neighbors` shape.
 #[wasm_bindgen]
 pub fn neighbors_json(id: u32, n: usize) -> Result<String, JsError> {

@@ -31,6 +31,7 @@ interface SuironWasm {
   trace_json: () => string;
   inspect_json: (pos: number, layer: number, head: number, src: number) => string;
   lens_json: (pos: number, k: number) => string;
+  odds_json: (pos: number, temp: number, ids: Uint32Array) => string;
   neighbors_json: (id: number, n: number) => string;
   merges_json: () => string;
   quant_sample_json: () => string;
@@ -130,6 +131,10 @@ async function handle(method: string, args: unknown[]): Promise<unknown> {
     case "lens": {
       const [pos, k] = args as [number, number];
       return w().lens_json(pos, k);
+    }
+    case "odds": {
+      const [pos, temp, ids] = args as [number, number, number[]];
+      return w().odds_json(pos, temp, Uint32Array.from(ids));
     }
     case "neighbors": {
       const [id, n] = args as [number, number];

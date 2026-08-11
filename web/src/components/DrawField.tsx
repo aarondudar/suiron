@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getOdds } from "../api";
 import { esc } from "../lib";
 import { useCanvasLoop, rotY, sphereDirs, type V3 } from "./spaceCanvas";
 import type { Sel } from "../types";
@@ -12,7 +13,19 @@ import type { Sel } from "../types";
 
 const MAX = 14; // discs shown (top survivors by logit)
 
-export function DrawField({ sel, chosenId }: { sel: Sel; chosenId: number }) {
+export function DrawField({
+  sel,
+  chosenId,
+  pos,
+}: {
+  sel: Sel;
+  chosenId: number;
+  /** the position that produced this token. With it the read line can quote the
+   *  share over the WHOLE vocabulary at the dialled temperature; without it the
+   *  line shows no percentage at all, rather than the share-among-the-discs it
+   *  used to print as if it were the model's odds (design-34, A1). */
+  pos?: number;
+}) {
   const [temp, setTemp] = useState(sel.temp);
   /* a forced token was never drawn: its trace keeps the model's real shares
      (p) but not the logits (stamped 0), so the temperature math has nothing
@@ -35,6 +48,23 @@ export function DrawField({ sel, chosenId }: { sel: Sel; chosenId: number }) {
   const chosenIdx = surv.findIndex((c) => c.id === chosenId);
   const chosenW = chosenIdx >= 0 ? w[chosenIdx] : 0;
   const chosenTok = chosenIdx >= 0 ? esc(surv[chosenIdx].t) : "";
+
+  /* the true share, from the engine, over all 151,936 entries. `w` above stays
+     renormalized because the disc AREAS have to fill this field — but a
+     percentage in prose is a claim about the model, not about the picture, so
+     it only ever comes from here. Debounced: the dial fires a forward pass. */
+  const [exact, setExact] = useState<number | null>(null);
+  useEffect(() => {
+    if (forced || pos === undefined || chosenIdx < 0) return;
+    let dead = false;
+    const h = setTimeout(() => {
+      getOdds(pos, temp, [chosenId]).then((p) => !dead && setExact(p ? p[0] : null));
+    }, 120);
+    return () => {
+      dead = true;
+      clearTimeout(h);
+    };
+  }, [forced, pos, temp, chosenId, chosenIdx]);
 
   const st = { w, dirs, chosenIdx, labels: surv.map((c) => esc(c.t)) };
 
@@ -104,8 +134,13 @@ export function DrawField({ sel, chosenId }: { sel: Sel; chosenId: number }) {
             </>
           ) : (
             <>
-              at temp {temp.toFixed(2)}, <span className="w">“{chosenTok}”</span> holds{" "}
-              <span className="p">{(chosenW * 100).toFixed(0)}%</span> of the odds
+              at temp {temp.toFixed(2)}, <span className="w">“{chosenTok}”</span>
+              {exact !== null && (
+                <>
+                  {" "}
+                  holds <span className="p">{(exact * 100).toFixed(0)}%</span> of the odds
+                </>
+              )}
             </>
           )}
         </div>
@@ -130,8 +165,9 @@ export function DrawField({ sel, chosenId }: { sel: Sel; chosenId: number }) {
           <>disc area is the model's real share of the odds here · nothing was drawn at this position, you forced this token</>
         ) : (
           <>
-            disc area is the softmax of the real logits at this temperature — on this run it drew
-            at temp {sel.temp.toFixed(2)}
+            disc area is each candidate's share among the {surv.length} shown; the percentage above
+            is its share of the whole vocabulary — on this run it drew at temp{" "}
+            {sel.temp.toFixed(2)}
             {sel.r == null ? " (greedy — the top by rule)" : `, landing at r = ${sel.r.toFixed(3)}`}
           </>
         )}

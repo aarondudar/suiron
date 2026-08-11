@@ -209,7 +209,7 @@ export function StepStage(p: StepStageProps) {
           {sel ? (
             <>
               <div className="fl-enter" style={heroDelay}>
-                <DrawField sel={sel} chosenId={chosenId} />
+                <DrawField sel={sel} chosenId={chosenId} pos={prod} />
               </div>
               <div className="fl-cap fl-enter" style={cDelay}>
                 {sel.forced ? (

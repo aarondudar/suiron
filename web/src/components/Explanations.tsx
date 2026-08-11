@@ -482,7 +482,7 @@ export const CONCEPTS: Record<string, Concept> = {
     highlight: () => ({ kind: "el", ref: "ctl-temp" }),
     rungs: [code("softmax")],
     interactive: (c) =>
-      c.sel ? <TemperatureDemo cand={c.sel.cand} temp={c.sel.temp} chosen={c.sel.chosen} /> : null,
+      c.sel ? <TemperatureDemo cand={c.sel.cand} temp={c.sel.temp} chosen={c.sel.chosen} pos={c.prod} /> : null,
     intro: (c) => {
       if (!c.sel)
         return (

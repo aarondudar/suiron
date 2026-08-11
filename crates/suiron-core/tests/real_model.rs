@@ -476,6 +476,40 @@ fn lens_final_layer_equals_logits() {
         probs[real_top as usize]
     );
     eprintln!("lens final-layer top-1 id={real_top} p={:.4}", lens_last[0].1);
+
+    // `odds_at` is what the lab's temperature dial now quotes. At temp 1 it must
+    // equal the plain softmax of the real logits — the whole point is that it
+    // normalizes over the FULL vocabulary, not the handful of candidates the
+    // instrument happens to draw (which read ~81% where the truth was ~65%).
+    let ids3: Vec<u32> = lens_last.iter().take(3).map(|(i, _)| *i).collect();
+    let at1 = model.odds_at(caps.res.last().unwrap(), 1.0, &ids3);
+    // 1e-3, not 1e-4: `odds_at` sums its normalizer in f64 while `softmax` stays
+    // in f32, and over 151,936 terms that difference shows in the fourth decimal.
+    // The f64 accumulation is the more accurate of the two.
+    for (n, &id) in ids3.iter().enumerate() {
+        assert!(
+            (at1[n] - probs[id as usize]).abs() < 1e-3,
+            "odds_at(temp 1) {} != full-vocab softmax {} for id {id}",
+            at1[n],
+            probs[id as usize]
+        );
+    }
+    // and they are shares of everything, so they cannot sum past 1
+    let total: f32 = model
+        .odds_at(caps.res.last().unwrap(), 1.0, &(0..model.config.vocab as u32).collect::<Vec<_>>())
+        .iter()
+        .sum();
+    assert!((total - 1.0).abs() < 1e-3, "full-vocab odds sum to {total}, not 1");
+
+    // temp 0 is greedy: the argmax holds everything
+    let at0 = model.odds_at(caps.res.last().unwrap(), 0.0, &ids3);
+    assert!((at0[0] - 1.0).abs() < 1e-6, "temp 0 top share {} != 1", at0[0]);
+
+    // lower temperature concentrates: the top share can only rise as temp falls
+    let hot = model.odds_at(caps.res.last().unwrap(), 1.5, &ids3)[0];
+    let cold = model.odds_at(caps.res.last().unwrap(), 0.5, &ids3)[0];
+    assert!(hot < at1[0] && at1[0] < cold, "temp ordering broken: {hot} {} {cold}", at1[0]);
+    eprintln!("odds top share — temp1.5 {hot:.4} temp1 {:.4} temp0.5 {cold:.4}", at1[0]);
 }
 
 #[test]

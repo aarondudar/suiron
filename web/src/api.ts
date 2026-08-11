@@ -98,6 +98,34 @@ export function getLens(pos: number, k = 5): Promise<Lens> {
   return p;
 }
 
+/** The exact share of the odds each candidate holds at `temp`, normalized over
+ *  the whole 151,936-entry vocabulary — not over the handful on screen, which is
+ *  what the dial used to do (it read 81% where the true share was 65%). The
+ *  normalizer depends on the temperature being dragged, so this has to come from
+ *  the engine; cached per (pos, temp, ids) and deduped like the other reads.
+ *  Resolves null when no exact answer exists (a recording), and the caller then
+ *  shows no percentage rather than a plausible-looking wrong one. */
+const oddsCache = new Map<string, Promise<number[] | null>>();
+export function getOdds(pos: number, temp: number, ids: number[]): Promise<number[] | null> {
+  const key = `${pos}:${temp.toFixed(3)}:${ids.join(",")}`;
+  let p = oddsCache.get(key);
+  if (!p) {
+    p = (
+      WASM
+        ? wasm.odds(pos, temp, ids)
+        : fetch(`/api/v1/odds?pos=${pos}&temp=${temp}&ids=${ids.join(",")}`).then((r) => {
+            if (!r.ok) throw new Error(`odds: ${r.status}`);
+            return (r.json() as Promise<{ p: number[] }>).then((d) => d.p);
+          })
+    ).catch(() => {
+      oddsCache.delete(key);
+      return null; // no exact answer: the caller prints no number
+    });
+    oddsCache.set(key, p);
+  }
+  return p;
+}
+
 /** One deep inspection: the full intermediates for (pos, layer), plus the
  *  worked slices when a head is requested. Every call runs a real forward pass
  *  (server-side natively, in-process under wasm), so results are cached per
@@ -136,6 +164,7 @@ export function getInspect<T>(
 function invalidateResident(): void {
   lensCache.clear();
   inspectCache.clear();
+  oddsCache.clear();
 }
 
 /** The BPE merge trace for the resident prompt. Pure tokenizer work; gated

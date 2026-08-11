@@ -297,4 +297,42 @@ impl Model {
         idx.truncate(k);
         idx.into_iter().map(|i| (i, probs[i as usize])).collect()
     }
+
+    /// The exact share of the odds each of `ids` holds at temperature `temp`,
+    /// normalized over the WHOLE vocabulary.
+    ///
+    /// The lab's temperature dial used to renormalize over the handful of
+    /// candidates it was drawing, which inflates every number it prints (the
+    /// top token read 81% where its true share was 65%) and cannot be fixed in
+    /// the browser: the normalizer depends on the temperature being dragged, so
+    /// no constant shipped with the trace can stand in for it. This recomputes
+    /// it honestly, and it is the one thing the tour needs the engine for.
+    ///
+    /// `temp <= 0` is greedy: the argmax holds everything.
+    pub fn odds_at(&self, residual: &[f32], temp: f32, ids: &[u32]) -> Vec<f32> {
+        let xn = rmsnorm(residual, &self.output_norm.data, self.config.rms_eps);
+        let w_out = self.output.as_ref().unwrap_or(&self.token_embd);
+        let logits = w_out.matvec(&xn, Backend::F32);
+        if temp <= 0.0 {
+            let best = logits
+                .iter()
+                .enumerate()
+                .max_by(|a, b| a.1.total_cmp(b.1))
+                .map(|(i, _)| i as u32)
+                .unwrap_or(0);
+            return ids.iter().map(|&i| if i == best { 1.0 } else { 0.0 }).collect();
+        }
+        // max-shifted, so exp never overflows at low temperature
+        let max = logits.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+        let mut z = 0.0f64;
+        for &l in &logits {
+            z += (((l - max) / temp) as f64).exp();
+        }
+        ids.iter()
+            .map(|&i| match logits.get(i as usize) {
+                Some(&l) => ((((l - max) / temp) as f64).exp() / z) as f32,
+                None => 0.0,
+            })
+            .collect()
+    }
 }

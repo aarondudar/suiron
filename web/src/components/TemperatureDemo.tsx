@@ -1,21 +1,30 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getOdds } from "../api";
 import { esc, softmaxAt } from "../lib";
 import type { Cand } from "../types";
 
-/* Temperature applied to THIS token's real options. Pure client-side softmax
-   over the candidate logits already in the trace, so it makes no engine call
-   and is WASM-safe. temp 0 collapses to the single top pick; high temp flattens
-   toward uniform. */
+/* Temperature applied to THIS token's real options. The BAR LENGTHS are a
+   client-side softmax over the candidate logits in the trace — relative shape,
+   no engine call. The PRINTED percentages are the engine's exact shares over the
+   whole vocabulary, because a softmax over the eight rows shown reads far higher
+   than the model's real odds (design-34). temp 0 collapses to the single top
+   pick; high temp flattens toward uniform. */
 
 export function TemperatureDemo({
   cand,
   temp,
   chosen,
+  pos,
 }: {
   cand: Cand[];
   temp: number;
   /** the token the draw actually picked, so the counterfactual has an anchor */
   chosen?: number;
+  /** the producing position: with it the printed percentages are shares of the
+   *  whole vocabulary, from the engine. Without it the bars still show the right
+   *  RELATIVE shape but carry no number, because a softmax over the eight rows
+   *  on screen is not the model's odds (design-34, A1). */
+  pos?: number;
 }) {
   const [t, setT] = useState(temp);
   // the candidates the trace recorded, strongest first; cap for readability
@@ -25,6 +34,21 @@ export function TemperatureDemo({
     t,
   );
   const max = Math.max(...probs, 1e-6);
+  const [exact, setExact] = useState<number[] | null>(null);
+  useEffect(() => {
+    if (pos === undefined) return;
+    let dead = false;
+    const ids = rows.map((c) => c.id);
+    const h = setTimeout(() => {
+      getOdds(pos, t, ids).then((p) => !dead && setExact(p));
+    }, 120);
+    return () => {
+      dead = true;
+      clearTimeout(h);
+    };
+    // rows is derived from cand; its ids are what matter
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pos, t, cand]);
 
   return (
     <div className="temp-demo">
@@ -57,12 +81,13 @@ export function TemperatureDemo({
                 style={{ width: `${(probs[i] / max) * 100}%` }}
               />
             </div>
-            <span className="temp-p">{(probs[i] * 100).toFixed(1)}%</span>
+            <span className="temp-p">{exact ? `${(exact[i] * 100).toFixed(1)}%` : ""}</span>
           </div>
         ))}
       </div>
       <div className="temp-demo-note">
-        recomputed from this token's real logits; the red token is the one actually picked.{" "}
+        recomputed from this token's real logits, as a share of the whole vocabulary; the red token
+        is the one actually picked.{" "}
         {t <= 0 ? "at 0 the top pick takes everything." : "higher flattens the field."}
       </div>
     </div>

@@ -289,6 +289,15 @@ export async function lens(pos: number, k: number): Promise<Lens> {
   return JSON.parse(await rpc<string>("lens", [pos, k])) as Lens;
 }
 
+/** Exact shares at one temperature. The recordings cannot carry every
+ *  temperature, so demo mode has no answer — null, and the caller shows no
+ *  number rather than a renormalized stand-in (design-34). */
+export async function odds(pos: number, temp: number, ids: number[]): Promise<number[] | null> {
+  if (mode === "demo") return null;
+  const r = JSON.parse(await rpc<string>("odds", [pos, temp, ids])) as { p: number[] };
+  return r.p;
+}
+
 export async function neighbors(id: number, n: number): Promise<Neighbor[]> {
   if (mode === "demo") {
     if (n !== 12) demoMiss();
