@@ -100,6 +100,12 @@ export function Epilogue({
 }) {
   const showScale = part !== "agent";
   const showAgent = part !== "scale";
+  /* `part` is only set by the flow, so it doubles as "am I inside the tour".
+     The epilogue's prose was written beside the expert instrument and says
+     "above" and "↑" — true there, meaningless to a tour reader, who has no
+     instrument above and never opened that view. The tour used to apologise for
+     this in a note; now it just says the right thing (design-34, C10-C12). */
+  const inFlow = part !== undefined;
   return (
     <section className={"epilogue" + (dim ? " dimmed" : "")} data-explain-el="epilogue">
       {showScale && (
@@ -174,11 +180,21 @@ export function Epilogue({
         </p>
         <ul className="epi-list">
           <li>
-            A <b>chat template</b> formats the conversation into tokens with role markers. Turn on{' '}
-            <b>chat</b> in the controls above and the markers <code>{'<|im_start|>'}</code> and{' '}
-            <code>{'<|im_end|>'}</code> enter the token strip, each an ordinary vocabulary entry
-            with its own token ID, drawn by the same step as any word. (You can see this now, in the
-            instrument above.)
+            A <b>chat template</b> formats the conversation into tokens with role markers.{' '}
+            {inFlow ? (
+              <>
+                The markers <code>{'<|im_start|>'}</code> and <code>{'<|im_end|>'}</code> are
+                ordinary vocabulary entries with their own token ids, drawn by the same step as any
+                word.
+              </>
+            ) : (
+              <>
+                Turn on <b>chat</b> in the controls above and the markers{' '}
+                <code>{'<|im_start|>'}</code> and <code>{'<|im_end|>'}</code> enter the token strip,
+                each an ordinary vocabulary entry with its own token ID, drawn by the same step as
+                any word. (You can see this now, in the instrument above.)
+              </>
+            )}
           </li>
           <li>
             A <b>harness</b>, plain code around the model, watches the token stream; when the model
@@ -193,14 +209,16 @@ export function Epilogue({
         </p>
 
         <button className="chat-open" onClick={onTryChat}>
-          ↑ try it: chat with the model
+          {inFlow ? 'try it: chat with the model' : '↑ try it: chat with the model'}
         </button>
       </div>
       )}
 
       {showAgent && (
       <div className="epi-exps">
-        <span className="epi-exps-label">or run another experiment ↑</span>
+        <span className="epi-exps-label">
+          {inFlow ? 'or run another experiment' : 'or run another experiment ↑'}
+        </span>
         {EXPERIMENTS.map((x) => (
           <button key={x.id} className="epi-exp" title={x.hook} onClick={() => onRun(x)}>
             {x.title}

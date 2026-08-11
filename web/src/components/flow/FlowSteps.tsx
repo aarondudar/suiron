@@ -264,6 +264,10 @@ export function StepStage(p: StepStageProps) {
             <button className="fl-again" onClick={runAgain} disabled={busy}>
               {busy ? "running…" : "run it again"}
             </button>
+            {/* the button restarts at step 1 with the new token in the prompt —
+                which IS the loop, but unlabelled it just reads as losing your
+                place (design-34, C9) */}
+            <div className="fl-again-note">same five steps, one word longer.</div>
           </div>
           <div className="fl-ex">
             <span className="fl-ex-label">or try one of these experiments:</span>
@@ -283,7 +287,6 @@ export function StepStage(p: StepStageProps) {
       // right here). One epilogue half per screen, so neither read crowds
       // the other.
       const link = currentLink(trace, { cur, c: null, walk: null, layer: -1 });
-      const expertHref = link ? "?view=expert#" + encodeLink(link) : "?view=expert";
       // the chat handoff carries the SAME run (Aaron, 2026-07-26: landing in
       // chat after the tour "seems just confusing" — it was dropping the run
       // and rebooting blank). ?chat=1 rides alongside the run link exactly
@@ -293,15 +296,12 @@ export function StepStage(p: StepStageProps) {
       return (
         <ExplainerProvider value={NOOP_EXPLAINER}>
           <div className="fl-finale">
-            {/* the epilogue's copy was written beside the full instrument;
-                keep its "above" references honest from here (design-13);
-                the link carries the run, so "above" shows THIS run */}
-            <div className="fl-note fl-enter" style={hDelay}>
-              written beside the full instrument — where it says “above”, it means the{" "}
-              <a href={expertHref}>expert view</a>.
-            </div>
-            {/* the outro obeys the same entrance order as the tour: note,
-                a beat, then the epilogue half, then the closing action */}
+            {/* the note that used to stand here explained that the epilogue's
+                "above" meant the expert view — an apology for copy addressed to
+                the wrong reader. The epilogue now says the right thing in the
+                flow (design-34, C10-C12), so there is nothing to excuse. */}
+            {/* the outro obeys the same entrance order as the tour:
+                the epilogue half at hero's beat, then the closing action */}
             <div className="fl-enter" style={heroDelay}>
               <Epilogue
                 onTryChat={() => {

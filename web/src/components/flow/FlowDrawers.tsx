@@ -439,6 +439,12 @@ export function WorldsPair({ trace }: { trace: Trace }) {
       ? "you forced earlier"
       : "the model chose";
   const otherIsModel = !shadowPrompt && !shadowForced;
+  /* the forked world runs on for at least six tokens, but the world it replaced
+     is only ever as long as the run WAS when you forked — often a single token.
+     Left unmarked that reads as a broken comparison rather than a true one, so
+     the shorter side says where it actually stopped (design-34, A7). */
+  const tailOf = (tr: Trace) => tr.tokens.length - at;
+  const shorter = Math.min(tailOf(trace), tailOf(shadow));
   const world = (tr: Trace, label: string, tag: string, model: boolean) => (
     <div className="fl-world">
       <div className="fl-world-label">{label}</div>
@@ -459,6 +465,9 @@ export function WorldsPair({ trace }: { trace: Trace }) {
             {i === at ? litToken(tok.t).text : esc(tok.t)}
           </span>
         ))}
+        {tailOf(tr) === shorter && tailOf(tr) < Math.max(tailOf(trace), tailOf(shadow)) && (
+          <span className="fl-world-end">the run had got this far when you forked</span>
+        )}
       </div>
     </div>
   );
