@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { esc, litToken, shadowTrace } from "../../lib";
 import type { ExplainCtx } from "../Explanations";
 import type { Trace } from "../../types";
@@ -65,6 +66,10 @@ export function DrawerBody(p: DrawerBodyProps) {
     openGoLive,
     onFork,
   } = p;
+  /** the score drawer's D.proof names the engine's own number, so the demo
+   *  reports it up (design-34: the sentence was in copy-script.md all along but
+   *  had never reached the screen — the only drawer missing its proof line) */
+  const [dotScore, setDotScore] = useState<number | undefined>(undefined);
 
   if (drawer === "dot" && flowCtx)
     return (
@@ -77,8 +82,14 @@ export function DrawerBody(p: DrawerBodyProps) {
             piece by piece, add it up, and that is the score.
           </p>
           <p className="fl-d-do">Step the multiply-and-add to the end.</p>
+          {dotScore !== undefined && (
+            <p className="fl-d-proof">
+              Your sum, scaled, is {dotScore.toFixed(3)} — the engine's own number for this pair,
+              to the digit.
+            </p>
+          )}
         </div>
-        <AttentionInteractive ctx={flowCtx} />
+        <AttentionInteractive ctx={flowCtx} flow onScore={setDotScore} />
       </>
     );
   if (drawer === "merges" && flowCtx)

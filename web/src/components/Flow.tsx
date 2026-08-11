@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { demoPrompt, fork, generate, playDemo, step as stepMore } from "../api";
-import { DEFAULT_PARAMS, esc } from "../lib";
+import { DEFAULT_PARAMS, DEFAULT_PROMPT, esc } from "../lib";
 import { currentLink, decodeLink, encodeLink, matchesResident, residentPrompt } from "../link";
 import { Drawer } from "./Drawer";
 import type { ExplainCtx } from "./Explanations";
@@ -32,7 +32,7 @@ const FLOW_LINK = (() => {
 export function Flow() {
   const { trace, refresh } = useTrace();
   const [phase, setPhase] = useState(0);
-  const [prompt, setPrompt] = useState(FLOW_LINK?.p ?? "");
+  const [prompt, setPrompt] = useState(FLOW_LINK?.p ?? DEFAULT_PROMPT);
   /** the ONE open drawer (a DIVES id), or null. A single slot is the
    *  single-drawer rule: opening another replaces this one. */
   const [drawer, setDrawer] = useState<string | null>(null);

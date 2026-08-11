@@ -26,7 +26,20 @@ interface Resp {
 
 const f = (x: number) => x.toFixed(3);
 
-export function DotProduct({ ctx, layer, head }: { ctx: ExplainCtx; layer: number; head: number }) {
+export function DotProduct({
+  ctx,
+  layer,
+  head,
+  onScore,
+}: {
+  ctx: ExplainCtx;
+  layer: number;
+  head: number;
+  /** reports the engine's score for the pair on show, so the drawer's D.proof
+   *  slot can name it — the same "instrument reports up, prose renders it"
+   *  pattern LensSpace uses for step 3's caption (design-34) */
+  onScore?: (engineScore: number | undefined) => void;
+}) {
   const hd = ctx.trace.head_dim;
   const [src, setSrc] = useState<number | null>(null); // null = engine's strongest edge
   const [data, setData] = useState<Resp | null>(null);
@@ -60,6 +73,9 @@ export function DotProduct({ ctx, layer, head }: { ctx: ExplainCtx; layer: numbe
   const engineScore = w && data ? data.heads[head]?.scores[w.src] : undefined;
   const done = i >= hd;
   const agrees = engineScore !== undefined && Math.abs(score - engineScore) < 5e-3;
+  useEffect(() => {
+    onScore?.(engineScore);
+  }, [engineScore, onScore]);
 
   const srcOptions = (data?.heads[head]?.weights ?? [])
     .map((wt, p) => [p, wt] as [number, number])

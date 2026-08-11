@@ -1,4 +1,4 @@
-import { esc, N_PARAMS } from "../../lib";
+import { DEFAULT_PROMPT, esc, N_PARAMS } from "../../lib";
 import { currentLink, encodeLink } from "../../link";
 import { EXPERIMENTS, type Experiment } from "../../experiments";
 import type { Step, Trace } from "../../types";
@@ -83,10 +83,13 @@ export function StepStage(p: StepStageProps) {
               type="text"
               className="fl-blank"
               value={prompt}
-              placeholder="The capital of France is"
+              placeholder={DEFAULT_PROMPT}
               spellCheck={false}
               aria-label="prompt"
               onChange={(e) => setPrompt(e.target.value)}
+              /* the box arrives filled, so focusing it selects the whole line —
+                 "type a few words" stays one keystroke away (design-34) */
+              onFocus={(e) => e.currentTarget.select()}
               onKeyDown={(e) => e.key === "Enter" && begin()}
             />
             <button className="fl-begin" onClick={begin} disabled={busy || !prompt.trim()}>

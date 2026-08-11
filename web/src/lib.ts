@@ -83,6 +83,12 @@ export const CHAT_PARAMS: GenParams = {
 /** Qwen3-0.6B's parameter count — matches `suiron load` and the writeup. */
 export const N_PARAMS = 596_049_920
 
+/** Step 0's caption says "type a few words, or use this one", so "this one" has
+ *  to be a real value in the box, not a placeholder. As a placeholder it left
+ *  `begin` disabled on arrival: the reader followed the copy, clicked, and
+ *  nothing happened (design-34, the fresh walk). */
+export const DEFAULT_PROMPT = 'The capital of France is'
+
 /** One honest line per backend for the f32/q8 speed panels, from whatever has
  *  actually been measured: a live number, the demo's recorded number (labeled
  *  as such), or the truthful reason there is none. The wasm build never has an
