@@ -514,7 +514,6 @@ export function Flow() {
               trace={trace}
               flowCtx={flowCtx}
               cur={cur}
-              frontier={frontier}
               busy={busy}
               demo={demo}
               knob={knob}

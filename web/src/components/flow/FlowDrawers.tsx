@@ -34,7 +34,6 @@ export interface DrawerBodyProps {
   trace: Trace;
   flowCtx: ExplainCtx | null;
   cur: number;
-  frontier: number;
   busy: boolean;
   demo: boolean;
   knob: Knob;
@@ -54,7 +53,6 @@ export function DrawerBody(p: DrawerBodyProps) {
     trace,
     flowCtx,
     cur,
-    frontier,
     busy,
     demo,
     knob,
@@ -111,10 +109,11 @@ export function DrawerBody(p: DrawerBodyProps) {
       </>
     );
   if (drawer === "meaning" && flowCtx) {
-    // default = the same anchor as the step's meaning space (the produced
-    // answer), so the step and its drawer tell one story; the chip row is
-    // the visible, deliberate override
-    const mPos = Math.max(0, Math.min(pickTok ?? pickAnchor(flowCtx.trace), frontier));
+    // step 1's drawer stays inside the prompt: the chips are the reader's own
+    // words and the anchor is the last contentful one of them. The drawn token
+    // does not join this row — step 4 is where the tour reveals it (design-34).
+    const nPrompt = Math.max(1, flowCtx.trace.n_prompt);
+    const mPos = Math.max(0, Math.min(pickTok ?? pickAnchor(flowCtx.trace, true), nPrompt - 1));
     const mCtx = { ...flowCtx, cur: mPos };
     return (
       <ExplainerProvider value={NOOP_EXPLAINER}>
@@ -129,7 +128,7 @@ export function DrawerBody(p: DrawerBodyProps) {
           </p>
         </div>
         <div className="fl-pick-row">
-          {flowCtx.trace.tokens.map((tok, i) => (
+          {flowCtx.trace.tokens.slice(0, nPrompt).map((tok, i) => (
             <button
               key={i}
               className={"fl-chip pickable" + (i === mPos ? " on" : "")}

@@ -14,7 +14,17 @@ import type { Neighbor, Trace } from "../types";
  *  model just produced (the last generated token), else the last contentful word
  *  of the prompt (function words like "is" cluster with other function words).
  *  Shared with the meaning drawer so the step and its drawer tell one story. */
-export function pickAnchor(trace: Trace): number {
+export function pickAnchor(trace: Trace, promptOnly = false): number {
+  // step 1 has not told the reader a prediction happened yet, so its drawer
+  // anchors inside the prompt — landing on " Paris" there answered the question
+  // the tour spends four more steps building up to (design-34, the fresh walk)
+  if (promptOnly) {
+    const end = Math.max(0, trace.n_prompt - 1);
+    for (let i = end; i >= 0; i--) {
+      if (/[A-Za-z]{3,}/.test((trace.tokens[i]?.t ?? "").trim())) return i;
+    }
+    return end;
+  }
   const last = trace.tokens.length - 1;
   // the produced answer (e.g. " Paris") is the most satisfying neighbourhood to
   // show — but prefer the newest generated token that carries a letter (any
