@@ -156,8 +156,11 @@ export function StepStage(p: StepStageProps) {
             <AttnSpace trace={trace} prod={prod} />
           </div>
           <div className="fl-cap fl-enter" style={cDelay}>
+            {/* AttnSpace drops position 0 and renormalises over the rest — its own
+                comment said the sink was "called out in the caption", and it was
+                not. Faithful means saying what is not in the picture (design-34). */}
             reading from “{esc(trace.tokens[prod]?.t ?? "")}” · the stronger the pull, the harder
-            it looks
+            it looks · the first word is left out, it soaks up spare attention
           </div>
           <div className="fl-note fl-enter" style={aDelay}>
             This looking back is called attention. It is the only part of the whole process where

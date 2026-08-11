@@ -61,7 +61,7 @@ export function AttentionInteractive({
         </label>
       </div>
       )}
-      <DotProduct ctx={ctx} layer={layer} head={head} onScore={onScore} />
+      <DotProduct ctx={ctx} layer={layer} head={head} flow={flow} onScore={onScore} />
       <UnderHood ctx={ctx} stage="attention" layer={layer} head={head} />
     </div>
   );

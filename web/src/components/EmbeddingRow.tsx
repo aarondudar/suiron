@@ -63,8 +63,8 @@ export function EmbeddingRow({ ctx }: { ctx: ExplainCtx }) {
         <div className="emb-cell emb-ellipsis">… {row.len - shown.length} more</div>
       </div>
       <div className="emb-note">
-        showing the first {shown.length} of {row.len} numbers, rms {row.rms.toFixed(3)}. this exact
-        row is what enters layer 0; nothing here is computed, it is a lookup by token id.
+        showing the first {shown.length} of {row.len} numbers. this exact row is what the model
+        starts from; nothing here is computed, it is looked up by the token's entry number.
       </div>
     </div>
   );

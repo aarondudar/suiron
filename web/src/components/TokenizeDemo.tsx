@@ -78,7 +78,7 @@ function MergeTimeline({ pts }: { pts: Pretoken[] }) {
           the active word collapses in place, upcoming words wait as ghost
           text — by the last frame the whole prompt stands tokenized. */}
       <div className="tok-context-cap">
-        each word collapses in turn and stays · click any word to jump
+        each word collapses in turn and stays · click any word to jump · ␣ marks a space
       </div>
       <div className="tok-flow">
         {pts.map((p, j) => {
@@ -134,8 +134,16 @@ function MergeTimeline({ pts }: { pts: Pretoken[] }) {
   );
 }
 
-/** The one-line narration for the active word at local frame `k`: byte-level
- *  start (k=0) → each real merge → its final token(s). */
+/** 1st / 2nd / 3rd / 127th — a merge's rank read as what it is, the pair's place
+ *  in the order the tokenizer learned them (design-34, C2) */
+function ordinal(n: number): string {
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
+  return `${n}${["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
+}
+
+/** The one-line narration for the active word at local frame `k`: the
+ *  per-character start (k=0) → each real merge → its final token(s). */
 function ActionLabel({ word, k }: { word: Pretoken; k: number }) {
   const total = word.steps.length;
   const isDone = k >= total;
@@ -147,18 +155,21 @@ function ActionLabel({ word, k }: { word: Pretoken; k: number }) {
   if (total === 0) {
     label = (
       <>
-        already a single token · id <b>{word.tokens[0]}</b>
+        already a single token · entry <b>{word.tokens[0]}</b> in the model's list
       </>
     );
   } else if (k === 0) {
-    label = "byte-level: every character starts as its own piece.";
+    // "byte-level" and a bare rank were both jargon the script never defines
+    // (design-34, C1/C2/C3): say what the number means instead of naming it
+    label = "every character starts as its own piece.";
   } else if (isDone) {
     label = (
       <>
         done ·{" "}
         {finalPieces(word).map((piece, x) => (
           <span key={x} className="tok-final">
-            {disp(piece)} <span className="tok-id">{word.tokens[x]}</span>
+            {disp(piece)} is entry <span className="tok-id">{word.tokens[x]}</span> in the model's
+            list
           </span>
         ))}
       </>
@@ -168,8 +179,8 @@ function ActionLabel({ word, k }: { word: Pretoken; k: number }) {
       <>
         merge <span className="tok-pair">{disp(justMerged.left)}</span> +{" "}
         <span className="tok-pair">{disp(justMerged.right)}</span> →{" "}
-        <span className="tok-merged">{disp(justMerged.left + justMerged.right)}</span> · rank{" "}
-        {justMerged.rank}
+        <span className="tok-merged">{disp(justMerged.left + justMerged.right)}</span> · the{" "}
+        {ordinal(justMerged.rank)} most common pair the tokenizer learned
       </>
     );
   }

@@ -30,11 +30,17 @@ export function DotProduct({
   ctx,
   layer,
   head,
+  flow,
   onScore,
 }: {
   ctx: ExplainCtx;
   layer: number;
   head: number;
+  /** in the tour the two deepest insight lines come off (design-34): "rides
+   *  rotation pair N, turning once in ~2.6M tokens" and the rival-key
+   *  discriminator are expert readings, and this drawer is already the longest
+   *  thing a beginner meets. "why this number" stays — it is plain. */
+  flow?: boolean;
   /** reports the engine's score for the pair on show, so the drawer's D.proof
    *  slot can name it — the same "instrument reports up, prose renders it"
    *  pattern LensSpace uses for step 3's caption (design-34) */
@@ -224,8 +230,8 @@ export function DotProduct({
                   ? `why this number: components ${carry.join(", ")} alone give ${f(carrySum)} of the ${f(fullSum)} — a few coordinates carry the match.`
                   : `why this number: no few coordinates dominate — the match is spread across many components.`}
               </div>
-              {ropeLine && <div>{ropeLine}</div>}
-              {discLine && <div>{discLine}</div>}
+              {!flow && ropeLine && <div>{ropeLine}</div>}
+              {!flow && discLine && <div>{discLine}</div>}
             </div>
           )}
 
@@ -255,10 +261,12 @@ export function DotProduct({
               <div>what this head's read bought at the finish line:</div>
               {data.attribution.cands.slice(0, 2).map(([cid, t, cHead, cLayer, logit]) => (
                 <div key={cid}>
+                  {/* "logit" is a step-4 term; this is a step-2 drawer, so it
+                      names the number instead of labelling it (design-34, C6) */}
                   “{litToken(t).text}” — this head{" "}
                   <b className="dp-attr">{cHead >= 0 ? "+" : ""}{cHead.toFixed(3)}</b>, the layer's
                   whole attention {cLayer >= 0 ? "+" : ""}
-                  {cLayer.toFixed(3)}, of the full {logit.toFixed(2)} logit
+                  {cLayer.toFixed(3)}, of its final score {logit.toFixed(2)}
                 </div>
               ))}
               <div className="dp-check">

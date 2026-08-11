@@ -26,13 +26,18 @@ function SpeedRace({ trace }: { trace: Trace }) {
   const tps = trace.tps ?? { f32: null, q8: null }
   const demo = !!trace.demo
   const gib = (b: number) => (b / 1024 ** 3).toFixed(2)
+  /* the badge claims a measurement, so it only shows when BOTH sides have one.
+     On the fresh walk it sat above a card reading "run it to measure" — the one
+     panel promising a measured number was the one without it (design-34). The
+     GiB figures are exact either way; it is the tok/s race that has to be run. */
+  const bothMeasured = tps.f32 !== null && tps.q8 !== null
   return (
     <div className="epi-race">
       <p className="epi-race-lead">
         One of them runs right here. Every number this lab computed used <b>quantized</b>{' '}
         weights — the q8 path below — and the engine's tests pin its answers argmax-identical
         to the f32 reference. The only difference left is how many bytes each token reads:
-        <span className="epi-tag here">measured, not described</span>
+        {bothMeasured && <span className="epi-tag here">measured, not described</span>}
       </p>
       <div className="q-cards">
         <div className={'q-card' + (trace.backend === 'f32' ? ' on' : '')}>

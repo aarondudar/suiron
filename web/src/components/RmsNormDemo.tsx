@@ -107,7 +107,9 @@ export function RmsNormDemo({ ctx }: { ctx: ExplainCtx }) {
 const STAGES = [
   { key: "x", label: "raw x", cap: "the vector as the layer receives it — components at whatever size the running signal has grown to" },
   { key: "scaled", label: "÷ rms", cap: "every component divided by the same number: the shape is untouched, the size is standard" },
-  { key: "out", label: "× weight", cap: "each channel re-scaled by its learned weight — what this layer's reader wants louder or quieter" },
+  // "channel" appeared once in the whole tour, for the thing every other screen
+  // calls a number (design-34, C8)
+  { key: "out", label: "× weight", cap: "each of the numbers re-scaled by its own learned weight — what this layer's reader wants louder or quieter" },
 ] as const;
 
 function ResetBars({

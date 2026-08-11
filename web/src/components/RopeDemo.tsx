@@ -90,7 +90,9 @@ export function RopeDemo({ ctx }: { ctx: ExplainCtx }) {
                 <circle className="rope-cur" cx={cx} cy={cy} r={3.5} />
               </svg>
               <div className="rope-label">
-                pair {i} · θ {deg}° · r {r.toFixed(2)}
+                {/* θ and r were unglossed maths in a beginner drawer whose own
+                    caption already says "direction" and "length" (design-34, C7) */}
+                pair {i} · angle {deg}° · length {r.toFixed(2)}
               </div>
             </div>
           );
