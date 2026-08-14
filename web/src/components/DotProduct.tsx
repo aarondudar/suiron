@@ -109,11 +109,16 @@ export function DotProduct({
   layer,
   head,
   flow,
+  part,
   onScore,
 }: {
   ctx: ExplainCtx;
   layer: number;
   head: number;
+  /** which half to show. The tour walks this drawer one idea at a time — the
+   *  score, then the blend — the same way the sampling drawer shows one dial at a
+   *  time (design-35 track C). Undefined shows both, as the expert view does. */
+  part?: "score" | "blend";
   /** in the tour the two deepest insight lines come off (design-34): "rides
    *  rotation pair N, turning once in ~2.6M tokens" and the rival-key
    *  discriminator are expert readings, and this drawer is already the longest
@@ -235,7 +240,11 @@ export function DotProduct({
 
   return (
     <div className="dotprod">
-      <div className="dp-title">one real attention score, component by component</div>
+      <div className="dp-title">
+        {part === "blend"
+          ? "then the blend: weights, and the head's read"
+          : "one real attention score, component by component"}
+      </div>
 
       {!data ? (
         <div className="dp-status">loading the producing pass…</div>
@@ -243,6 +252,8 @@ export function DotProduct({
         <div className="dp-status">no earlier token to read from at this position.</div>
       ) : (
         <>
+          {part !== "blend" && (
+          <>
           <div className="dp-src">
             rebuild the score for:
             {srcOptions.map(([p, wt]) => (
@@ -315,8 +326,10 @@ export function DotProduct({
           )}
 
           <Stepper i={i} max={hd} playing={playing} setI={setI} toggle={toggle} unit="component" />
+          </>
+          )}
 
-          {data.heads[head] && w.v && w.ctx && w.v.length === data.heads[head].weights.length && (
+          {part !== "score" && data.heads[head] && w.v && w.ctx && w.v.length === data.heads[head].weights.length && (
             <Blend
               scores={data.heads[head].scores}
               weights={data.heads[head].weights}
@@ -326,7 +339,7 @@ export function DotProduct({
             />
           )}
 
-          {data.heads[head] && (
+          {part !== "score" && data.heads[head] && (
             <div className="dp-insight">
               the forward thread: softmax turned this score into{" "}
               {((data.heads[head].weights[w.src] ?? 0) * 100).toFixed(0)}% of the head's read; the
@@ -335,7 +348,7 @@ export function DotProduct({
             </div>
           )}
 
-          {data.attribution && data.attribution.cands.length > 0 && (
+          {part !== "score" && data.attribution && data.attribution.cands.length > 0 && (
             <div className="dp-insight">
               <div>what this head's read bought at the finish line:</div>
               {data.attribution.cands.slice(0, 2).map(([cid, t, cHead, cLayer, logit]) => (

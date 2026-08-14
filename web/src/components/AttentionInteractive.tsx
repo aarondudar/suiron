@@ -6,6 +6,14 @@ import type { ExplainCtx } from "./Explanations";
 /* The attention concept's interactive: one shared layer/head control drives
    both the worked dot product and the woven code+values view, so the two always
    point at the same head. */
+/** the three ideas this drawer holds, in the order the arithmetic happens */
+const PARTS = [
+  { id: "score", label: "the score" },
+  { id: "blend", label: "the blend" },
+  { id: "source", label: "the source" },
+] as const;
+type Part = (typeof PARTS)[number]["id"];
+
 export function AttentionInteractive({
   ctx,
   flow,
@@ -25,6 +33,12 @@ export function AttentionInteractive({
   const [layer, setLayer] = useState(Math.min(ctx.layer, nLayers - 1));
   const [head, setHead] = useState(Math.min(3, nHeads - 1));
   const clamp = (v: number, max: number) => Math.min(max, Math.max(0, v));
+  /* one idea at a time, inside the drawer (design-35 track C). This drawer stacked
+     four sections and ran to 3.4 screens, where its sibling reads at 1.3 — and the
+     mechanism to fix that already existed: the sampling drawer shows one dial at a
+     time, with the comment "three stacked demos would bury the idea". Same
+     segmented control, same law, one level down. The expert view keeps the stack. */
+  const [part, setPart] = useState<Part>("score");
 
   return (
     <div className="attn-interactive">
@@ -61,8 +75,32 @@ export function AttentionInteractive({
         </label>
       </div>
       )}
-      <DotProduct ctx={ctx} layer={layer} head={head} flow={flow} onScore={onScore} />
-      <UnderHood ctx={ctx} stage="attention" layer={layer} head={head} />
+      {flow && (
+        <div className="seg fl-knob-seg">
+          {PARTS.map((p) => (
+            <button
+              key={p.id}
+              className={"seg-opt" + (part === p.id ? " on" : "")}
+              onClick={() => setPart(p.id)}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {(!flow || part !== "source") && (
+        <DotProduct
+          ctx={ctx}
+          layer={layer}
+          head={head}
+          flow={flow}
+          part={flow ? (part as "score" | "blend") : undefined}
+          onScore={onScore}
+        />
+      )}
+      {(!flow || part === "source") && (
+        <UnderHood ctx={ctx} stage="attention" layer={layer} head={head} />
+      )}
     </div>
   );
 }

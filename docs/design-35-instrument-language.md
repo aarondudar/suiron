@@ -199,11 +199,26 @@ stacks four sections — the component strip + its stepper, the blend + its step
 the head attribution, and the woven source — which is exactly what the comment
 above says not to do.
 
-Proposal: extend the segmented pattern to the score drawer (`the score` / `the
-blend` / `the source`), and audit the other multi-section drawers against it. No
-new mechanism, no new component: `.seg` / `.seg-opt` already exist and are already
-styled. Deferred behind Track B at Aaron's direction ("let's go with the visual
-redesigns first") — recorded so it is not rediscovered from scratch.
+**BUILT (2026-08-14).** The segmented pattern now runs the score drawer: `the
+score` / `the blend` / `the source`, in the order the arithmetic happens, defaulting
+to the score. No new mechanism and no new component — `.seg` / `.seg-opt` were
+already there and already styled.
+
+| | words | screens |
+|---|---|---|
+| before, one stack | 517 | 3.45 |
+| the score (where you land) | 182 | 1.63 |
+| the blend | 258 | 1.98 |
+| the source | 298 | 2.54 |
+
+The landing segment is now in line with its siblings (median ~146 words, ~1.3
+screens). The source segment is still the tallest because 28 lines of Rust are 28
+lines of Rust — but it is opt-in, which is the whole point. The expert view keeps
+the full stack, verified: spinners, strip, blend and source all present, no
+segmented control.
+
+Still to audit against this pattern: the other multi-section drawers (`kept
+steady`, `reworked`, `the readout`) — none is near 3 screens, so none is urgent.
 
 ## Out of scope, explicitly
 
