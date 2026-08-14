@@ -52,6 +52,10 @@ struct Lab {
     /// decode tok/s measured over this session's forwards (Date.now-based).
     fwd_ms: f64,
     fwd_n: u32,
+    /// `odds_json` memo: (seq, position, that position's logits). The logits do
+    /// not depend on temperature and cost a forward plus the whole unembed, so
+    /// without this the static lab's temperature dial pays that per move.
+    odds_logits: Option<(u64, usize, Vec<f32>)>,
 }
 
 thread_local! {
@@ -99,6 +103,7 @@ pub fn load_model(bytes: Vec<u8>) -> Result<(), JsError> {
             cache,
             last_logits: Vec::new(),
             fork: None,
+            odds_logits: None,
             sampler: None,
             work: Work::Idle,
             fwd_ms: 0.0,
@@ -396,10 +401,17 @@ pub fn odds_json(pos: usize, temp: f32, ids: &[u32]) -> Result<String, JsError> 
         let mut c = lab.cache.clone();
         c.truncate(pos);
         let id = lab.tokens[pos].0;
-        let mut obs = machine::LensObserver::default();
-        forward(&lab.model, &mut c, id, Backend::Q8, Some(&mut obs));
-        let last = obs.residuals.last().map(|r| r.as_slice()).unwrap_or(&[]);
-        let ps = lab.model.odds_at(last, temp, ids);
+        if lab.odds_logits.as_ref().map(|(s, p, _)| (*s, *p)) != Some((lab.seq, pos)) {
+            let mut obs = machine::LensObserver::default();
+            forward(&lab.model, &mut c, id, Backend::Q8, Some(&mut obs));
+            let last = obs.residuals.last().map(|r| r.as_slice()).unwrap_or(&[]);
+            let lg = lab.model.logits_from(last);
+            lab.odds_logits = Some((lab.seq, pos, lg));
+        }
+        let ps = {
+            let logits = &lab.odds_logits.as_ref().unwrap().2;
+            lab.model.odds_from_logits(logits, temp, ids)
+        };
         let mut j = format!("{{\"pos\":{pos},\"temp\":{temp},\"p\":[");
         for (i, p) in ps.iter().enumerate() {
             if i > 0 {

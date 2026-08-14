@@ -76,6 +76,9 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
         tps_q8: None,
     }));
     let stop_flag = Arc::new(AtomicBool::new(false));
+    // `/api/v1/odds` memo: (run seq, position, that position's logits). Keyed on
+    // seq so a new run, step or fork drops it. One vocabulary of f32 (~600 KB).
+    let odds_logits: Mutex<Option<(u64, usize, Vec<f32>)>> = Mutex::new(None);
 
     let listener = TcpListener::bind(("127.0.0.1", port))?;
     println!("suiron lab · http://127.0.0.1:{port}  (model resident, ctrl-c to stop)");
@@ -196,18 +199,29 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                     } else if let Some(cache) = &st.cache {
                         let mut c = cache.clone();
                         c.truncate(pos);
-                        Ok((c, st.tokens[pos].0))
+                        Ok((c, st.tokens[pos].0, st.seq))
                     } else {
                         Err("nothing to inspect — generate first")
                     }
                 };
                 match setup {
                     Err(e) => respond(&mut s, "409 Conflict", "text/plain", e.as_bytes()),
-                    Ok((mut c, id)) => {
-                        let mut obs = suiron_cli::machine::LensObserver::default();
-                        forward(&model, &mut c, id, Backend::F32, Some(&mut obs));
-                        let last = obs.residuals.last().map(|r| r.as_slice()).unwrap_or(&[]);
-                        let ps = model.odds_at(last, temp, &ids);
+                    Ok((mut c, id, seq)) => {
+                        // the logits do not depend on temperature, and they are the
+                        // whole cost (a forward pass plus a 151,936 x 1,024 unembed).
+                        // Dragging the dial paid that per move, ~400ms each, and the
+                        // bar sat still while the reader dragged (Aaron, 2026-08-14).
+                        // Cache them per (run, position): the first touch pays, every
+                        // later temperature is one pass of exp over the vocabulary.
+                        let mut lg = odds_logits.lock().unwrap();
+                        if lg.as_ref().map(|(s, p, _)| (*s, *p)) != Some((seq, pos)) {
+                            let mut obs = suiron_cli::machine::LensObserver::default();
+                            forward(&model, &mut c, id, Backend::F32, Some(&mut obs));
+                            let last = obs.residuals.last().map(|r| r.as_slice()).unwrap_or(&[]);
+                            *lg = Some((seq, pos, model.logits_from(last)));
+                        }
+                        let ps = model.odds_from_logits(&lg.as_ref().unwrap().2, temp, &ids);
+                        drop(lg);
                         let mut j = format!("{{\"pos\":{pos},\"temp\":{temp},\"p\":[");
                         for (i, p) in ps.iter().enumerate() {
                             if i > 0 {

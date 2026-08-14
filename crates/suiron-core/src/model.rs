@@ -310,9 +310,25 @@ impl Model {
     ///
     /// `temp <= 0` is greedy: the argmax holds everything.
     pub fn odds_at(&self, residual: &[f32], temp: f32, ids: &[u32]) -> Vec<f32> {
+        self.odds_from_logits(&self.logits_from(residual), temp, ids)
+    }
+
+    /// The logits a residual would produce: the final RMSNorm, then the unembed.
+    ///
+    /// Split out from `odds_at` because it is the whole cost — a 151,936 x 1,024
+    /// matvec — and it does NOT depend on temperature. Dragging the lab's
+    /// temperature dial re-asked the engine for shares and paid a forward pass
+    /// plus this matvec every time, ~400ms a move; the caller can cache this and
+    /// pay only `odds_from_logits` per move instead.
+    pub fn logits_from(&self, residual: &[f32]) -> Vec<f32> {
         let xn = rmsnorm(residual, &self.output_norm.data, self.config.rms_eps);
         let w_out = self.output.as_ref().unwrap_or(&self.token_embd);
-        let logits = w_out.matvec(&xn, Backend::F32);
+        w_out.matvec(&xn, Backend::F32)
+    }
+
+    /// The exact share each of `ids` holds at `temp`, over the whole vocabulary,
+    /// from logits already in hand. Cheap: one pass of `exp` over the vocab.
+    pub fn odds_from_logits(&self, logits: &[f32], temp: f32, ids: &[u32]) -> Vec<f32> {
         if temp <= 0.0 {
             let best = logits
                 .iter()
@@ -325,7 +341,7 @@ impl Model {
         // max-shifted, so exp never overflows at low temperature
         let max = logits.iter().copied().fold(f32::NEG_INFINITY, f32::max);
         let mut z = 0.0f64;
-        for &l in &logits {
+        for &l in logits {
             z += (((l - max) / temp) as f64).exp();
         }
         ids.iter()

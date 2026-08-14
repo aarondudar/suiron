@@ -50,18 +50,12 @@ export function DrawField({
      renormalized because the disc AREAS have to fill this field — but a
      percentage in prose is a claim about the model, not about the picture, so
      it only ever comes from here. Debounced: the dial fires a forward pass. */
-  const [exact, setExact] = useState<number | null>(null);
-  useEffect(() => {
-    if (forced || pos === undefined || chosenIdx < 0) return;
-    let dead = false;
-    const h = setTimeout(() => {
-      getOdds(pos, temp, [chosenId]).then((p) => !dead && setExact(p ? p[0] : null));
-    }, 120);
-    return () => {
-      dead = true;
-      clearTimeout(h);
-    };
-  }, [forced, pos, temp, chosenId, chosenIdx]);
+  /* One request per temperature, not three. The read line used to ask for the
+     chosen token's share on its own, which meant a second round trip for a number
+     already inside `shares` below — and each round trip was a forward pass plus
+     the unembed. The engine now memoizes the logits per position, so a drag costs
+     ~2ms instead of ~400ms; asking once keeps it that way (Aaron, 2026-08-14:
+     "a lot of lag when sliding the temperature"). */
 
   /* At temperature 0 the share is always 100% — but that is the DIAL collapsing
      onto the top pick, not the model being certain, and a reader who arrives on
@@ -92,7 +86,7 @@ export function DrawField({
     const ids = surv.map((c) => c.id);
     const h = setTimeout(() => {
       getOdds(pos, temp, ids).then((p) => !dead && p && setShares(p));
-    }, 120);
+    }, 40);
     return () => {
       dead = true;
       clearTimeout(h);
@@ -104,6 +98,8 @@ export function DrawField({
   const parts = forced ? surv.map((c) => c.p) : shares;
   const shown = parts ? parts.reduce((a, b) => a + b, 0) : 0;
   const rest = parts ? Math.max(0, 1 - shown) : 0;
+  // the read line's number is the chosen token's slice of the very same bar
+  const exact = parts && chosenIdx >= 0 ? (parts[chosenIdx] ?? null) : null;
 
   if (!ready)
     return (
