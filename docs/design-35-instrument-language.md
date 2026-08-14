@@ -53,20 +53,45 @@ Corroboration from the fresh walk (`audit-fresh.md`): the two instruments single
 out as working — LoopChain ("the best composition in the app") and HeadField —
 are precisely the two where position is either honestly nothing or honestly real.
 
-## The principle to adopt
+## The working test (NOT yet an invariant)
 
-Proposed as a third visual invariant in `design.md`, beside "honest geometry
-channels" and the one-red rule:
+Offered first as a `design.md` invariant — "the loudest channel carries the
+argument". Aaron, 2026-08-10: sounds right on paper, too abstract to commit to.
+That is a fair verdict and a useful one: a rule you cannot apply in seconds does
+not work as a guardrail, it just sits in a doc. So it is demoted to a working
+test for the duration of this track, in a form that needs no vocabulary:
 
-> **The loudest channel carries the argument.** In any instrument, the most
-> salient visual property is the one holding the real number. A channel that
-> encodes nothing may not be the dominant one.
->
+> **The squint test.** Squint at an instrument until the detail blurs. Whatever
+> you can still see — the biggest, brightest, most-moving thing — point at it and
+> say which number it is. If you cannot name one, the instrument is decorating.
+
+Applied to what ships today:
+
+- **DrawField** — you see a big red circle somewhere in a field. Its SIZE is a
+  real share (passes); its POSITION is `sphereDirs` and means nothing (fails).
+- **DotProduct** — you see a bright full-width bar. It is a progress indicator.
+  Fails hardest, which is why this drawer reads as unparseable.
+- **HeadField** — you see needles pointing. Direction is the token's real place
+  in the sentence, length is the head's real share. Passes cleanly.
+- **LoopChain** — you see a chain with an arrow curving back. The arrangement
+  means sequence, which is true. Passes.
+
+The last two are the instruments the cold walk singled out as working, before the
+test existed to explain why.
+
+**Promotion rule.** Every law in this project was written after its evidence, not
+before it — storyboard law 7 exists because six of seven steps overflowed. So:
+use the squint test through this track and record what it catches. If it flags
+real problems and never blocks something Aaron likes, it earns a line in
+`design.md` afterwards, with these examples attached. If it turns out fussy, it
+dies here and costs nothing. Nothing below depends on the ruling.
+
+One corollary is worth keeping either way, because it is the specific defect this
+plan exists to fix:
+
 > **Position is real or it is absent.** Within one instrument, spatial position
 > either encodes a real quantity throughout or is visibly not a data channel —
 > and the frame says which, once, in its corner context.
-
-Everything below is an application of those two lines.
 
 ## Track A — cohesion: one language, distinct dialects
 
@@ -159,5 +184,6 @@ Plus, for this track specifically:
    actually did, and the fix is in words, not in the dial's starting position —
    the reader must not read "100%" as the model's confidence when it is the
    dial collapsing onto the top pick. Landed ahead of this plan (see design-34).
-3. "The loudest channel carries the argument" — pending; question was unclear as
-   first put, restated for a ruling.
+3. **No ruling needed yet.** The invariant is demoted to the squint test above
+   and earns its place, or doesn't, from what the track actually catches. Nothing
+   in this plan waits on it.
