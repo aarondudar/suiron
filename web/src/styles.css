@@ -756,8 +756,28 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .dp-term { margin-left: var(--sp-2); color: var(--red-text); }
 .dp-prod { color: var(--red); font-weight: 600; }
 .dp-runsum { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2) 0; flex-wrap: wrap; }
-.dp-bar { flex: 1; height: 6px; background: #101010; min-width: 80px; }
-.dp-bar-fill { height: 100%; background: var(--ink); transition: width 0.12s linear; }
+/* the component strip (design-35): q, k and their product, one column each, the
+   sign read as direction from the midline. Replaces the progress bar that used
+   to be the loudest thing in this drawer while encoding only stepper position. */
+.dp-strip {
+  display: block; width: 100%; height: 104px; margin: var(--sp-2) 0;
+  border: 1px solid var(--hair); border-top: 1px solid var(--hair-lit);
+  background: radial-gradient(120% 120% at 50% 40%, #0a0b0e 0%, #050506 70%);
+}
+.dp-strip-mid { stroke: var(--hair); stroke-width: 0.35; vector-effect: non-scaling-stroke; }
+/* not yet reached: present, so the reader sees what is still to come */
+.dp-b { fill: #3a3a3a; }
+/* already summed */
+.dp-b.on { fill: var(--dim); }
+/* the few coordinates that carry the score — the drawer's own finding, drawn */
+.dp-b.carry { fill: var(--red-text); }
+/* the component under the cursor */
+.dp-b.cur { fill: var(--ink); }
+.dp-strip-key {
+  display: flex; gap: var(--sp-3); color: var(--faint); font-size: var(--t-micro);
+  letter-spacing: 0.06em; margin-bottom: var(--sp-1);
+}
+.dp-strip-key b { color: var(--dim); font-weight: 400; }
 /* wrap, never overflow the panel on mobile (was nowrap → horizontal scroll) */
 .dp-runsum-val { color: var(--dim); font-size: var(--t-tiny); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .dp-step, .dp-formula { overflow-wrap: anywhere; }
@@ -783,10 +803,6 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .stepper-range { flex: 1; min-width: 80px; height: 4px; accent-color: var(--red); cursor: pointer; }
 .stepper-where { color: var(--dim); font-size: var(--t-tiny); white-space: nowrap; }
 .stepper-where b { color: var(--ink); font-family: var(--dot); }
-@media (prefers-reduced-motion: reduce) {
-  .dp-bar-fill { transition: none; }
-}
-
 /* ---------- backend segmented toggle ---------- */
 .seg { display: inline-flex; border: 1px solid var(--hair); }
 .seg-dim { opacity: 0.5; }

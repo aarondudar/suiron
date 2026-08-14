@@ -26,6 +26,84 @@ interface Resp {
 
 const f = (x: number) => x.toFixed(3);
 
+/* The score, drawn as the thing it is (design-35, track B).
+   This was a progress bar: the loudest element in the drawer encoded how far
+   through the stepper you had clicked, while the mathematics — which components
+   agree, and by how much — was not drawn at all. Aaron, 2026-08-10: "too
+   difficult to parse in its current state."
+
+   Now three real lanes, one column per component: the query, the key, and their
+   product. Every bar is a live number and the sign is the direction from the
+   midline, so agreement is visible as two bars leaning the same way, and the
+   punchline the drawer already computed — that a handful of coordinates carry
+   the whole score — is the shape of the bottom lane rather than a sentence under
+   it. Columns left of the cursor are the sum so far; the product lane is tallest
+   because it is the one being argued about.
+
+   SVG, not canvas: nothing here animates (the stepper drives it), it stays crisp
+   at any width, and unlike the canvas instruments it can actually be seen in a
+   screenshot. */
+function ComponentStrip({
+  q,
+  k,
+  upto,
+  carry,
+}: {
+  q: number[];
+  k: number[];
+  upto: number;
+  carry: number[];
+}) {
+  const n = q.length;
+  if (!n) return null;
+  const prod = q.map((v, j) => v * k[j]);
+  const peak = (xs: number[]) => Math.max(...xs.map(Math.abs), 1e-6);
+  const carried = new Set(carry);
+  /* One lane, not three. The first cut drew q and k as their own lanes so the
+     reader could see WHY a product spikes — but these are real vectors with a
+     heavy tail, and on an honest linear scale 116 of 128 key bars rendered
+     sub-pixel. A channel nobody can see is not a channel; rescaling to make it
+     visible would break "radius = real value". So the product gets the whole
+     height, and the per-pair "why" stays where it is already legible: the
+     numeric q[j] x k[j] line directly above (design-35). */
+  const LANES = [{ rows: prod, half: 38, top: 0, peak: peak(prod), label: "q × k" }];
+  const H = 76;
+  return (
+    <svg className="dp-strip" viewBox={`0 0 ${n} ${H}`} preserveAspectRatio="none" role="img"
+      aria-label="each component's query value, key value, and their product">
+      {LANES.map((lane) => {
+        const mid = lane.top + lane.half;
+        return (
+          <g key={lane.label}>
+            <line className="dp-strip-mid" x1={0} y1={mid} x2={n} y2={mid} />
+            {lane.rows.map((v, j) => {
+              const h = (Math.abs(v) / lane.peak) * lane.half;
+              const cls =
+                j >= upto
+                  ? "dp-b"
+                  : j === upto - 1
+                    ? "dp-b cur"
+                    : carried.has(j)
+                      ? "dp-b carry"
+                      : "dp-b on";
+              return (
+                <rect
+                  key={j}
+                  className={cls}
+                  x={j + 0.12}
+                  width={0.76}
+                  y={v >= 0 ? mid - h : mid}
+                  height={Math.max(h, 0.35)}
+                />
+              );
+            })}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 export function DotProduct({
   ctx,
   layer,
@@ -201,13 +279,14 @@ export function DotProduct({
             )}
           </div>
 
+          <div className="dp-strip-key">
+            <span>
+              one column per component · <b>up</b> the two agree, <b>down</b> they disagree ·
+              height is how strongly · the sum is every column added up
+            </span>
+          </div>
+          <ComponentStrip q={w.q} k={w.k} upto={Math.min(i, hd)} carry={carry} />
           <div className="dp-runsum">
-            <div className="dp-bar">
-              <div
-                className="dp-bar-fill"
-                style={{ width: `${Math.min(100, (Math.abs(runSum) / (Math.abs(fullSum) || 1)) * 100)}%` }}
-              />
-            </div>
             <span className="dp-runsum-val">Σ q·k so far = {f(runSum)}</span>
           </div>
 

@@ -44,7 +44,9 @@ export const EXPERIMENTS: Experiment[] = [
     title: 'the repetition trap',
     prompt: 'The drum goes boom and the drum goes boom and the',
     params: { n: 16, temp: 0 },
-    hook: 'greedy decoding walks in a circle',
+    // same reason as the hook above: "greedy decoding" is not a ledger term at
+    // all, and this chip is first seen on step 0 (Aaron, 2026-08-10)
+    hook: 'always taking the top word walks in a circle',
     watchFor:
       'at temperature 0 the most likely token is always taken, and here that loops forever: each repetition makes the next more likely. Raise the temperature and run again to shake it loose.',
   },
