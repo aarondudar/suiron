@@ -141,6 +141,30 @@ Per instrument, the disposition to decide. Each keeps every number live.
   the instrument's own honest line.
 - **HeadField, LoopChain.** No change. They are the reference for the rest.
 
+## Track C — one thing at a time INSIDE a drawer (Aaron, 2026-08-10)
+
+Raised as "intelligently surfacing some of the other information on screen in any
+one drawer, so it is less overwhelming and more visually minimalist — I am not
+sure there is any way to do that." There is, and it is already in the codebase:
+
+```
+/** the sampling drawer shows one knob at a time — the flow's own law applied
+ *  inside the drawer (three stacked demos would bury the idea) */
+export const KNOBS = ["temperature", "top-k", "top-p"] as const;
+```
+
+That is the single-drawer rule applied one level down, and it is why the sampling
+drawer reads at 1.3 screens while the score drawer reads at 3.45. The score drawer
+stacks four sections — the component strip + its stepper, the blend + its stepper,
+the head attribution, and the woven source — which is exactly what the comment
+above says not to do.
+
+Proposal: extend the segmented pattern to the score drawer (`the score` / `the
+blend` / `the source`), and audit the other multi-section drawers against it. No
+new mechanism, no new component: `.seg` / `.seg-opt` already exist and are already
+styled. Deferred behind Track B at Aaron's direction ("let's go with the visual
+redesigns first") — recorded so it is not rediscovered from scratch.
+
 ## Out of scope, explicitly
 
 - **Manim, and pre-rendered video of any kind** (raised and rejected, 2026-08-10).

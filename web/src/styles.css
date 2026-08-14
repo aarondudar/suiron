@@ -756,6 +756,36 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .dp-term { margin-left: var(--sp-2); color: var(--red-text); }
 .dp-prod { color: var(--red); font-weight: 600; }
 .dp-runsum { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2) 0; flex-wrap: wrap; }
+/* the ticket bar (design-35): step 4's hero as one whole divided, so the copy's
+   "share of tickets" is what the picture literally shows. Width is a real share
+   of the whole vocabulary; the last slice is everything the model did not shortlist,
+   so the bar sums to 1 rather than to whatever happened to be on screen. */
+.fl-space.fl-space-draw { display: flex; align-items: center; }
+.fl-tickets {
+  display: flex; width: 100%; height: 86px; padding: 0 1px;
+  border: 1px solid var(--hair); background: #0a0b0e; overflow: hidden;
+}
+.fl-tk {
+  position: relative; min-width: 0; height: 100%;
+  border-right: 1px solid #0a0b0e; background: #303030;
+  transition: width 0.18s ease, background 0.18s ease;
+}
+.fl-tk.won { background: var(--red); }
+.fl-tk.forced { background: var(--ink); }
+.fl-tk.rest { background: repeating-linear-gradient(135deg, #141414 0 5px, #0e0e0e 5px 10px); }
+.fl-tk.pending { background: #141414; }
+/* a slice only speaks if it is wide enough to be read; the rest carry a tooltip */
+.fl-tk-lab {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: var(--t-micro); letter-spacing: 0.04em; color: var(--ink);
+  white-space: nowrap; overflow: hidden; opacity: 0; transition: opacity 0.18s ease;
+}
+.fl-tk { container-type: inline-size; }
+@container (min-width: 62px) { .fl-tk-lab { opacity: 1; } }
+.fl-tk.won .fl-tk-lab { color: var(--bg); font-weight: 600; }
+.fl-tk.rest .fl-tk-lab { color: var(--dim); }
+@media (prefers-reduced-motion: reduce) { .fl-tk, .fl-tk-lab { transition: none; } }
+
 /* the component strip (design-35): q, k and their product, one column each, the
    sign read as direction from the midline. Replaces the progress bar that used
    to be the loudest thing in this drawer while encoding only stepper position. */

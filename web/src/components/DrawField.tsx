@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { getOdds } from "../api";
 import { esc } from "../lib";
-import { useCanvasLoop, rotY, sphereDirs, type V3 } from "./spaceCanvas";
 import type { Sel } from "../types";
 
 /* "draws one", as an instrument (design-31): the surviving guesses float as a
@@ -39,14 +38,12 @@ export function DrawField({
         .slice(0, MAX);
   const ready = surv.length > 0;
 
-  const T = Math.max(0.01, temp);
-  const mx = surv.length ? Math.max(...surv.map((c) => c.logit)) : 0;
-  const exps = surv.map((c) => Math.exp((c.logit - mx) / T));
-  const z = exps.reduce((a, b) => a + b, 0) || 1;
-  const w = forced ? surv.map((c) => c.p) : exps.map((e) => e / z);
-  const dirs = sphereDirs(surv.length);
+  /* the client-side softmax that used to size the discs is gone with them: it
+     normalized over the candidates on screen, which is exactly the overstatement
+     design-34 removed from the prose. Every share here now comes from the engine
+     over the whole vocabulary (design-35). */
   const chosenIdx = surv.findIndex((c) => c.id === chosenId);
-  const chosenW = chosenIdx >= 0 ? w[chosenIdx] : 0;
+  const chosenW = chosenIdx >= 0 ? surv[chosenIdx].p : 0; // forced only: the recorded share
   const chosenTok = chosenIdx >= 0 ? esc(surv[chosenIdx].t) : "";
 
   /* the true share, from the engine, over all 151,936 entries. `w` above stays
@@ -83,51 +80,30 @@ export function DrawField({
     };
   }, [forced, pos, chosenId, chosenIdx, greedy]);
 
-  const st = { w, dirs, chosenIdx, labels: surv.map((c) => esc(c.t)) };
-
-  const canvas = useCanvasLoop(ready, ({ ctx, W, H, cx, cy, spin }) => {
-    const { w: ww, dirs: D, chosenIdx: ci, labels } = st;
-    const n = ww.length;
-    if (!n) return;
-    const scale = Math.min(W, H) * 0.5;
-    const proj = (p: V3) => {
-      const f = scale / (2.7 - p[2]);
-      return { x: cx + p[0] * f, y: cy - p[1] * f, z: p[2] };
+  /* every shown candidate's exact share at this temperature, so the bar below is
+     a true partition: the segments plus "everything else" sum to 1 (design-35).
+     Forced positions have their logits stamped 0, so there is nothing to score —
+     they fall back to the shares the trace recorded, which is what the storyboard's
+     forced-token ruling says those are. */
+  const [shares, setShares] = useState<number[] | null>(null);
+  useEffect(() => {
+    if (forced || pos === undefined) return;
+    let dead = false;
+    const ids = surv.map((c) => c.id);
+    const h = setTimeout(() => {
+      getOdds(pos, temp, ids).then((p) => !dead && p && setShares(p));
+    }, 120);
+    return () => {
+      dead = true;
+      clearTimeout(h);
     };
-    // draw far discs first (painter's order)
-    const order = D.map((_, i) => i).sort(
-      (a, b) => rotY(D[a], spin)[2] - rotY(D[b], spin)[2],
-    );
-    for (const i of order) {
-      const s = proj(rotY(D[i].map((x) => x * 1.15) as V3, spin));
-      const depth = (s.z + 1) / 2;
-      const isWin = i === ci;
-      const rad = 3 + Math.sqrt(ww[i]) * 46 * (0.6 + 0.5 * depth);
-      // red marks the model's own draw; a human-forced token rings in ink
-      // (the worlds chips keep the same law)
-      const win = forced ? `rgba(232,232,232,` : `rgba(215,25,33,`;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, rad, 0, 7);
-      ctx.fillStyle = isWin
-        ? `${win}${0.22 + 0.5 * depth})`
-        : `rgba(232,232,232,${(0.06 + 0.14 * depth) + ww[i] * 0.25})`;
-      ctx.fill();
-      if (isWin) {
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, rad + 3, 0, 7);
-        ctx.strokeStyle = `${win}0.95)`;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      }
-      // label only the discs big enough to carry one
-      if (ww[i] > 0.03 || isWin) {
-        ctx.font = `${isWin ? 600 : 400} ${(11 + 3 * depth).toFixed(0)}px ui-monospace, monospace`;
-        ctx.fillStyle = isWin ? `${win}0.95)` : `rgba(232,232,232,${0.4 + 0.4 * depth})`;
-        ctx.textAlign = "center";
-        ctx.fillText(labels[i], s.x, s.y - rad - 5);
-      }
-    }
-  }, { rotatable: true });
+    // surv is derived from sel.cand; its ids are what matter
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forced, pos, temp, sel.cand]);
+
+  const parts = forced ? surv.map((c) => c.p) : shares;
+  const shown = parts ? parts.reduce((a, b) => a + b, 0) : 0;
+  const rest = parts ? Math.max(0, 1 - shown) : 0;
 
   if (!ready)
     return (
@@ -138,8 +114,39 @@ export function DrawField({
 
   return (
     <div className="fl-spacewrap">
-      <div className="fl-space">
-        <canvas ref={canvas} />
+      <div className="fl-space fl-space-draw">
+        {/* the hat, drawn as one whole divided (design-35). The step's own copy
+            calls this "pulling a ticket from a weighted hat" and "a probability
+            is just the share of tickets" — so the picture is now that sentence:
+            one bar, each token's slice its real share of the WHOLE vocabulary,
+            with the rest of the vocabulary as the last slice so the bar honestly
+            sums to 1. Was a cluster of discs on `sphereDirs`, where the loudest
+            channel (where a disc sat) meant nothing at all. */}
+        <div className="fl-tickets" role="img" aria-label="every token's share of the draw">
+          {parts ? (
+            <>
+              {surv.map((c, i) => (
+                <div
+                  key={c.id}
+                  className={"fl-tk" + (i === chosenIdx ? (forced ? " forced" : " won") : "")}
+                  style={{ width: `${parts[i] * 100}%` }}
+                  title={`${esc(c.t)} · ${(parts[i] * 100).toFixed(1)}%`}
+                >
+                  <span className="fl-tk-lab">{esc(c.t)}</span>
+                </div>
+              ))}
+              <div
+                className="fl-tk rest"
+                style={{ width: `${rest * 100}%` }}
+                title={`every other token · ${(rest * 100).toFixed(1)}%`}
+              >
+                <span className="fl-tk-lab">everything else</span>
+              </div>
+            </>
+          ) : (
+            <div className="fl-tk pending" style={{ width: "100%" }} />
+          )}
+        </div>
         <div className="fl-space-ov fl-space-ctx">
           {forced ? "suiron · draws one · forced" : `suiron · draws one · temp ${temp.toFixed(2)}`}
         </div>
