@@ -756,6 +756,22 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .dp-term { margin-left: var(--sp-2); color: var(--red-text); }
 .dp-prod { color: var(--red); font-weight: 600; }
 .dp-runsum { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2) 0; flex-wrap: wrap; }
+/* the climb (design-35): layer across, probability up — both axes real, so the
+   sentence "its guess sharpens across 28 rounds" is the shape of the red line. */
+.fl-space.fl-space-climb { display: flex; align-items: center; padding: 0 var(--sp-3); }
+.cl-chart { display: block; width: 100%; height: 100%; max-height: 260px; }
+.cl-grid { stroke: #171717; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.cl-tick { fill: var(--faint); font-size: 7px; letter-spacing: 0.06em; }
+.cl-line { fill: none; stroke: #4a4a4a; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.cl-line.win { stroke: var(--red); stroke-width: 1.6; }
+.cl-cursor { stroke: var(--dim); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+.cl-lock { stroke: #2f2f2f; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.cl-lock-lab { fill: var(--faint); font-size: 6.5px; letter-spacing: 0.06em; }
+.cl-dot { fill: #8f8f8f; }
+.cl-dot.win { fill: var(--red); }
+.cl-lab { fill: var(--dim); font-size: 7.5px; }
+.cl-lab.win { fill: var(--red-text); }
+
 /* the ticket bar (design-35): step 4's hero as one whole divided, so the copy's
    "share of tickets" is what the picture literally shows. Width is a real share
    of the whole vocabulary; the last slice is everything the model did not shortlist,
