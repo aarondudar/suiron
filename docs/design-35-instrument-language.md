@@ -93,6 +93,46 @@ plan exists to fix:
 > either encodes a real quantity throughout or is visibly not a data channel —
 > and the frame says which, once, in its corner context.
 
+## Status: track B built (2026-08-14)
+
+Three passes, one instrument each, all verified live and committed separately.
+
+- **pass 1 — DotProduct.** Progress bar → one column per component, up for
+  agreement, down for disagreement. First cut also drew q and k as their own
+  lanes to show WHY a product spikes; measured it and 116 of 128 key bars came out
+  sub-pixel, because these are heavy-tailed real vectors and rescaling to fix that
+  would break "radius = real value". Cut them; the product took the full height.
+- **pass 2 — DrawField.** Disc cluster on `sphereDirs` → one bar divided by real
+  full-vocabulary share, with everything the model did not shortlist as its own
+  slice, so the bar sums to 1. At temp 1.5 the favourite holds 15% and 72.5% of
+  the draw belongs to tokens that were never candidates — the step's aside has
+  always claimed the long shots get a real chance, and this is the first version
+  of the picture that shows it. The client-side softmax that sized the discs is
+  gone with them.
+- **pass 3 — LensSpace.** Swinging vector on a sphere → layer across, probability
+  up. Both axes real, the lock-on layer marked on the axis it belongs to. Shows
+  what the sphere could not: the answer is worth nothing for twenty-two layers,
+  then erupts past 90% and settles at 65%, and the grey rival leading early is the
+  caption's "its guess so far" rather than a fault.
+
+**Inventory correction.** The plan's table listed a `TokenSpace` row for step 1's
+map. Wrong on two counts: nothing mounts `TokenSpace` (only `pickAnchor` is
+imported from it — dead component, worth removing), and the map that DOES render
+is `GeometryCard read="meaning"`, which was already 2-D, already SVG, and already
+documents "distance from the focus is the only such claim… angle is LAYOUT ONLY.
+No projection, ever." It needed no pass. So the sphere problem was three
+instruments, one of them dead — not four.
+
+**Verified after the track:** all 7 steps and all 9 drawers walked at 1280x720
+with an installed error trap — zero runtime errors, nav on screen at every step,
+no page scroll. New SVG text checked against law 8: effective sizes 9–11.8px at
+4.67–7.56:1 (SVG text scales with the viewBox, so the small font-size values are
+not the rendered ones). The ticket bar's won slice moved to `--red-deep` so its
+label clears the text bar.
+
+**Not done by this track:** the score drawer is still the longest thing in the
+tour (~3.4 screens). That is Track C, not a picture problem.
+
 ## Track A — cohesion: one language, distinct dialects
 
 The goal is NOT to make the instruments look more alike. It is to make the

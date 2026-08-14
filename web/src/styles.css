@@ -786,7 +786,9 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   border-right: 1px solid #0a0b0e; background: #303030;
   transition: width 0.18s ease, background 0.18s ease;
 }
-.fl-tk.won { background: var(--red); }
+/* the won slice carries a label, so it takes the deeper red: --bg on --red is
+   3.93:1 and ink on --red only 4.23:1, neither clearing the text bar (law 8) */
+.fl-tk.won { background: var(--red-deep); }
 .fl-tk.forced { background: var(--ink); }
 .fl-tk.rest { background: repeating-linear-gradient(135deg, #141414 0 5px, #0e0e0e 5px 10px); }
 .fl-tk.pending { background: #141414; }
@@ -798,7 +800,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 .fl-tk { container-type: inline-size; }
 @container (min-width: 62px) { .fl-tk-lab { opacity: 1; } }
-.fl-tk.won .fl-tk-lab { color: var(--bg); font-weight: 600; }
+.fl-tk.won .fl-tk-lab { color: var(--ink); font-weight: 600; }
 .fl-tk.rest .fl-tk-lab { color: var(--dim); }
 @media (prefers-reduced-motion: reduce) { .fl-tk, .fl-tk-lab { transition: none; } }
 
