@@ -196,10 +196,6 @@ export function StepStage(p: StepStageProps) {
       if (!hasRun || !prodStep) return waiting;
       const chosenId = trace.tokens[cur].id;
       const sel = trace.steps[cur]?.sel;
-      const top0 = prodStep.top?.[0];
-      const topTok = top0 ? esc(top0[1]) : "";
-      const pTop = top0 ? `${(top0[2] * 100).toFixed(0)}%` : "";
-      const chosen = esc(trace.tokens[cur]?.t ?? "");
       return (
         <>
           <p className="fl-line fl-enter" style={hDelay}>
@@ -208,19 +204,13 @@ export function StepStage(p: StepStageProps) {
           </p>
           {sel ? (
             <>
+              {/* no C slot here (design-34, Aaron 2026-08-10): the dial's own read
+                  line is live and now exact over the whole vocabulary, so a caption
+                  quoting a second share only reads as a rival to it. copy-script
+                  rule 6 — silence is a valid state. The instrument states the draw
+                  and the forcing itself. */}
               <div className="fl-enter" style={heroDelay}>
                 <DrawField sel={sel} chosenId={chosenId} pos={prod} />
-              </div>
-              <div className="fl-cap fl-enter" style={cDelay}>
-                {sel.forced ? (
-                  <>
-                    “{topTok}” holds {pTop} of the tickets · no draw here, you forced “{chosen}”
-                  </>
-                ) : (
-                  <>
-                    “{topTok}” holds {pTop} of the tickets · the draw landed on “{chosen}”
-                  </>
-                )}
               </div>
             </>
           ) : (

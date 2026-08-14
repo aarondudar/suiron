@@ -23,7 +23,10 @@ export const EXPERIMENTS: Experiment[] = [
     id: 'lookup',
     title: 'the lookup',
     prompt: 'The capital of France is',
-    hook: 'watch attention fetch a fact',
+    // the hooks are first seen on step 0, as tooltips on the front door's chips,
+    // so they have to read before the ledger unlocks anything: "attention" is a
+    // step-2 word (design-34, Aaron 2026-08-10 — closing the item parked in v2.md)
+    hook: 'watch it reach back for a fact',
     watchFor:
       'in the layer stack, one layer locks most of its attention onto “France”: the fact is fetched by attention, and “Paris” wins the vote.',
   },

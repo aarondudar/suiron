@@ -61,17 +61,27 @@ browser. Its two rulings are now laws 7 and 8 in `storyboard.md`.
 
 Still open, deliberately, and NOT silently fixed:
 
-- **Step 4 now shows two true numbers** ("holds 100% of the odds" at temp 0, and
-  the caption's "65% of the tickets"). Both are correct and they mean different
-  things — the dial collapses to the argmax at temp 0; the caption is the model's
-  raw confidence. Whether C survives rule 6 now that nothing contradicts is a
-  copy call, flagged not taken.
-- **The visual-grammar collision** (steps 1, 2 and 3 all draw dim dots in 2D with
-  one red dot, meaning three different things) is a redesign, not a fix. Bucket B.
-- **`EmbeddingRow` still says "layer"** in a step-1 drawer. Outside C1-C12, so
-  left for a ruling rather than expanded into.
 - **The q8 SpeedRace card** still reads "run it to measure" until both backends
   have been run; the badge now hides itself rather than the panel lying.
+- **`experiments.ts` hook "greedy decoding walks in a circle"** is the same class
+  as the "attention" hook closed below — "greedy decoding" is not a ledger term at
+  all, and the chip is first seen on step 0. Curated copy, so flagged rather than
+  changed. Suggested: "always taking the top word walks in a circle".
+
+Closed since (Aaron's rulings, 2026-08-10):
+
+- **Step 4's C slot is cut.** The dial's read line is live and now exact over the
+  whole vocabulary, so a caption quoting a second share only read as a rival to
+  it. copy-script rule 6 — silence is a valid state; the instrument states the
+  draw and the forcing itself.
+- **The ledger sweep is finished.** `EmbeddingRow`'s "enters layer 0" went in the
+  instrument-text pass (its remaining "layer 0" is a source comment, not on
+  screen); the step-0 experiment hook no longer says "attention". This closes the
+  item parked in `v2.md`.
+- **The visual-grammar collision is scoped**, not fixed, in
+  `design-35-instrument-language.md` — together with the score drawer's demo,
+  which Aaron identified as the deeper problem there ("too difficult to parse in
+  its current state"). Plan only; no code until approved.
 
 ## The passes
 
