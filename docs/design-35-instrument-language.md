@@ -149,11 +149,15 @@ Plus, for this track specifically:
 - A cold re-walk after this track, on a real screen, by a person — the visual
   half of the tour has still never been judged that way.
 
-## Open questions for Aaron
+## Aaron's rulings (2026-08-10)
 
-1. Is 2-D acceptable where it is more honest? Three instruments are 3-D point
-   clouds whose third dimension carries nothing.
-2. Does step 4 open at the run's temperature (currently 0, where the picture
-   teaches least) or at a temperature that shows the spread, clearly labelled?
-3. Is "the loudest channel carries the argument" acceptable as a design.md
-   invariant? It is the load-bearing line of this plan.
+1. **2-D is fine where it is more honest.** Settles the biggest open question in
+   Track B: the three sphere instruments may flatten. A third dimension that
+   carries nothing is not worth the grammar collision it causes.
+2. **Step 4 keeps opening at the run's own temperature; the COPY has to reflect
+   temp 0 accurately.** So the default view stays faithful to what the run
+   actually did, and the fix is in words, not in the dial's starting position —
+   the reader must not read "100%" as the model's confidence when it is the
+   dial collapsing onto the top pick. Landed ahead of this plan (see design-34).
+3. "The loudest channel carries the argument" — pending; question was unclear as
+   first put, restated for a ruling.

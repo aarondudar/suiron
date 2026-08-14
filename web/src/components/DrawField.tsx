@@ -66,6 +66,23 @@ export function DrawField({
     };
   }, [forced, pos, temp, chosenId, chosenIdx]);
 
+  /* At temperature 0 the share is always 100% — but that is the DIAL collapsing
+     onto the top pick, not the model being certain, and a reader who arrives on
+     the run's own temp 0 would otherwise take it for confidence. So temp 0 also
+     names the model's own odds (its share at temperature 1, the conventional
+     reading of "how sure it is"). Aaron, 2026-08-10: "the copy should reflect
+     temp 0 accurately". Cached, so this costs one extra forward at most. */
+  const greedy = temp <= 0;
+  const [base, setBase] = useState<number | null>(null);
+  useEffect(() => {
+    if (forced || pos === undefined || chosenIdx < 0 || !greedy) return;
+    let dead = false;
+    getOdds(pos, 1, [chosenId]).then((p) => !dead && setBase(p ? p[0] : null));
+    return () => {
+      dead = true;
+    };
+  }, [forced, pos, chosenId, chosenIdx, greedy]);
+
   const st = { w, dirs, chosenIdx, labels: surv.map((c) => esc(c.t)) };
 
   const canvas = useCanvasLoop(ready, ({ ctx, W, H, cx, cy, spin }) => {
@@ -133,15 +150,28 @@ export function DrawField({
               <span className="p">{(chosenW * 100).toFixed(1)}%</span> of the odds · you forced it
             </>
           ) : (
-            <>
-              at temp {temp.toFixed(2)}, <span className="w">“{chosenTok}”</span>
-              {exact !== null && (
-                <>
-                  {" "}
-                  holds <span className="p">{(exact * 100).toFixed(0)}%</span> of the odds
-                </>
-              )}
-            </>
+            greedy ? (
+              <>
+                at temp 0.00 the dial gives <span className="w">“{chosenTok}”</span> the whole draw
+                {base !== null && (
+                  <>
+                    {" "}
+                    · the model's own odds on it are{" "}
+                    <span className="p">{(base * 100).toFixed(0)}%</span>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                at temp {temp.toFixed(2)}, <span className="w">“{chosenTok}”</span>
+                {exact !== null && (
+                  <>
+                    {" "}
+                    holds <span className="p">{(exact * 100).toFixed(0)}%</span> of the odds
+                  </>
+                )}
+              </>
+            )
           )}
         </div>
       </div>
