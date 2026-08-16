@@ -759,7 +759,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 /* the climb (design-35): layer across, probability up — both axes real, so the
    sentence "its guess sharpens across 28 rounds" is the shape of the red line. */
 .fl-space.fl-space-climb { display: flex; align-items: center; padding: 0 var(--sp-3); }
-.cl-chart { display: block; width: 100%; height: 100%; max-height: 260px; }
+.cl-chart { display: block; width: 100%; height: 100%; max-height: 420px; }
 .cl-grid { stroke: #171717; stroke-width: 1; vector-effect: non-scaling-stroke; }
 .cl-tick { fill: var(--faint); font-size: 7px; letter-spacing: 0.06em; }
 .cl-line { fill: none; stroke: #4a4a4a; stroke-width: 1; vector-effect: non-scaling-stroke; }
@@ -778,7 +778,9 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
    so the bar sums to 1 rather than to whatever happened to be on screen. */
 .fl-space.fl-space-draw { display: flex; align-items: center; }
 .fl-tickets {
-  display: flex; width: 100%; height: 86px; padding: 0 1px;
+  /* scales with the frame it sits in: a fixed height left the instrument box
+     mostly empty on a tall monitor (2026-08-14) */
+  display: flex; width: 100%; height: clamp(70px, 42%, 210px); padding: 0 1px;
   border: 1px solid var(--hair); background: #0a0b0e; overflow: hidden;
 }
 .fl-tk {
@@ -1502,14 +1504,15 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   -webkit-backdrop-filter: blur(3px) saturate(1.1);
   border: 1px solid var(--hair); border-top: 2px solid var(--red);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 24px 60px -30px rgba(0, 0, 0, 0.9);
-  min-height: 560px;
-  min-height: clamp(480px, 100svh - 200px, 800px);
-  /* the stage fits the window (design-34, the fresh walk): the panel never grows
-     past the viewport, so the dock and the foot — and above all continue — stay
-     on screen at every step. A tall step scrolls INSIDE the stage instead,
-     exactly as a drawer already does. Before this, six of seven steps pushed the
-     nav row below the fold at 1280x720. */
-  max-height: calc(100svh - 76px);
+  /* the panel IS the window (design-34, amended 2026-08-14). It fits so the dock
+     and the foot — above all `continue` — stay on screen at every step, and a
+     step taller than the window scrolls INSIDE the stage, as a drawer already
+     does. The first cut capped it at 800px, which meant a tall monitor scrolled
+     the stage with hundreds of pixels sitting empty below it; the height now
+     simply tracks the viewport. `min-height` is the floor for very short
+     windows, where a little page scroll beats a crushed stage. */
+  height: calc(100svh - 76px);
+  min-height: 480px;
   display: flex; flex-direction: column;
 }
 /* nav-HUD corner brackets — starship-console framing (design-31) */
@@ -1567,6 +1570,17 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   min-height: 0; overflow-y: auto;
 }
 @keyframes fl-in { from { opacity: 0; } }
+
+/* The hero takes the space the text tiers leave — no vh guessing (2026-08-14).
+   Two rounds of tuning vh coefficients each fixed one window size and broke
+   another: 34vh starved a 1440px monitor, 40vh pushed the aside off an 800px
+   one. Height is not a property of the viewport, it is what is left after H, C
+   and A have had theirs, so the hero simply flexes into the remainder and the
+   bounds below stop it becoming silly at either extreme. */
+.fl-stage > .fl-hero {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column; justify-content: center;
+}
 
 /* the entrance order (docs/storyboard.md §3): on step entry the tiers rise in
    sequence — H, then a beat, then the hero plays once, then C, then A, then the
@@ -1769,14 +1783,14 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 
 /* step 3 reimagined: the lens SPACE — a pseudo-3D instrument (design-31). The
    vector's swing is live logit-lens data; only the words' positions illustrate. */
-.fl-spacewrap { width: 100%; max-width: 560px; margin: 0 auto; }
+.fl-spacewrap {
+  width: 100%; max-width: 560px; margin: 0 auto;
+  display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0;
+}
 .fl-space {
   position: relative; width: 100%;
-  /* vh alone overshoots: the frame also spends height on head, dock and foot, so
-     a 40vh hero left no room for C and A on a 720px window (design-34). These
-     coefficients keep the hero dominant on tall screens and let it give way
-     first on short ones — the text tiers stay on screen either way. */
-  height: clamp(200px, 34vh, 360px);
+  /* fills the hero box; the bounds are sanity rails, not the layout */
+  flex: 1 1 auto; min-height: 170px; max-height: 520px;
   border: 1px solid var(--hair); border-top: 1px solid var(--hair-lit);
   background: radial-gradient(120% 120% at 50% 40%, #0a0b0e 0%, #050506 70%);
   overflow: hidden;
@@ -1800,8 +1814,8 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   max-width: 58ch; margin-top: var(--sp-2);
 }
 .fl-spacewrap .stepper-where { display: none; }
-.fl-space.fl-space-tall { height: clamp(240px, 40vh, 420px); }
-.fl-space.fl-space-short { height: clamp(170px, 26vh, 260px); }
+.fl-space.fl-space-tall { max-height: 620px; }
+.fl-space.fl-space-short { max-height: 340px; }
 
 /* short windows: spend less on rhythm and chrome so the step keeps ALL its tiers
    (design-34). The aside is the step's only definition — it must not be the thing
@@ -1813,8 +1827,6 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   .fl-head { padding-top: var(--sp-3); padding-bottom: var(--sp-3); }
   .fl-foot { padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
   .fl-dock { padding-top: var(--sp-2); }
-  .fl-space { height: clamp(180px, 27vh, 360px); }
-  .fl-space.fl-space-tall { height: clamp(200px, 32vh, 420px); }
   /* the instrument's own fine print wraps to three lines at 52ch on a narrow
      measure; a wider measure costs nothing and buys the aside its place */
   .fl-space-honest { margin-top: var(--sp-1); max-width: 64ch; }

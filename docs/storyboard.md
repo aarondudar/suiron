@@ -37,13 +37,20 @@ everyone else in the wings.
 6. **Instruments speak only script.** An instrument may render only the
    I-slot strings in `copy-script.md`. Everything else it currently prints is
    removed.
-7. **The stage fits the window.** (design-34, the fresh walk.) The frame never
-   grows past the viewport: a step taller than the window scrolls INSIDE the
-   stage, exactly as a drawer already does, so the dock and the foot — and above
-   all `continue` — are on screen at every step. When a short window still can't
-   hold a step, height comes off padding first, then the headline's leading, then
-   the hero; the aside is never what falls off the bottom. Before this rule, six
-   of seven steps pushed the nav row below the fold at 1280x720.
+7. **The stage is the window.** (design-34, the fresh walk; amended 2026-08-14.)
+   The frame's height tracks the viewport in BOTH directions. It never grows past
+   it — a step taller than the window scrolls INSIDE the stage, exactly as a
+   drawer already does, so the dock and the foot, above all `continue`, are on
+   screen at every step. And it never stops short of it: the first cut capped the
+   panel at 800px, which meant a tall monitor scrolled a step it had ample room
+   to show. Before the rule, six of seven steps pushed the nav row below the fold
+   at 1280x720.
+
+   **The hero takes what the text tiers leave.** Not a `vh` fraction — two rounds
+   of tuning vh coefficients each fixed one window and broke another (34vh
+   starved a 1440px monitor; 40vh pushed the aside off an 800px one). The hero
+   flexes into the remainder after H, C and A have had theirs, with min/max as
+   sanity rails only. The aside is never what falls off the bottom.
 8. **Text tiers are legible tiers.** Any tier that carries words clears 4.5:1;
    `--faint` is hairlines and graphics only. Red as small text uses `--red-text`,
    red behind text uses `--red-deep` — `--red` itself stays the model's choice.

@@ -123,7 +123,7 @@ export function StepStage(p: StepStageProps) {
           <p className="fl-line fl-enter" style={hDelay}>
             First, your words are broken into the pieces the model actually reads.
           </p>
-          <div className="fl-enter" style={heroDelay}>
+          <div className="fl-hero fl-enter" style={heroDelay}>
             <Sentence trace={trace} n={n} showIds stagger />
           </div>
           <div className="fl-cap fl-enter" style={cDelay}>
@@ -152,7 +152,7 @@ export function StepStage(p: StepStageProps) {
             To guess what comes next, the model looks back over everything written so far, and it
             does not look at every word equally.
           </p>
-          <div className="fl-enter" style={heroDelay}>
+          <div className="fl-hero fl-enter" style={heroDelay}>
             <AttnSpace trace={trace} prod={prod} />
           </div>
           <div className="fl-cap fl-enter" style={cDelay}>
@@ -176,7 +176,7 @@ export function StepStage(p: StepStageProps) {
             The model does not decide all at once. Its guess sharpens across {trace.layers} rounds
             of the same arithmetic, and you can watch it happen.
           </p>
-          <div className="fl-enter" style={heroDelay}>
+          <div className="fl-hero fl-enter" style={heroDelay}>
             <LensSpace trace={trace} prod={prod} onGuess={onClimbGuess} />
           </div>
           {climbTop && (
@@ -209,7 +209,7 @@ export function StepStage(p: StepStageProps) {
                   quoting a second share only reads as a rival to it. copy-script
                   rule 6 — silence is a valid state. The instrument states the draw
                   and the forcing itself. */}
-              <div className="fl-enter" style={heroDelay}>
+              <div className="fl-hero fl-enter" style={heroDelay}>
                 <DrawField sel={sel} chosenId={chosenId} pos={prod} />
               </div>
             </>
@@ -236,7 +236,7 @@ export function StepStage(p: StepStageProps) {
             The drawn token joins the sentence, and the whole thing runs again. That is all a
             language model does, one token at a time, for every word it has ever written.
           </p>
-          <div className="fl-enter" style={heroDelay}>
+          <div className="fl-hero fl-enter" style={heroDelay}>
             <LoopChain
               trace={trace}
               frontier={frontier}
