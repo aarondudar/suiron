@@ -446,9 +446,12 @@ button.busy { border-color: var(--red); color: var(--red); }
 .role-tag.role-cur { color: var(--red); }
 
 /* ---------- layer stack ---------- */
+/* the layer rows abut so their heat cells form one continuous grid: 28 layers
+   down, token positions across (2026-08-14). The 1px gap that used to separate
+   them turned the band's picture into 28 detached strips. */
 .row {
   display: flex; align-items: center; gap: var(--sp-3); cursor: pointer;
-  padding: 1px 0; transition: background 0.12s;
+  padding: 0; transition: background 0.12s;
 }
 .row:hover { background: #0e0e0e; }
 .row:hover .lnum { color: var(--ink); }
@@ -970,6 +973,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   display: flex; flex: 0 1 auto; min-width: 0;
   overflow-x: auto; overscroll-behavior-x: contain;
 }
+.row-dots canvas { display: block; }
 .lnum, .glance, .rn { flex-shrink: 0; }
 .tbl-scroll { overflow-x: auto; }
 

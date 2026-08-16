@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
 import { edgesToWeights, headGlance, layerGlance, litToken, meanHeadWeights, moments, q, settledSeq, type Marker } from "../lib";
 import type { FocusTarget, Step, Trace } from "../types";
-import { AttnSpace } from "./AttnSpace";
 import { BandHeader } from "./BandHeader";
-import { DotStrip } from "./DotStrip";
+import { HeatRow } from "./HeatRow";
 import { Explain } from "./Explainer";
 import { SUB } from "./Explanations";
 import { HeadField } from "./HeadField";
@@ -90,7 +89,7 @@ export function LayerStack({
                     </span>
                   )}
                 </div>
-                <DotStrip weights={edgesToWeights(edges, nPos)} nPos={nPos} />
+                <HeatRow weights={edgesToWeights(edges, nPos)} nPos={nPos} />
               </div>
             );
           })}
@@ -121,7 +120,7 @@ export function LayerStack({
       >
         <span className="lnum">{l}</span>
         <div className="row-dots" data-explain-el={"layer-dots-" + l}>
-          <DotStrip weights={meanHeadWeights(step, l, nPos)} nPos={nPos} />
+          <HeatRow weights={meanHeadWeights(step, l, nPos)} nPos={nPos} />
         </div>
         <span className="glance">
           {g && (
@@ -190,13 +189,15 @@ export function LayerStack({
           <LensSpace trace={trace} prod={nPos - 1} />
         </>
       ) : (
-        <>
-          <div className="label">
-            the read, drawn: every pull is this pass's real attention, summed over all{" "}
-            {trace.layers} layers and {trace.heads} heads
-          </div>
-          <AttnSpace trace={trace} prod={nPos - 1} />
-        </>
+        /* the ring that stood here drew this pass's attention "summed over all
+           28 layers and 16 heads" — which is exactly the column totals of the
+           grid below, and the same quantity band 01 already arcs over the real
+           sentence. Three renderings of one number; the grid is the one that
+           also shows depth, so it does the work alone now (2026-08-14). */
+        <div className="label">
+          layers down, positions across, brightness the real attention — open a layer for its
+          heads and math
+        </div>
       )}
       {outputMarker && <div className="moment-output">{outputMarker.label}</div>}
       <div onMouseLeave={() => setHover({ kind: "none" })}>{rows}</div>
