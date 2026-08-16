@@ -53,11 +53,12 @@ everyone else in the wings.
    viewport is a limit, not a target. In CSS terms: `max-height` plus a scroll
    region that is a flex child with `min-height: 0`, never `height`.
 
-   **The hero takes what the text tiers leave.** Not a `vh` fraction — two rounds
-   of tuning vh coefficients each fixed one window and broke another (34vh
-   starved a 1440px monitor; 40vh pushed the aside off an 800px one). The hero
-   flexes into the remainder after H, C and A have had theirs, with min/max as
-   sanity rails only. The aside is never what falls off the bottom.
+   **The hero is a clamp, and that follows from the above.** It was briefly a
+   flex-fill taking whatever the text tiers left, which is the right answer when
+   the panel is a fixed height — but a content-sized panel has no free space for
+   a flex child to claim, so fill collapses the frame to nothing. So: a `vh`
+   clamp, sized per instrument, since a bar needs less box than a spatial one.
+   Whatever the numbers, the aside is never what falls off the bottom.
 8. **Text tiers are legible tiers.** Any tier that carries words clears 4.5:1;
    `--faint` is hairlines and graphics only. Red as small text uses `--red-text`,
    red behind text uses `--red-deep` — `--red` itself stays the model's choice.
@@ -78,7 +79,12 @@ everyone else in the wings.
   last.
 
 ### step 2 — looks back
-- hero: the AttnSpace ring, pull-lines drawing once from '{cur_token}'.
+- hero: the attention drawn ON the sentence (AttnBars, design-35 pass 4) —
+  the words in the order they were written, each carrying its real share as
+  height. Superseded the AttnSpace ring, which put the weights in line
+  brightness and the words in a circle, so the step's own headline ("it does
+  not look at every word equally") was the one thing unreadable from it. The
+  first token is shown, labelled as parked spare attention, not dropped.
 - cast: THE MAP, first appearance. It gets its own intro beat, once: it draws
   itself left to right, then shrinks to the chrome tier, where it stays
   through step 4.
