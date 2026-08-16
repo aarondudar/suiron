@@ -146,7 +146,16 @@ export function ExpertLab() {
         return;
       }
       setChatOpen(v);
-      if (v) void stop(); // chat takes over the resident model
+      if (v) {
+        void stop(); // chat takes over the resident model
+        /* and it takes over the focus too. An open concept card dims every band
+           except its own (see dimFor), so opening chat underneath one left the
+           chat greyed out and looking inert, with the card's × the only way back
+           (Aaron, 2026-08-14). Chat is a panel like the others: opening it closes
+           them. */
+        setActive(null);
+        setOpenLayer(-1);
+      }
     },
     [trace?.demo],
   );
