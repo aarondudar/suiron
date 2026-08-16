@@ -37,14 +37,21 @@ everyone else in the wings.
 6. **Instruments speak only script.** An instrument may render only the
    I-slot strings in `copy-script.md`. Everything else it currently prints is
    removed.
-7. **The stage is the window.** (design-34, the fresh walk; amended 2026-08-14.)
-   The frame's height tracks the viewport in BOTH directions. It never grows past
-   it — a step taller than the window scrolls INSIDE the stage, exactly as a
-   drawer already does, so the dock and the foot, above all `continue`, are on
-   screen at every step. And it never stops short of it: the first cut capped the
-   panel at 800px, which meant a tall monitor scrolled a step it had ample room
-   to show. Before the rule, six of seven steps pushed the nav row below the fold
-   at 1280x720.
+7. **The stage takes what it needs, up to the window.** (design-34, the fresh
+   walk; amended twice on 2026-08-14.) The panel is sized by its CONTENT, with a
+   floor so a thin step does not look stunted and a ceiling at the viewport so
+   the dock and the foot — above all `continue` — stay on screen. A step taller
+   than the ceiling scrolls inside the stage, exactly as a drawer does. A drawer
+   raises the floor while it is open, since it opens into the stage and would
+   otherwise get only what the step happened to need.
+
+   Both wrong answers are on record. First the panel was capped at 800px, so a
+   tall monitor scrolled a step it had ample room to show. Then it was pinned to
+   `height: 100svh`, which fixed that by making every step fill the screen
+   whether it had anything to put there or not — Aaron: "some of them now have
+   too much whitespace on desktop". Height is a consequence of content; the
+   viewport is a limit, not a target. In CSS terms: `max-height` plus a scroll
+   region that is a flex child with `min-height: 0`, never `height`.
 
    **The hero takes what the text tiers leave.** Not a `vh` fraction — two rounds
    of tuning vh coefficients each fixed one window and broke another (34vh

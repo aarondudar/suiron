@@ -813,7 +813,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .fl-tickets {
   /* scales with the frame it sits in: a fixed height left the instrument box
      mostly empty on a tall monitor (2026-08-14) */
-  display: flex; width: 100%; height: clamp(70px, 42%, 210px); padding: 0 1px;
+  display: flex; width: 100%; height: clamp(80px, 58%, 165px); padding: 0 1px;
   border: 1px solid var(--hair); background: #0a0b0e; overflow: hidden;
 }
 .fl-tk {
@@ -1521,6 +1521,11 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
    open (940px) — dense instruments get the room, the lesson keeps its measure */
 .flow-wrap { max-width: 700px; margin: 0 auto; transition: max-width 0.25s ease; }
 .flow-wrap.wide { max-width: 940px; }
+/* a drawer opens INTO the stage, so it only gets what the step happened to
+   need. On a big screen that meant a thin step handed its drawer a cramped,
+   scrolling box with hundreds of pixels going spare — the floor lifts while one
+   is open, and the ceiling still applies (2026-08-14). */
+.flow-wrap.wide .flow { min-height: min(880px, calc(100svh - 76px)); }
 @media (prefers-reduced-motion: reduce) { .flow-wrap { transition: none; } }
 .flow {
   /* the tour's text tiers, lifted one step so every one of them clears the 4.5:1
@@ -1537,15 +1542,18 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   -webkit-backdrop-filter: blur(3px) saturate(1.1);
   border: 1px solid var(--hair); border-top: 2px solid var(--red);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 24px 60px -30px rgba(0, 0, 0, 0.9);
-  /* the panel IS the window (design-34, amended 2026-08-14). It fits so the dock
-     and the foot — above all `continue` — stay on screen at every step, and a
-     step taller than the window scrolls INSIDE the stage, as a drawer already
-     does. The first cut capped it at 800px, which meant a tall monitor scrolled
-     the stage with hundreds of pixels sitting empty below it; the height now
-     simply tracks the viewport. `min-height` is the floor for very short
-     windows, where a little page scroll beats a crushed stage. */
-  height: calc(100svh - 76px);
-  min-height: 480px;
+  /* Sized by its content, with a ceiling — not a fixed height (Aaron,
+     2026-08-14: "the box CAN use the full viewport height if it needs it,
+     otherwise just enough"). Setting `height: 100svh` made every step fill the
+     screen whether it had anything to put there or not, which is where the
+     desktop whitespace came from.
+     The floor stops a thin step looking stunted and keeps a drawer room to open
+     into; the ceiling keeps the dock and the foot — above all `continue` — on
+     screen, and a step taller than that scrolls INSIDE the stage, which works
+     because .fl-stage is a flex child with min-height:0 (without it, flex items
+     refuse to shrink below their content and the panel blows past the ceiling). */
+  min-height: min(620px, calc(100svh - 76px));
+  max-height: calc(100svh - 76px);
   display: flex; flex-direction: column;
 }
 /* nav-HUD corner brackets — starship-console framing (design-31) */
@@ -1616,9 +1624,16 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 /* only INSIDE the tour's hero does the frame fill what the text tiers leave;
    everywhere else it keeps the definite height set above */
-.fl-stage > .fl-hero .fl-space { height: auto; flex: 1 1 auto; min-height: 170px; max-height: 520px; }
-.fl-stage > .fl-hero .fl-space.fl-space-tall { max-height: 620px; }
-.fl-stage > .fl-hero .fl-space.fl-space-short { max-height: 340px; }
+/* the hero scales with the window but does not chase it: the panel is sized by
+   content now, so flex-fill has no free space to claim and would collapse the
+   frame to nothing */
+.fl-stage > .fl-hero .fl-space { height: clamp(200px, 30vh, 380px); }
+.fl-stage > .fl-hero .fl-space.fl-space-tall { height: clamp(230px, 34vh, 440px); }
+.fl-stage > .fl-hero .fl-space.fl-space-short { height: clamp(170px, 24vh, 300px); }
+/* a bar needs less box than a spatial instrument: at the shared height the draw
+   step sat 159px of content in a 380px frame, which is where most of the
+   remaining desktop whitespace was (2026-08-14) */
+.fl-stage > .fl-hero .fl-space.fl-space-draw { height: clamp(160px, 20vh, 250px); }
 
 /* the entrance order (docs/storyboard.md §3): on step entry the tiers rise in
    sequence — H, then a beat, then the hero plays once, then C, then A, then the
