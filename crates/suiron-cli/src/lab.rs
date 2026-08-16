@@ -234,6 +234,70 @@ pub fn serve(model_path: &str, port: u16) -> Result<(), Box<dyn std::error::Erro
                     }
                 }
             }
+            ("GET", "/api/v1/odds-table") => {
+                // (max, z) over a temperature grid, plus the top candidates'
+                // logits. A recording carries every candidate's logit already;
+                // the normalizer is the only thing it cannot reconstruct, so
+                // with this table the static demo's dial computes exact
+                // full-vocabulary shares client-side (design-35).
+                let (pos, _t, _ids) = parse_odds(&path);
+                let setup = {
+                    let st = shared.lock().unwrap();
+                    if st.busy {
+                        Err("busy")
+                    } else if pos >= st.tokens.len() {
+                        Err("bad pos")
+                    } else if let Some(cache) = &st.cache {
+                        let mut c = cache.clone();
+                        c.truncate(pos);
+                        Ok((c, st.tokens[pos].0, st.seq))
+                    } else {
+                        Err("nothing to inspect — generate first")
+                    }
+                };
+                match setup {
+                    Err(e) => respond(&mut s, "409 Conflict", "text/plain", e.as_bytes()),
+                    Ok((mut c, id, seq)) => {
+                        let mut lg = odds_logits.lock().unwrap();
+                        if lg.as_ref().map(|(s, p, _)| (*s, *p)) != Some((seq, pos)) {
+                            let mut obs = suiron_cli::machine::LensObserver::default();
+                            forward(&model, &mut c, id, Backend::F32, Some(&mut obs));
+                            let last = obs.residuals.last().map(|r| r.as_slice()).unwrap_or(&[]);
+                            *lg = Some((seq, pos, model.logits_from(last)));
+                        }
+                        let logits = &lg.as_ref().unwrap().2;
+                        // the grid both temperature dials step on: 0.05 to 2.00.
+                        // temp 0 is greedy and needs no normalizer.
+                        let mut zs = String::new();
+                        let mut max = 0.0f32;
+                        for k in 1..=40 {
+                            let t = k as f32 * 0.05;
+                            let (m, z) = model.norm_at(logits, t);
+                            max = m;
+                            if k > 1 {
+                                zs.push(',');
+                            }
+                            zs.push_str(&format!("{z:.6}"));
+                        }
+                        // the candidates a client might ask about, with their logits
+                        let mut idx: Vec<u32> = (0..logits.len() as u32).collect();
+                        idx.sort_unstable_by(|&a, &b| {
+                            logits[b as usize].total_cmp(&logits[a as usize])
+                        });
+                        idx.truncate(48);
+                        let cands: Vec<String> = idx
+                            .iter()
+                            .map(|&i| format!("[{i},{:.4}]", logits[i as usize]))
+                            .collect();
+                        let json = format!(
+                            "{{\"pos\":{pos},\"max\":{max:.4},\"t0\":0.05,\"dt\":0.05,\"z\":[{zs}],\"cand\":[{}]}}",
+                            cands.join(",")
+                        );
+                        drop(lg);
+                        respond(&mut s, "200 OK", "application/json", json.as_bytes());
+                    }
+                }
+            }
             ("GET", "/api/v1/source") => {
                 let name = path
                     .split_once("fn=")

@@ -289,13 +289,50 @@ export async function lens(pos: number, k: number): Promise<Lens> {
   return JSON.parse(await rpc<string>("lens", [pos, k])) as Lens;
 }
 
-/** Exact shares at one temperature. The recordings cannot carry every
- *  temperature, so demo mode has no answer — null, and the caller shows no
- *  number rather than a renormalized stand-in (design-34). */
+/** the recorded softmax normalizer for one position: `max` plus `z` over a
+ *  temperature grid, and every candidate's logit. Cached per position — these
+ *  are small and the dial reads them on every drag. */
+interface OddsTable {
+  max: number;
+  t0: number;
+  dt: number;
+  z: number[];
+  cand: [number, number][];
+}
+const oddsTables = new Map<number, Promise<OddsTable | null>>();
+
+/** Exact shares at one temperature, over the WHOLE vocabulary.
+ *
+ *  A recording has no engine to ask, but it does not need one: every
+ *  candidate's logit is in the trace, and the only missing piece is the
+ *  normalizer, which `make demo-data` now records over the grid both dials step
+ *  on. So the demo's temperature dial is live and exact rather than dead
+ *  (design-35). Off-grid temperatures snap to the nearest recorded step; temp 0
+ *  is greedy and needs no table. */
 export async function odds(pos: number, temp: number, ids: number[]): Promise<number[] | null> {
-  if (mode === "demo") return null;
-  const r = JSON.parse(await rpc<string>("odds", [pos, temp, ids])) as { p: number[] };
-  return r.p;
+  if (mode !== "demo") {
+    const r = JSON.parse(await rpc<string>("odds", [pos, temp, ids])) as { p: number[] };
+    return r.p;
+  }
+  let t = oddsTables.get(pos);
+  if (!t) {
+    t = demoJson<OddsTable>(`odds-table-${pos}.json`).catch(() => null);
+    oddsTables.set(pos, t);
+  }
+  const tbl = await t;
+  if (!tbl) return null;
+  const logit = new Map(tbl.cand);
+  if (temp <= 0) {
+    const best = tbl.cand[0]?.[0];
+    return ids.map((i) => (i === best ? 1 : 0));
+  }
+  const k = Math.min(tbl.z.length - 1, Math.max(0, Math.round((temp - tbl.t0) / tbl.dt)));
+  const z = tbl.z[k];
+  const tt = tbl.t0 + k * tbl.dt;
+  return ids.map((i) => {
+    const l = logit.get(i);
+    return l === undefined ? 0 : Math.exp((l - tbl.max) / tt) / z;
+  });
 }
 
 export async function neighbors(id: number, n: number): Promise<Neighbor[]> {

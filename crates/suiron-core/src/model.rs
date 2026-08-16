@@ -326,6 +326,26 @@ impl Model {
         w_out.matvec(&xn, Backend::F32)
     }
 
+    /// The softmax normalizer at `temp`, max-shifted: `Σ exp((l - max) / temp)`
+    /// over the WHOLE vocabulary, plus that max.
+    ///
+    /// This is the one number a recording cannot reconstruct. Every candidate's
+    /// logit is already in the trace, so with `(max, z)` in hand a client can
+    /// compute the exact full-vocabulary share of any candidate at that
+    /// temperature — which is what lets the static demo's temperature dial be
+    /// live and correct with no engine behind it (design-35).
+    pub fn norm_at(&self, logits: &[f32], temp: f32) -> (f32, f64) {
+        let max = logits.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+        if temp <= 0.0 {
+            return (max, 0.0);
+        }
+        let mut z = 0.0f64;
+        for &l in logits {
+            z += (((l - max) / temp) as f64).exp();
+        }
+        (max, z)
+    }
+
     /// The exact share each of `ids` holds at `temp`, over the whole vocabulary,
     /// from logits already in hand. Cheap: one pass of `exp` over the vocab.
     pub fn odds_from_logits(&self, logits: &[f32], temp: f32, ids: &[u32]) -> Vec<f32> {
