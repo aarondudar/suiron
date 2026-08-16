@@ -32,13 +32,11 @@ const f = (x: number) => x.toFixed(3);
    agree, and by how much — was not drawn at all. Aaron, 2026-08-10: "too
    difficult to parse in its current state."
 
-   Now three real lanes, one column per component: the query, the key, and their
-   product. Every bar is a live number and the sign is the direction from the
-   midline, so agreement is visible as two bars leaning the same way, and the
-   punchline the drawer already computed — that a handful of coordinates carry
-   the whole score — is the shape of the bottom lane rather than a sentence under
-   it. Columns left of the cursor are the sum so far; the product lane is tallest
-   because it is the one being argued about.
+   Now one column per component, its height the product of that component's query
+   and key, up where the two agree and down where they disagree. Every bar is a
+   live number, columns left of the cursor are the sum so far, and the punchline
+   the drawer already computed — that a handful of coordinates carry the whole
+   score — is the shape of the lane rather than a sentence under it.
 
    SVG, not canvas: nothing here animates (the stepper drives it), it stays crisp
    at any width, and unlike the canvas instruments it can actually be seen in a
@@ -70,7 +68,7 @@ function ComponentStrip({
   const H = 76;
   return (
     <svg className="dp-strip" viewBox={`0 0 ${n} ${H}`} preserveAspectRatio="none" role="img"
-      aria-label="each component's query value, key value, and their product">
+      aria-label="every component's query times key: up where the two agree, down where they disagree">
       {LANES.map((lane) => {
         const mid = lane.top + lane.half;
         return (
@@ -240,11 +238,13 @@ export function DotProduct({
 
   return (
     <div className="dotprod">
-      <div className="dp-title">
-        {part === "blend"
-          ? "then the blend: weights, and the head's read"
-          : "one real attention score, component by component"}
-      </div>
+      {/* the blend half titles itself ("then the blend: softmax turns the
+          scores into weights…") and the segmented control above already names
+          which half you are on, so a second heading here just said "then the
+          blend" twice in a row (2026-08-14) */}
+      {part !== "blend" && (
+        <div className="dp-title">one real attention score, component by component</div>
+      )}
 
       {!data ? (
         <div className="dp-status">loading the producing pass…</div>

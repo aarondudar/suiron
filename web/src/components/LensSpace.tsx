@@ -58,7 +58,7 @@ function ClimbChart({
         <g>
           <line className="cl-lock" x1={x(lockIdx)} y1={PAD.t} x2={x(lockIdx)} y2={CH - PAD.b} />
           <text className="cl-lock-lab" x={x(lockIdx) + 3} y={PAD.t + 7}>
-            takes the lead
+            locks on
           </text>
         </g>
       )}

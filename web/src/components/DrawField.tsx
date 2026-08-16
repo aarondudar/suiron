@@ -3,14 +3,20 @@ import { getOdds } from "../api";
 import { esc } from "../lib";
 import type { Sel } from "../types";
 
-/* "draws one", as an instrument (design-31): the surviving guesses float as a
-   cluster, each disc's area the softmax of its REAL logit at the current
-   temperature. Drag the dial and watch the odds reshape — at 0 the top disc
-   swallows the field (greedy), higher and the also-rans grow a real chance. The
-   token actually drawn on this run wears the red ring. Sizes are recomputed live
-   from the engine's own logits; the run's own temperature and draw are stated. */
+/* "draws one", as an instrument (design-31, rebuilt design-35): the hat the
+   step's copy describes, drawn as one whole divided. Each token's slice is its
+   real share of the WHOLE vocabulary at the current temperature, and the last
+   slice is everything the model did not shortlist — so the bar sums to 1 rather
+   than to whatever happened to be on screen. Drag the dial and watch the shares
+   redraw: at 0 one slice takes the bar (greedy), higher and the mass floods out
+   to the also-rans. The token this run drew wears the red. Every width comes
+   from the engine; the run's own temperature and draw are stated below.
 
-const MAX = 14; // discs shown (top survivors by logit)
+   It was a cluster of discs on a sphere: area was a real share, but where a disc
+   sat meant nothing, and the shares were renormalized over the fourteen shown,
+   which overstated every one of them. */
+
+const MAX = 14; // slices named individually (top survivors by logit); the rest is one slice
 
 export function DrawField({
   sel,
@@ -46,10 +52,6 @@ export function DrawField({
   const chosenW = chosenIdx >= 0 ? surv[chosenIdx].p : 0; // forced only: the recorded share
   const chosenTok = chosenIdx >= 0 ? esc(surv[chosenIdx].t) : "";
 
-  /* the true share, from the engine, over all 151,936 entries. `w` above stays
-     renormalized because the disc AREAS have to fill this field — but a
-     percentage in prose is a claim about the model, not about the picture, so
-     it only ever comes from here. Debounced: the dial fires a forward pass. */
   /* One request per temperature, not three. The read line used to ask for the
      chosen token's share on its own, which meant a second round trip for a number
      already inside `shares` below — and each round trip was a forward pass plus
@@ -193,14 +195,19 @@ export function DrawField({
           <span className="fl-temp-v">{temp.toFixed(2)}</span>
         </div>
       )}
+      {/* The old line explained that disc AREA was a share among the candidates
+          shown while the printed percentage was a share of the vocabulary — two
+          different measures needing reconciling. There are no discs now, and no
+          two measures: every slice width and the percentage above are the same
+          full-vocabulary share, so the reconciliation is deleted rather than
+          reworded (2026-08-14). What is left is the fact the picture cannot
+          state — what this run actually did. */}
       <div className="fl-space-honest">
         {forced ? (
-          <>disc area is the model's real share of the odds here · nothing was drawn at this position, you forced this token</>
+          <>nothing was drawn at this position — you forced this token</>
         ) : (
           <>
-            disc area is each candidate's share among the {surv.length} shown; the percentage above
-            is its share of the whole vocabulary — on this run it drew at temp{" "}
-            {sel.temp.toFixed(2)}
+            on this run it drew at temp {sel.temp.toFixed(2)}
             {sel.r == null ? " (greedy — the top by rule)" : `, landing at r = ${sel.r.toFixed(3)}`}
           </>
         )}
