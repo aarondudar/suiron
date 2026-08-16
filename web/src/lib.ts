@@ -89,6 +89,37 @@ export const N_PARAMS = 596_049_920
  *  nothing happened (design-34, the fresh walk). */
 export const DEFAULT_PROMPT = 'The capital of France is'
 
+/** the most telling token to anchor a neighbourhood on: prefer the answer the
+ *  model just produced (the last generated token), else the last contentful word
+ *  of the prompt (function words like "is" cluster with other function words).
+ *  Lived in TokenSpace.tsx, which nothing mounted — this was the only part of
+ *  that file anyone imported (design-35 cleanup). */
+export function pickAnchor(trace: Trace, promptOnly = false): number {
+  // step 1 has not told the reader a prediction happened yet, so its drawer
+  // anchors inside the prompt — landing on " Paris" there answered the question
+  // the tour spends four more steps building up to (design-34, the fresh walk)
+  if (promptOnly) {
+    const end = Math.max(0, trace.n_prompt - 1)
+    for (let i = end; i >= 0; i--) {
+      if (/[A-Za-z]{3,}/.test((trace.tokens[i]?.t ?? '').trim())) return i
+    }
+    return end
+  }
+  const last = trace.tokens.length - 1
+  // the produced answer (e.g. " Paris") is the most satisfying neighbourhood to
+  // show — but prefer the newest generated token that carries a letter (any
+  // script): a repetition-trap run can end on a comma, and a comma's
+  // neighbourhood teaches nothing
+  for (let i = last; i >= trace.n_prompt; i--) {
+    if (/\p{L}/u.test(trace.tokens[i]?.t ?? '')) return i
+  }
+  if (last >= trace.n_prompt) return last
+  for (let i = last; i >= 0; i--) {
+    if (/[A-Za-z]{3,}/.test((trace.tokens[i]?.t ?? '').trim())) return i
+  }
+  return Math.max(0, last)
+}
+
 /** One honest line per backend for the f32/q8 speed panels, from whatever has
  *  actually been measured: a live number, the demo's recorded number (labeled
  *  as such), or the truthful reason there is none. The wasm build never has an

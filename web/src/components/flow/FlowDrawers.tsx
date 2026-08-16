@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { esc, litToken, shadowTrace } from "../../lib";
+import { esc, litToken, pickAnchor, shadowTrace } from "../../lib";
 import type { ExplainCtx } from "../Explanations";
 import type { Trace } from "../../types";
 import { AttentionInteractive } from "../AttentionInteractive";
@@ -17,7 +17,6 @@ import { TopKDemo } from "../TopKDemo";
 import { TopPDemo } from "../TopPDemo";
 import { UnderHood } from "../UnderHood";
 import { UnembedDemo } from "../UnembedDemo";
-import { pickAnchor } from "../TokenSpace";
 import { NOOP_EXPLAINER } from "./parts";
 
 /* Every drawer body, in dock order (docs/design.md's map; copy from the script
