@@ -1581,6 +1581,11 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   flex: 1 1 auto; min-height: 0;
   display: flex; flex-direction: column; justify-content: center;
 }
+/* only INSIDE the tour's hero does the frame fill what the text tiers leave;
+   everywhere else it keeps the definite height set above */
+.fl-stage > .fl-hero .fl-space { height: auto; flex: 1 1 auto; min-height: 170px; max-height: 520px; }
+.fl-stage > .fl-hero .fl-space.fl-space-tall { max-height: 620px; }
+.fl-stage > .fl-hero .fl-space.fl-space-short { max-height: 340px; }
 
 /* the entrance order (docs/storyboard.md §3): on step entry the tiers rise in
    sequence — H, then a beat, then the hero plays once, then C, then A, then the
@@ -1789,8 +1794,10 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 .fl-space {
   position: relative; width: 100%;
-  /* fills the hero box; the bounds are sanity rails, not the layout */
-  flex: 1 1 auto; min-height: 170px; max-height: 520px;
+  /* a definite height by default, because the expert view hosts these same
+     instruments outside the tour's flex hero — without one, percentage-height
+     children (the ticket bar) collapse to nothing (2026-08-14) */
+  height: 320px;
   border: 1px solid var(--hair); border-top: 1px solid var(--hair-lit);
   background: radial-gradient(120% 120% at 50% 40%, #0a0b0e 0%, #050506 70%);
   overflow: hidden;
@@ -1814,8 +1821,8 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   max-width: 58ch; margin-top: var(--sp-2);
 }
 .fl-spacewrap .stepper-where { display: none; }
-.fl-space.fl-space-tall { max-height: 620px; }
-.fl-space.fl-space-short { max-height: 340px; }
+.fl-space.fl-space-tall { height: 380px; }
+.fl-space.fl-space-short { height: 240px; }
 
 /* short windows: spend less on rhythm and chrome so the step keeps ALL its tiers
    (design-34). The aside is the step's only definition — it must not be the thing
@@ -1914,6 +1921,12 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   background: #07080b;
   display: flex; flex-direction: column;
   padding: 22px 26px; overflow-y: auto;
+  /* the whole drawer — title and body together — sits centred in the panel it
+     fills. Top-aligned left a slab of dead space under the content once design-35
+     track C cut the score drawer from 3.4 screens to 1.6; centring the body alone
+     divorced the title from its prose. `safe center` keeps a tall drawer
+     top-aligned and scrolling exactly as before (2026-08-14). */
+  justify-content: safe center;
   animation: fl-drawer-in 0.18s ease;
 }
 @keyframes fl-drawer-in { from { opacity: 0; transform: translateY(18px); } }
@@ -1928,7 +1941,7 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
   font-family: var(--mono); font-size: var(--t-base); padding: 3px 11px; white-space: nowrap;
 }
 .fl-drawer-close:hover { border-color: var(--hair-lit); color: var(--ink); }
-.fl-drawer-body { flex: 1; }
+.fl-drawer-body { flex: 0 1 auto; min-height: 0; }
 .fl-stub { color: var(--dim); font-size: var(--t-base); line-height: 1.7; max-width: 52ch; }
 .fl-stub a { color: var(--dim); border-bottom: 1px dotted var(--faint); text-decoration: none; }
 .fl-stub a:hover { color: var(--ink); border-bottom-color: var(--ink); }

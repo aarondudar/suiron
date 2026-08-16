@@ -184,8 +184,8 @@ export function LayerStack({
       {lensActive ? (
         <>
           <div className="label">
-            the climb: what the model would guess if it stopped at each layer — the vector locks on
-            when the winner takes the lead
+            the climb: what the model would guess if it stopped at each layer — the winner's line
+            climbs as the layers resolve, and locks on where it crosses the rest
           </div>
           <LensSpace trace={trace} prod={nPos - 1} />
         </>
