@@ -2,7 +2,7 @@ import { DEFAULT_PROMPT, esc, N_PARAMS } from "../../lib";
 import { currentLink, encodeLink } from "../../link";
 import { EXPERIMENTS, type Experiment } from "../../experiments";
 import type { Step, Trace } from "../../types";
-import { AttnSpace } from "../AttnSpace";
+import { AttnBars } from "../AttnBars";
 import { DrawField } from "../DrawField";
 import { Epilogue } from "../Epilogue";
 import { ExplainerProvider } from "../Explainer";
@@ -153,14 +153,14 @@ export function StepStage(p: StepStageProps) {
             does not look at every word equally.
           </p>
           <div className="fl-hero fl-enter" style={heroDelay}>
-            <AttnSpace trace={trace} prod={prod} />
+            <div className="fl-space fl-space-attn"><AttnBars trace={trace} prod={prod} /></div>
           </div>
           <div className="fl-cap fl-enter" style={cDelay}>
-            {/* AttnSpace drops position 0 and renormalises over the rest — its own
-                comment said the sink was "called out in the caption", and it was
-                not. Faithful means saying what is not in the picture (design-34). */}
-            reading from “{esc(trace.tokens[prod]?.t ?? "")}” · the stronger the pull, the harder
-            it looks · the first word is left out, it soaks up spare attention
+            {/* the caveat that used to live here — "the first word is left out"
+                — is gone with the instrument that needed it: every word is on
+                screen now, the first one included (design-35 pass 4) */}
+            reading from “{esc(trace.tokens[prod]?.t ?? "")}” · the taller the bar, the harder it
+            looks
           </div>
           <div className="fl-note fl-enter" style={aDelay}>
             This looking back is called attention. It is the only part of the whole process where

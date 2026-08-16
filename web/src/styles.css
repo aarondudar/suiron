@@ -775,6 +775,36 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 .cl-lab { fill: var(--dim); font-size: 7.5px; }
 .cl-lab.win { fill: var(--red-text); }
 
+/* attention on the sentence (design-35 pass 4): words in the order you wrote
+   them, height = how hard the model looked at each. Both channels real. */
+.ab {
+  display: flex; align-items: flex-end; gap: 6px; width: 100%; height: 100%;
+  padding: var(--sp-3) var(--sp-2) var(--sp-2);
+}
+.ab-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; height: 100%; }
+.ab-pct {
+  color: var(--dim); font-size: var(--t-micro); font-variant-numeric: tabular-nums;
+  margin-bottom: 3px;
+}
+.ab-track { flex: 1 1 auto; width: 100%; display: flex; align-items: flex-end; min-height: 0; }
+.ab-bar {
+  width: 100%; background: #3a3a3a; min-height: 2px;
+  transition: height 0.25s ease;
+}
+/* the strongest word it looked back at — the one red thing here */
+.ab-bar.hot { background: var(--red); }
+/* the first token takes most of the looking because models park spare attention
+   there — shown, not hidden, and marked as the different thing it is */
+.ab-bar.sink { background: repeating-linear-gradient(135deg, #3a3a3a 0 4px, #262626 4px 8px); }
+.ab-bar.here { background: #262626; }
+.ab-tok {
+  color: var(--dim); font-size: var(--t-tiny); margin-top: 6px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.ab-tok.here { color: var(--ink); }
+.ab-note { color: var(--faint); font-size: var(--t-micro); margin-top: 2px; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .ab-bar { transition: none; } }
+
 /* the ticket bar (design-35): step 4's hero as one whole divided, so the copy's
    "share of tickets" is what the picture literally shows. Width is a real share
    of the whole vocabulary; the last slice is everything the model did not shortlist,
