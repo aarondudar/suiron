@@ -270,12 +270,26 @@ export function ExpertLab() {
     () => ({
       active,
       walk: walk !== null ? { index: walk, total: WALK.length } : null,
-      open: (id: string) => setActive(id),
+      /* opening one panel closes the other, so nothing has to be dismissed by
+         hand (Aaron, 2026-08-14). Only the USER-initiated paths are exclusive:
+         the walk pairs a concept with an opened layer on purpose and calls the
+         raw setters below, so it keeps both. */
+      open: (id: string) => {
+        setActive(id);
+        setOpenLayer(-1);
+      },
       close: () => setActive(null),
       setProgramFocus: setProgFocus,
     }),
     [active, walk],
   );
+
+  /** a layer opened by clicking a row closes any concept card that was open;
+      closing a row (-1) leaves the card alone */
+  const chooseLayer = (l: number) => {
+    setOpenLayer(l);
+    if (l >= 0) setActive(null);
+  };
 
   const safeCur = trace ? Math.min(cur, trace.tokens.length - 1) : 0;
   const step = trace && trace.tokens.length ? trace.steps[safeCur] : undefined;
@@ -713,7 +727,7 @@ export function ExpertLab() {
                 step={prodStep}
                 nPos={safeCur}
                 openLayer={openLayer}
-                setOpenLayer={setOpenLayer}
+                setOpenLayer={chooseLayer}
                 setHover={setHoverFocus}
                 focus={focus}
                 lensActive={active === "lens"}
