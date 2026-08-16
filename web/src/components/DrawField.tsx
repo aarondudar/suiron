@@ -97,11 +97,20 @@ export function DrawField({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [forced, pos, temp, sel.cand]);
 
-  const parts = forced ? surv.map((c) => c.p) : shares;
-  const shown = parts ? parts.reduce((a, b) => a + b, 0) : 0;
-  const rest = parts ? Math.max(0, 1 - shown) : 0;
-  // the read line's number is the chosen token's slice of the very same bar
-  const exact = parts && chosenIdx >= 0 ? (parts[chosenIdx] ?? null) : null;
+  /* A recording has no engine to ask, so `shares` never arrives there and the
+     bar would sit blank — which is exactly what the portfolio embed boots into
+     (2026-08-14). It falls back to the shares the trace recorded, but those are
+     normalized over the shortlisted candidates, not the vocabulary, so the two
+     things that would overclaim are withheld: no "everything else" slice, since
+     we do not know what is left, and no percentage in the read line. The bar's
+     relative shape is real either way. */
+  const recorded = surv.map((c) => c.p);
+  const exactKnown = !forced && shares !== null;
+  const parts = forced ? recorded : (shares ?? recorded);
+  const shown = parts.reduce((a, b) => a + b, 0);
+  const rest = exactKnown ? Math.max(0, 1 - shown) : 0;
+  // the read line's number is the chosen token's slice — only when it is exact
+  const exact = exactKnown && chosenIdx >= 0 ? (parts[chosenIdx] ?? null) : null;
 
   if (!ready)
     return (
@@ -121,8 +130,7 @@ export function DrawField({
             sums to 1. Was a cluster of discs on `sphereDirs`, where the loudest
             channel (where a disc sat) meant nothing at all. */}
         <div className="fl-tickets" role="img" aria-label="every token's share of the draw">
-          {parts ? (
-            <>
+          <>
               {surv.map((c, i) => (
                 <div
                   key={c.id}
@@ -133,17 +141,16 @@ export function DrawField({
                   <span className="fl-tk-lab">{esc(c.t)}</span>
                 </div>
               ))}
-              <div
-                className="fl-tk rest"
-                style={{ width: `${rest * 100}%` }}
-                title={`every other token · ${(rest * 100).toFixed(1)}%`}
-              >
-                <span className="fl-tk-lab">everything else</span>
-              </div>
+              {exactKnown && (
+                <div
+                  className="fl-tk rest"
+                  style={{ width: `${rest * 100}%` }}
+                  title={`every other token · ${(rest * 100).toFixed(1)}%`}
+                >
+                  <span className="fl-tk-lab">everything else</span>
+                </div>
+              )}
             </>
-          ) : (
-            <div className="fl-tk pending" style={{ width: "100%" }} />
-          )}
         </div>
         <div className="fl-space-ov fl-space-ctx">
           {forced ? "suiron · draws one · forced" : `suiron · draws one · temp ${temp.toFixed(2)}`}
@@ -207,6 +214,7 @@ export function DrawField({
           <>nothing was drawn at this position — you forced this token</>
         ) : (
           <>
+            {!exactKnown && "recorded shares, over the shortlisted tokens only · "}
             on this run it drew at temp {sel.temp.toFixed(2)}
             {sel.r == null ? " (greedy — the top by rule)" : `, landing at r = ${sel.r.toFixed(3)}`}
           </>
