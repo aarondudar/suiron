@@ -43,6 +43,24 @@ function ClimbChart({
   const y = (p: number) => CH - PAD.b - Math.max(0, Math.min(1, p)) * (CH - PAD.t - PAD.b);
   const probAt = (li: number, id: number) => layers[li].top.find(([t]) => t === id)?.[2] ?? 0;
   const lockIdx = lockAt === null ? -1 : layers.findIndex((L) => L.layer === lockAt);
+  /* The losing candidates all finish within a hair of 0%, so naming each line at
+     its own end height put three labels on the same pixel row, where they read as
+     one smear. Stack them upward off the floor instead: walk from the lowest label
+     up, and give each one either its true height or a font's clearance above the
+     label below it, whichever is higher on the chart. A label only ever moves when
+     something is already in its place, so the winner — alone up near 100% — keeps
+     sitting exactly on its own line, which is the whole point of labelling there.
+     LAB_GAP is the 7.5px font's em box (~1.2x) with a little air. */
+  const LAB_GAP = 9.5;
+  const labels = rows
+    .slice(0, 4)
+    .map((r, ki) => ({ id: r[0], ki, text: litToken(r[1]).text, y: y(probAt(last, r[0])) + 3 }))
+    .sort((a, b) => b.y - a.y);
+  let ceil = y(0) + 3;
+  for (const L of labels) {
+    L.y = Math.min(L.y, ceil);
+    ceil = L.y - LAB_GAP;
+  }
   return (
     <svg className="cl-chart" viewBox={`0 0 ${CW} ${CH}`} role="img"
       aria-label="each candidate's probability at every layer — the winner climbing to the top">
@@ -84,14 +102,14 @@ function ClimbChart({
         />
       ))}
       {/* name the lines at the right edge, where they end up */}
-      {rows.slice(0, 4).map((r, ki) => (
+      {labels.map((L) => (
         <text
-          key={r[0]}
-          className={"cl-lab" + (ki === 0 ? " win" : "")}
+          key={L.id}
+          className={"cl-lab" + (L.ki === 0 ? " win" : "")}
           x={CW - PAD.r + 4}
-          y={y(probAt(last, r[0])) + 3}
+          y={L.y}
         >
-          {litToken(r[1]).text}
+          {L.text}
         </text>
       ))}
       <text className="cl-tick" x={PAD.l} y={CH - 6}>
