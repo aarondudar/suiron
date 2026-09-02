@@ -107,7 +107,20 @@ export function DrawField({
   const recorded = surv.map((c) => c.p);
   const exactKnown = !forced && shares !== null;
   const parts = forced ? recorded : (shares ?? recorded);
-  const shown = parts.reduce((a, b) => a + b, 0);
+
+  /* A slice thinner than half a percent cannot be drawn. Its fill rounds away at
+     any bar width and only its 1px divider survives, so at temp 0 — where the dial
+     puts the whole draw on one token and the other twelve collapse to nothing — the
+     leftover dividers stacked into a grey stripe at the bar's right edge, a visible
+     mark standing for no quantity at all (2026-08-16). Drop those from the drawing
+     and let "everything else" carry them: absorbing what is not individually named
+     is already that slice's job, so the bar still sums to 1. The drawn token always
+     keeps its slice, whatever its share, because the red is the step's whole point. */
+  const EPS = 0.005;
+  const slices = surv
+    .map((c, i) => ({ c, i, part: parts[i] }))
+    .filter((s) => s.part >= EPS || s.i === chosenIdx);
+  const shown = slices.reduce((a, s) => a + s.part, 0);
   const rest = exactKnown ? Math.max(0, 1 - shown) : 0;
   // the read line's number is the chosen token's slice — only when it is exact
   const exact = exactKnown && chosenIdx >= 0 ? (parts[chosenIdx] ?? null) : null;
@@ -131,17 +144,17 @@ export function DrawField({
             channel (where a disc sat) meant nothing at all. */}
         <div className="fl-tickets" role="img" aria-label="every token's share of the draw">
           <>
-              {surv.map((c, i) => (
+              {slices.map(({ c, i, part }) => (
                 <div
                   key={c.id}
                   className={"fl-tk" + (i === chosenIdx ? (forced ? " forced" : " won") : "")}
-                  style={{ width: `${parts[i] * 100}%` }}
-                  title={`${esc(c.t)} · ${(parts[i] * 100).toFixed(1)}%`}
+                  style={{ width: `${part * 100}%` }}
+                  title={`${esc(c.t)} · ${(part * 100).toFixed(1)}%`}
                 >
                   <span className="fl-tk-lab">{esc(c.t)}</span>
                 </div>
               ))}
-              {exactKnown && (
+              {exactKnown && rest >= EPS && (
                 <div
                   className="fl-tk rest"
                   style={{ width: `${rest * 100}%` }}

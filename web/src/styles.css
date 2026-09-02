@@ -818,7 +818,15 @@ table.sel tr.cut td:first-child { text-decoration: line-through; color: var(--fa
 }
 .fl-tk {
   position: relative; min-width: 0; height: 100%;
-  border-right: 1px solid #0a0b0e; background: #303030;
+  /* The divider used to be the bar's own background (#0a0b0e), which is 1.49:1
+     against the #303030 fill and 2.13:1 against the won slice — so at real size
+     there was no visible edge anywhere, the eleven also-rans read as one grey
+     block, and the boundary carrying the headline share (where the won slice
+     ends) could not be located. A bar whose widths are exact but whose edges are
+     invisible does not show the number. #949494 is the lightest-touch value that
+     clears the 3:1 graphics bar (law 8 / WCAG 1.4.11) against BOTH fills it has
+     to separate: 4.36:1 on #303030, 3.06:1 on --red-deep. */
+  border-right: 1px solid #949494; background: #303030;
   transition: width 0.18s ease, background 0.18s ease;
 }
 /* the won slice carries a label, so it takes the deeper red: --bg on --red is
