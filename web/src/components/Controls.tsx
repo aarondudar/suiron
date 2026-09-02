@@ -222,7 +222,7 @@ export function BackendToggle({
   return (
     <div
       className={"seg" + (disabled ? " seg-dim" : "")}
-      title="weight arithmetic backend"
+      title="the path that generates a token — the numbers the lab shows you are always the f32 reference"
       data-explain-el="ctl-backend"
     >
       {(["f32", "q8"] as Backend[]).map((b) => (

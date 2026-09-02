@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { generate, getTrace, playDemo, stop } from "../api";
+import { generate, getTrace, inspectPath, playDemo, stop } from "../api";
 import { Controls } from "./Controls";
 import { ConceptCard } from "./ConceptCard";
 import { EmptyState } from "./EmptyState";
@@ -564,7 +564,11 @@ export function ExpertLab() {
           <div className="brand">suiron</div>
           <div className="spec" data-explain-el="spec">
             <Explain of="model">
-              {trace.model.toLowerCase()} · {trace.quant} · {trace.layers} layers · {trace.heads}h/
+              {trace.model.toLowerCase()} · {trace.quant} file ·{" "}
+              <span style={{ whiteSpace: "nowrap" }}>
+                {inspectPath(!!trace.demo)} numbers
+              </span>{" "}
+              · {trace.layers} layers · {trace.heads}h/
               {trace.kv_heads}kv ·{" "}
               <span style={{ whiteSpace: "nowrap" }}>
                 {trace.n_prompt} prompt + {Math.max(0, trace.tokens.length - trace.n_prompt)}{" "}

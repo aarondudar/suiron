@@ -70,8 +70,14 @@ One screen, four bands. Scrubbing the token strip re-renders everything below.
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-1. **Header** — model identity as a spec line (name · quant · geometry), current
-   position. The lone red dot ● is the "recording/live" indicator.
+1. **Header** — model identity as a spec line (name · storage quant · the compute
+   path the displayed numbers came from · geometry), current position. The lone red
+   dot ● is the "recording/live" indicator. The quant and the path are two different
+   facts and the line has to keep them apart: the weights ship as q8_0 either way,
+   while the numbers on screen are the f32 reference on the native lab and in the
+   recording, and q8 once a browser goes live (the lean wasm model carries no f32
+   weights to compute with). Reads "q8_0 file · f32 numbers". The mockup above
+   predates this field.
 2. **Token strip** — the prompt as bordered monospace cells; generated tokens
    append live. Current token red. This is the scrubber: click or arrow-key
    through positions, everything below follows.

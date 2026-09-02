@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { IS_WASM } from '../api'
+import { IS_WASM, inspectPath } from '../api'
 import { EXPERIMENTS, type Experiment } from '../experiments'
 import { N_PARAMS, raceLine, raceSpeedup } from '../lib'
 import type { Trace } from '../types'
@@ -34,9 +34,21 @@ function SpeedRace({ trace }: { trace: Trace }) {
   return (
     <div className="epi-race">
       <p className="epi-race-lead">
-        One of them runs right here. Every number this lab computed used <b>quantized</b>{' '}
-        weights — the q8 path below — and the engine's tests pin its answers argmax-identical
-        to the f32 reference. The only difference left is how many bytes each token reads:
+        One of them runs right here.{' '}
+        {inspectPath(demo) === 'q8' ? (
+          <>
+            This browser build computes everything on the <b>q8</b> path — the token it drew and
+            every number you have been reading — and the engine's tests pin its answers
+            argmax-identical to the f32 reference.
+          </>
+        ) : (
+          <>
+            Every number you have been reading came off the <b>f32</b> reference path. The f32/q8
+            toggle picks the path that <i>generates</i> a token, not the path the lab measures it
+            with, and the engine's tests pin the two argmax-identical.
+          </>
+        )}{' '}
+        The only difference left is how many bytes each token reads:
         {bothMeasured && <span className="epi-tag here">measured, not described</span>}
       </p>
       <div className="q-cards">

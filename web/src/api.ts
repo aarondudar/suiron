@@ -14,6 +14,23 @@ const WASM = import.meta.env.VITE_BACKEND === "wasm";
  *  native lab (the f32 reference toggle) checks this and stays honest. */
 export const IS_WASM = WASM;
 
+/** Which compute path produced the numbers the microscope is DISPLAYING — a
+ *  different question from which path generated the token, which is what
+ *  `trace.backend` reports. One field was answering both and they disagree:
+ *  `lab.rs` hardcodes Backend::F32 on all four inspection endpoints ("deep
+ *  inspection always uses the f32 reference math"), while the wasm build
+ *  hardcodes Backend::Q8 because the lean model it ships carries no f32 weights
+ *  to compute with. So the shipped recording is a hybrid — generated on q8,
+ *  every lens/attention/odds number in it read off the native f32 path — and it
+ *  reports backend "q8", which had the scale outro telling every visitor that
+ *  numbers they were looking at came from a path that never touched them
+ *  (2026-09-02). Determined entirely by the surface, so it lives in one place:
+ *  a recording is always native f32 numbers, a live browser is always q8, and
+ *  the native lab is f32 whichever way its toggle is set. */
+export function inspectPath(demo: boolean): "f32" | "q8" {
+  return WASM && !demo ? "q8" : "f32";
+}
+
 /** demo mode only: replay the shipped recording from its first token
  *  (no-op on the native lab, which is always live) */
 export function playDemo(): void {
