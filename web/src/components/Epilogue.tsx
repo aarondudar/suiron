@@ -176,7 +176,7 @@ export function Epilogue({
         <p className="epi-body">
           A coding agent, including the assistant that may have helped build this, is the{' '}
           <Explain of="loop">loop you just watched</Explain>: score the vocabulary, draw one token,
-          append it, repeat. Three things wrap that loop, all outside the model.
+          append it, repeat. Two things wrap that loop, both outside the model.
         </p>
         <ul className="epi-list">
           <li>
